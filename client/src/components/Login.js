@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import {
-  Form,
-  Input,
-  Button,
-  Typography,
-  Modal,
-  Space,
-} from 'antd';
-import '../styles/Dice.css'; // Floating dice styles
-import '../styles/Login.css'; // Login form styles
+import { Form, Input, Button, Typography, Modal, Space } from 'antd';
+import '../styles/Auth.css';
 
 const { Title, Text } = Typography;
 
@@ -46,17 +38,16 @@ function Login() {
     setIsModalVisible(false);
   };
 
-  // Generate floating dice
-  const diceArray = Array.from({ length: 10 }, (_, index) => (
-    <div key={index} className="dice"></div>
-  ));
-
   return (
-    <div className="login-page">
-      <div className="dice-container">{diceArray}</div>
+    <div className="auth-page">
+      <div className="dice-container">
+        {Array.from({ length: 10 }, (_, index) => (
+          <div key={index} className="dice"></div>
+        ))}
+      </div>
       <Space
         direction="vertical"
-        className="login-space"
+        className="auth-space"
         style={{
           display: 'flex',
           justifyContent: 'center',
@@ -64,20 +55,8 @@ function Login() {
           height: '100vh',
         }}
       >
-        <div className="login-container">
-          <Title
-            level={1}
-            style={{
-              textAlign: 'center',
-              color: '#FF4500',
-              fontWeight: 'bold',
-              marginBottom: '16px',
-              fontSize: '3rem',
-            }}
-          >
-            Welcome to Yahtzee!
-          </Title>
-
+        <div className="auth-container">
+          <Title>Welcome to Yahtzee!</Title>
           <Title level={3} style={{ textAlign: 'left', color: 'red' }}>
             Login to start playing!
           </Title>
@@ -103,17 +82,7 @@ function Login() {
               <Input.Password placeholder="Enter your password" />
             </Form.Item>
             <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                block
-                style={{
-                  backgroundColor: '#FF4500',
-                  borderColor: '#FF4500',
-                  color: '#FFFFFF',
-                }}
-              >
+              <Button type="primary" htmlType="submit" loading={loading}>
                 Login
               </Button>
             </Form.Item>
@@ -123,17 +92,13 @@ function Login() {
             <Button
               type="link"
               onClick={() => (window.location.href = '/signup')}
-              style={{
-                color: '#FF4500',
-              }}
+              className="link-button"
             >
               Sign Up
             </Button>
           </Text>
         </div>
       </Space>
-
-      {/* Error Modal */}
       <Modal
         title={<span style={{ color: '#FF4500' }}>Login Failed</span>}
         visible={isModalVisible}

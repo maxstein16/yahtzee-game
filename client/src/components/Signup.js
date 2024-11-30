@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Typography, Modal, Space } from 'antd';
-import '../styles/Dice.css';
-import '../styles/Signup.css';
+import '../styles/Auth.css';
 
 const { Title, Text } = Typography;
 
@@ -42,7 +41,7 @@ function Signup() {
   };
 
   return (
-    <div className="signup-page">
+    <div className="auth-page">
       <div className="dice-container">
         {Array.from({ length: 10 }, (_, index) => (
           <div key={index} className="dice"></div>
@@ -50,26 +49,10 @@ function Signup() {
       </div>
       <Space
         direction="vertical"
-        className="signup-space"
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
+        className="auth-space"
       >
-        <div className="signup-container">
-          <Title
-            level={2}
-            style={{
-              textAlign: 'center',
-              color: '#FF4500',
-              fontWeight: 'bold',
-              marginBottom: '16px',
-            }}
-          >
-            Sign Up
-          </Title>
+        <div className="auth-container">
+          <Title>Sign Up</Title>
           <Form form={form} layout="vertical" onFinish={handleSignup}>
             <Form.Item
               label="Name"
@@ -120,34 +103,19 @@ function Signup() {
               <Input.Password placeholder="Confirm your password" />
             </Form.Item>
             <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                block
-                style={{
-                  backgroundColor: '#FF4500',
-                  borderColor: '#FF4500',
-                  color: '#FFFFFF',
-                }}
-              >
+              <Button type="primary" htmlType="submit">
                 Sign Up
               </Button>
             </Form.Item>
           </Form>
         </div>
       </Space>
-
-      {/* Success Modal */}
       <Modal
         title="Signup Successful"
         visible={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={[
-          <Button
-            key="login"
-            type="primary"
-            onClick={() => (window.location.href = '/')}
-          >
+          <Button key="login" type="primary" onClick={() => (window.location.href = '/')}>
             Go to Login
           </Button>,
         ]}
