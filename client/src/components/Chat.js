@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button, List, message } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import * as API from '../utils/api';
-import { initializeWebSocket } from '../utils/websocketService';
+import { initializeWebSocket } from '../services/websocketService';
 
 function Chat({ gameId, playerId }) {
   const [messages, setMessages] = useState([]);
