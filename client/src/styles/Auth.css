@@ -1,3 +1,4 @@
+/* Shared Page Styling */
 .auth-page {
     display: flex;
     justify-content: center;
@@ -21,53 +22,6 @@
     position: relative;
   }
   
-  /* Form Header Styling */
-  .auth-container h1 {
-    font-size: 2rem;
-    color: #ff4500; /* Bright orange */
-    margin-bottom: 20px;
-    text-align: center;
-    font-weight: bold;
-  }
-  
-  /* Input Fields */
-  .auth-container input {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 16px;
-  }
-  
-  /* Buttons */
-  .auth-container button {
-    background-color: #ff4500;
-    color: #ffffff;
-    padding: 12px;
-    font-size: 16px;
-    font-weight: bold;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    width: 100%;
-  }
-  
-  .auth-container button:hover {
-    background-color: #cc3700;
-  }
-  
-  /* Link Button */
-  .auth-container .link-button {
-    color: #ff4500;
-    text-align: center;
-    display: block;
-    margin-top: 10px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  
   /* Floating Dice */
   .dice-container {
     position: absolute;
@@ -85,16 +39,57 @@
     background-color: #ffffff;
     border-radius: 5px;
     position: absolute;
-    animation: float 5s infinite ease-in-out;
+    animation: floatDice 10s linear infinite;
     box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.2);
   }
   
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0);
+  /* Keyframes for Floating Dice Movement */
+  @keyframes floatDice {
+    0% {
+      transform: translate(0, 0);
+    }
+    25% {
+      transform: translate(100px, -50px);
     }
     50% {
-      transform: translateY(-20px);
+      transform: translate(0, -100px);
     }
+    75% {
+      transform: translate(-100px, -50px);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+  
+  /* Randomly position dice */
+  .dice:nth-child(1) {
+    top: 10%;
+    left: 10%;
+    animation-duration: 12s;
+  }
+  
+  .dice:nth-child(2) {
+    top: 20%;
+    left: 70%;
+    animation-duration: 14s;
+  }
+  
+  .dice:nth-child(3) {
+    top: 50%;
+    left: 40%;
+    animation-duration: 11s;
+  }
+  
+  .dice:nth-child(4) {
+    top: 70%;
+    left: 20%;
+    animation-duration: 13s;
+  }
+  
+  .dice:nth-child(5) {
+    top: 80%;
+    left: 60%;
+    animation-duration: 10s;
   }
   
