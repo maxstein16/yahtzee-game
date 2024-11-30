@@ -1,31 +1,58 @@
 const API_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app/api';
 
-export const login = async (credentials) => {
-  const response = await fetch(`${API_BASE_URL}/players/login`, {
-    method: 'POST',
+// Helper function to handle API requests
+const apiRequest = async (endpoint, method = 'GET', body = null) => {
+  const options = {
+    method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Invalid credentials');
+  };
+  if (body) {
+    options.body = JSON.stringify(body);
   }
 
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'An error occurred');
+  }
   return response.json();
 };
 
-export const register = async (userData) => {
-  const response = await fetch(`${API_BASE_URL}/players/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
+// Authentication
+export const login = async (credentials) => apiRequest('/players/login', 'POST', credentials);
+
+export const register = async (userData) => apiRequest('/players/register', 'POST', userData);
+
+// Game Management
+export const createGame = (status = 'pending', round = 0) =>
+  apiRequest('/game', 'POST', { status, round });
+
+export const getGameById = (gameId) => apiRequest(`/game/${gameId}`);
+
+export const updateGame = (gameId, status, round) =>
+  apiRequest(`/game/${gameId}`, 'PUT', { status, round });
+
+export const deleteGame = (gameId) => apiRequest(`/game/${gameId}`, 'DELETE');
+
+export const startGame = (gameId) =>
+  apiRequest(`/game/${gameId}/start`, 'PUT');
+
+// Chat Management
+export const getChatMessages = (gameId) => apiRequest(`/game/${gameId}/chat`);
+
+export const sendMessage = (gameId, playerId, message) =>
+  apiRequest(`/game/${gameId}/chat`, 'POST', { player_id: playerId, message });
+
+// Turn Management
+export const rollDice = (gameId, currentDice, keepIndices) =>
+  apiRequest(`/game/${gameId}/roll`, 'POST', { currentDice, keepIndices });
+
+export const submitTurn = (gameId, playerId, categoryId, score) =>
+  apiRequest(`/game/${gameId}/turn`, 'PUT', {
+    player_id: playerId,
+    category_id: categoryId,
+    score,
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Signup failed');
-  }
-
-  return response.json();
-};
+// Players in Game
+export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);

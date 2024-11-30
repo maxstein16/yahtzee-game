@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layout,
   Typography,
@@ -7,85 +7,141 @@ import {
   Menu,
   Space,
   message,
+  Modal,
 } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import '../styles/Lobby.css';
-import '../styles/diceGame.css'; // Import dice styles for game
-import Dice from '../components/Dice'; // Dice component (to display rolling dice)
-import { rollDice } from '../services/diceService'; // API service to roll dice
-import { calculateScores } from '../services/scoreboardService'; // Service for scoreboard calculations
+import '../styles/diceGame.css';
+import Dice from '../components/Dice';
+import ChatComponent from '../components/ChatComponent';
+import * as API from '../utils/api';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
 function Lobby() {
   const [mode, setMode] = useState('singleplayer');
-  const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]); // Dice values
-  const [selectedDice, setSelectedDice] = useState([]); // Tracks selected dice
+  const [gameId, setGameId] = useState(null);
+  const [currentPlayer, setCurrentPlayer] = useState(null);
+  const [players, setPlayers] = useState([]);
+  const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
+  const [selectedDice, setSelectedDice] = useState([]);
   const [scores, setScores] = useState({});
-  const [rollCount, setRollCount] = useState(0); // Roll count
-  const [isRolling, setIsRolling] = useState(false); // Flag for rolling dice animation
+  const [rollCount, setRollCount] = useState(0);
+  const [isRolling, setIsRolling] = useState(false);
+  const [isChatVisible, setIsChatVisible] = useState(false);
+
+  useEffect(() => {
+    // Initialize game when component mounts or mode changes
+    initializeGame();
+  }, [mode]);
+
+  const initializeGame = async () => {
+    try {
+      // Determine if single or multiplayer
+      const gameStatus = mode === 'singleplayer' ? 'pending' : 'waiting';
+      
+      // Create a new game
+      const newGame = await API.createGame(gameStatus);
+      setGameId(newGame.game_id);
+
+      // If multiplayer, you might want to add a player invitation logic here
+      if (mode === 'multiplayer') {
+        // Optional: Open a modal to invite players or join a game
+        message.info('Waiting for other players to join...');
+      }
+    } catch (error) {
+      message.error('Failed to create game: ' + error.message);
+    }
+  };
 
   const rollDiceHandler = async () => {
+    if (!gameId) {
+      message.warning('Game not initialized.');
+      return;
+    }
+
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
       return;
     }
 
-    setIsRolling(true); // Start rolling animation
-    setTimeout(async () => {
-      try {
-        const keepIndices = selectedDice; // Keep selected dice
-        const result = await rollDice('12345', diceValues, keepIndices); // Replace '12345' with real game ID
-        setDiceValues(result.dice); // Update dice with new values
-        setScores(calculateScores(result.dice)); // Update scores dynamically
-        setRollCount(result.rollCount); // Update roll count from API
-      } catch (error) {
-        message.error('Error rolling dice. Please try again.');
-      } finally {
-        setIsRolling(false); // Stop rolling animation
-      }
-    }, 1000);
+    setIsRolling(true);
+    try {
+      const keepIndices = selectedDice;
+      const result = await API.rollDice(gameId, diceValues, keepIndices);
+      
+      setDiceValues(result.dice);
+      // Note: You'll need to implement calculateScores separately
+      setScores(calculateScores(result.dice));
+      setRollCount(result.rollCount);
+    } catch (error) {
+      message.error('Error rolling dice: ' + error.message);
+    } finally {
+      setIsRolling(false);
+    }
   };
 
-  const toggleDiceSelection = (index) => {
-    setSelectedDice((prev) =>
-      prev.includes(index)
-        ? prev.filter((i) => i !== index) // Deselect dice
-        : [...prev, index] // Select dice
-    );
-  };
+  const handleScoreCategoryClick = async (category) => {
+    if (!gameId || !currentPlayer) {
+      message.warning('Game or player not set.');
+      return;
+    }
 
-  const handleScoreCategoryClick = (category) => {
     if (scores[category] === undefined) {
       message.warning('Select a dice combination first.');
       return;
     }
 
-    setScores((prev) => ({
-      ...prev,
-      [category]: scores[category],
-    }));
-
-    setDiceValues([1, 1, 1, 1, 1]); // Reset dice for the next turn
-    setSelectedDice([]);
-    setRollCount(0);
-    message.success(`${category} score saved!`);
+    try {
+      // Submit turn to the backend
+      await API.submitTurn(gameId, currentPlayer.player_id, category, scores[category]);
+      
+      // Reset game state
+      setDiceValues([1, 1, 1, 1, 1]);
+      setSelectedDice([]);
+      setRollCount(0);
+      message.success(`${category} score saved!`);
+    } catch (error) {
+      message.error('Failed to submit turn: ' + error.message);
+    }
   };
 
-  const handleNewGame = (gameType) => {
+  const toggleDiceSelection = (index) => {
+    setSelectedDice((prev) =>
+      prev.includes(index)
+        ? prev.filter((i) => i !== index)
+        : [...prev, index]
+    );
+  };
+
+  const handleNewGame = async (gameType) => {
     setMode(gameType);
-    setDiceValues([1, 1, 1, 1, 1]); // Reset dice
-    setSelectedDice([]); // Reset selected dice
-    setScores({}); // Reset scores
-    setRollCount(0); // Reset roll count
+    // Game initialization is now handled in useEffect
+    
+    // Reset all game states
+    setDiceValues([1, 1, 1, 1, 1]);
+    setSelectedDice([]);
+    setScores({});
+    setRollCount(0);
+    
     message.success(`New ${gameType === 'singleplayer' ? 'Single Player' : 'Multiplayer'} game started!`);
+  };
+
+  const calculateScores = (dice) => {
+    // Implement scoring logic
+    // This is a placeholder - you'll need to create actual scoring rules
+    return {};
   };
 
   const menu = (
     <Menu>
-      <Menu.Item onClick={() => handleNewGame('singleplayer')}>New Single Player</Menu.Item>
-      <Menu.Item onClick={() => handleNewGame('multiplayer')}>New Multiplayer</Menu.Item>
+      <Menu.Item onClick={() => handleNewGame('singleplayer')}>
+        New Single Player
+      </Menu.Item>
+      <Menu.Item onClick={() => handleNewGame('multiplayer')}>
+        New Multiplayer
+      </Menu.Item>
     </Menu>
   );
 
@@ -111,6 +167,11 @@ function Lobby() {
           >
             Multiplayer
           </Button>
+          {mode === 'multiplayer' && (
+            <Button onClick={() => setIsChatVisible(true)}>
+              Chat
+            </Button>
+          )}
         </Space>
       </Header>
 
@@ -143,7 +204,9 @@ function Lobby() {
               />
             ))}
           </div>
-          <div className="player-name">{/* Display player name dynamically */}Current Player: Max</div>
+          <div className="player-name">
+            Current Player: {currentPlayer ? currentPlayer.name : 'Not assigned'}
+          </div>
         </div>
 
         {/* Scoreboard */}
@@ -180,17 +243,29 @@ function Lobby() {
         </div>
       </Content>
 
-      {/* Roll Dice Button Outside the Game Board */}
+      {/* Roll Dice Button */}
       <div style={{ textAlign: 'center', marginTop: '20px' }}>
         <Button
           type="primary"
           style={{ marginTop: '20px' }}
           onClick={rollDiceHandler}
+          disabled={!gameId}
         >
           Roll Dice
         </Button>
         <Text style={{ marginTop: '10px' }}>Roll Count: {rollCount}/3</Text>
       </div>
+
+      {/* Chat Modal for Multiplayer */}
+      <Modal
+        title="Game Chat"
+        visible={isChatVisible && mode === 'multiplayer'}
+        onCancel={() => setIsChatVisible(false)}
+        footer={null}
+        width={400}
+      >
+        <ChatComponent gameId={gameId} />
+      </Modal>
     </Layout>
   );
 }
