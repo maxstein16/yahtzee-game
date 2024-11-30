@@ -31,13 +31,27 @@ function Lobby() {
   const [isRolling, setIsRolling] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(false);
 
+  // Fetch current player data from DB
   useEffect(() => {
-    const player = JSON.parse(localStorage.getItem('player'));
-    if (player) {
-      setCurrentPlayer(player);
-    }
+    const fetchCurrentPlayer = async () => {
+      try {
+        const playerId = sessionStorage.getItem('playerId'); // Only store ID in session
+        if (!playerId) {
+          throw new Error('No player ID found');
+        }
+
+        const playerData = await API.getPlayerById(playerId);
+        setCurrentPlayer(playerData);
+      } catch (error) {
+        console.error('Error fetching player:', error);
+        message.error('Failed to load player data');
+      }
+    };
+
+    fetchCurrentPlayer();
   }, []);
 
+  // Initialize game when player data is loaded
   useEffect(() => {
     if (currentPlayer) {
       initializeGame();
@@ -137,7 +151,6 @@ function Lobby() {
   const handleNewGame = (gameType) => {
     setMode(gameType);
     resetTurnState();
-    message.success(`New ${gameType} game initiated.`);
   };
 
   const calculateScores = (dice) => {
@@ -184,29 +197,36 @@ function Lobby() {
   return (
     <Layout style={{ height: '100vh' }}>
       <Header className="top-nav" style={{ background: '#FF4500', padding: '0 20px' }}>
-        <Space>
-          <Dropdown overlay={menu} trigger={['click']}>
-            <Button>
-              New Game <DownOutlined />
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <Dropdown overlay={menu} trigger={['click']}>
+              <Button>
+                New Game <DownOutlined />
+              </Button>
+            </Dropdown>
+            <Button
+              type={mode === 'singleplayer' ? 'primary' : 'default'}
+              onClick={() => handleNewGame('singleplayer')}
+            >
+              Single Player
             </Button>
-          </Dropdown>
-          <Button
-            type={mode === 'singleplayer' ? 'primary' : 'default'}
-            onClick={() => handleNewGame('singleplayer')}
-          >
-            Single Player
-          </Button>
-          <Button
-            type={mode === 'multiplayer' ? 'primary' : 'default'}
-            onClick={() => handleNewGame('multiplayer')}
-          >
-            Multiplayer
-          </Button>
-          {mode === 'multiplayer' && (
-            <Button onClick={() => setIsChatVisible(true)}>
-              Chat
+            <Button
+              type={mode === 'multiplayer' ? 'primary' : 'default'}
+              onClick={() => handleNewGame('multiplayer')}
+            >
+              Multiplayer
             </Button>
-          )}
+            {mode === 'multiplayer' && (
+              <Button onClick={() => setIsChatVisible(true)}>
+                Chat
+              </Button>
+            )}
+          </Space>
+          <Space>
+            <span style={{ color: 'white' }}>
+              {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
+            </span>
+          </Space>
         </Space>
       </Header>
 
@@ -235,7 +255,7 @@ function Lobby() {
             ))}
           </div>
           <div className="player-name">
-            Current Player: {currentPlayer?.name || 'Not assigned'}
+            Current Player: {currentPlayer?.name || 'Loading...'}
           </div>
         </div>
 

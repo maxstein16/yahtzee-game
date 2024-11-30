@@ -56,3 +56,5 @@ export const submitTurn = (gameId, playerId, categoryId, score) =>
 
 // Players in Game
 export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);
+
+export const getPlayerById = (playerId) => apiRequest(`/players/${playerId}`);
