@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Typography, Modal, Space } from 'antd';
 import '../styles/Auth.css';
+import '../styles/Dice.css';
 
 const { Title, Text } = Typography;
 
