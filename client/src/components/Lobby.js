@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import '../styles/Lobby.css';
 import '../styles/diceGame.css';
 import Dice from '../components/Dice';
@@ -20,6 +21,7 @@ const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
 function Lobby() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState('singleplayer');
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
@@ -31,25 +33,31 @@ function Lobby() {
   const [isRolling, setIsRolling] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(false);
 
-  // Fetch current player data from DB
+  // Fetch current player data and check authentication
   useEffect(() => {
     const fetchCurrentPlayer = async () => {
       try {
-        const playerId = sessionStorage.getItem('playerId'); // Only store ID in session
-        if (!playerId) {
-          throw new Error('No player ID found');
+        const token = localStorage.getItem('token');
+        const playerId = localStorage.getItem('playerId');
+        
+        if (!token || !playerId) {
+          navigate('/login');
+          return;
         }
 
         const playerData = await API.getPlayerById(playerId);
         setCurrentPlayer(playerData);
       } catch (error) {
         console.error('Error fetching player:', error);
-        message.error('Failed to load player data');
+        message.error('Session expired. Please login again');
+        localStorage.removeItem('token');
+        localStorage.removeItem('playerId');
+        navigate('/login');
       }
     };
 
     fetchCurrentPlayer();
-  }, []);
+  }, [navigate]);
 
   // Initialize game when player data is loaded
   useEffect(() => {
@@ -57,6 +65,12 @@ function Lobby() {
       initializeGame();
     }
   }, [mode, currentPlayer]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('playerId');
+    navigate('/login');
+  };
 
   const initializeGame = async () => {
     if (!currentPlayer) return;
@@ -226,6 +240,9 @@ function Lobby() {
             <span style={{ color: 'white' }}>
               {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
             </span>
+            <Button onClick={handleLogout} type="primary" danger>
+              Logout
+            </Button>
           </Space>
         </Space>
       </Header>

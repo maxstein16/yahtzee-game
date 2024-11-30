@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useNavigate } from 'react';
 import { Form, Input, Button, Typography, Modal, Space } from 'antd';
 import { login } from '../utils/api';
 import '../styles/Auth.css';
@@ -10,13 +10,16 @@ function Login() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('Invalid username or password. Please try again.');
+  const navigate = useNavigate();
 
   const handleLogin = async (values) => {
     try {
       setLoading(true);
       const data = await login(values);
+      // Store both token and player ID
       localStorage.setItem('token', data.token);
-      window.location.href = '/lobby'; // Redirect to the lobby
+      localStorage.setItem('playerId', data.player_id);
+      navigate('/lobby');
     } catch (err) {
       setErrorMessage(err.message);
       setIsModalVisible(true);

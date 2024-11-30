@@ -1,18 +1,36 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
-import Lobby from './components/Lobby';
-import Game from './components/Game';
 import Signup from './components/Signup';
+import Lobby from './components/Lobby';
+
+// Protected Route component
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const playerId = localStorage.getItem('playerId');
+  
+  if (!token || !playerId) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/lobby" element={<Lobby />} />
-        <Route path="/game/:id" element={<Game />} />
+        <Route
+          path="/lobby"
+          element={
+            <ProtectedRoute>
+              <Lobby />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );
