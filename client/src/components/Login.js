@@ -20,7 +20,7 @@ function Login() {
   const handleLogin = async (values) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/players/login', {
+      const res = await fetch('https://yahtzee-backend-621359075899.us-east1.run.app/players/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
