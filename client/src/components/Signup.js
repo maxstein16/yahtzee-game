@@ -21,7 +21,7 @@ function Signup() {
     }
 
     try {
-      const res = await fetch('https://yahtzee-backend-621359075899.us-east1.run.app/players/register', {
+      const res = await fetch('https://yahtzee-backend-621359075899.us-east1.run.app/api/players/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, name }),
