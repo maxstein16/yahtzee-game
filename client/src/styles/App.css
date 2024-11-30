@@ -1,5 +1,5 @@
-vercel-live-feedback {
-  display: none !important;
+#root .ant-space {
+  background-color: transparent !important;
 }
 
 .App {
