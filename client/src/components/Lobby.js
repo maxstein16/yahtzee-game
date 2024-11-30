@@ -13,7 +13,7 @@ import { DownOutlined } from '@ant-design/icons';
 import '../styles/Lobby.css';
 import '../styles/diceGame.css';
 import Dice from '../components/Dice';
-import ChatComponent from '../components/ChatComponent';
+import Chat from '../components/Chat';
 import * as API from '../utils/api';
 
 const { Header, Content } = Layout;
@@ -32,32 +32,41 @@ function Lobby() {
   const [isChatVisible, setIsChatVisible] = useState(false);
 
   useEffect(() => {
-    // Initialize game when component mounts or mode changes
-    initializeGame();
-  }, [mode]);
+    const player = JSON.parse(localStorage.getItem('player'));
+    if (player) {
+      setCurrentPlayer(player);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentPlayer) {
+      initializeGame();
+    }
+  }, [mode, currentPlayer]);
 
   const initializeGame = async () => {
+    if (!currentPlayer) return;
+
     try {
-      // Determine if single or multiplayer
       const gameStatus = mode === 'singleplayer' ? 'pending' : 'waiting';
-      
-      // Create a new game
       const newGame = await API.createGame(gameStatus);
       setGameId(newGame.game_id);
 
-      // If multiplayer, you might want to add a player invitation logic here
       if (mode === 'multiplayer') {
-        // Optional: Open a modal to invite players or join a game
-        message.info('Waiting for other players to join...');
+        const gamePlayers = await API.getPlayersInGame(newGame.game_id);
+        setPlayers(gamePlayers);
       }
+
+      await API.startGame(newGame.game_id);
+      message.success(`New ${mode} game created!`);
     } catch (error) {
-      message.error('Failed to create game: ' + error.message);
+      message.error(`Failed to create game: ${error.message}`);
     }
   };
 
   const rollDiceHandler = async () => {
-    if (!gameId) {
-      message.warning('Game not initialized.');
+    if (!gameId || !currentPlayer) {
+      message.warning('Game not initialized or no player.');
       return;
     }
 
@@ -68,15 +77,17 @@ function Lobby() {
 
     setIsRolling(true);
     try {
-      const keepIndices = selectedDice;
-      const result = await API.rollDice(gameId, diceValues, keepIndices);
+      const result = await API.rollDice(
+        gameId, 
+        diceValues, 
+        selectedDice
+      );
       
       setDiceValues(result.dice);
-      // Note: You'll need to implement calculateScores separately
       setScores(calculateScores(result.dice));
       setRollCount(result.rollCount);
     } catch (error) {
-      message.error('Error rolling dice: ' + error.message);
+      message.error(`Dice roll failed: ${error.message}`);
     } finally {
       setIsRolling(false);
     }
@@ -88,23 +99,31 @@ function Lobby() {
       return;
     }
 
-    if (scores[category] === undefined) {
-      message.warning('Select a dice combination first.');
+    if (!scores[category]) {
+      message.warning('Select a valid dice combination.');
       return;
     }
 
     try {
-      // Submit turn to the backend
-      await API.submitTurn(gameId, currentPlayer.player_id, category, scores[category]);
+      await API.submitTurn(
+        gameId, 
+        currentPlayer.player_id, 
+        category, 
+        scores[category]
+      );
       
-      // Reset game state
-      setDiceValues([1, 1, 1, 1, 1]);
-      setSelectedDice([]);
-      setRollCount(0);
+      resetTurnState();
       message.success(`${category} score saved!`);
     } catch (error) {
-      message.error('Failed to submit turn: ' + error.message);
+      message.error(`Turn submission failed: ${error.message}`);
     }
+  };
+
+  const resetTurnState = () => {
+    setDiceValues([1, 1, 1, 1, 1]);
+    setSelectedDice([]);
+    setRollCount(0);
+    setScores({});
   };
 
   const toggleDiceSelection = (index) => {
@@ -115,23 +134,40 @@ function Lobby() {
     );
   };
 
-  const handleNewGame = async (gameType) => {
+  const handleNewGame = (gameType) => {
     setMode(gameType);
-    // Game initialization is now handled in useEffect
-    
-    // Reset all game states
-    setDiceValues([1, 1, 1, 1, 1]);
-    setSelectedDice([]);
-    setScores({});
-    setRollCount(0);
-    
-    message.success(`New ${gameType === 'singleplayer' ? 'Single Player' : 'Multiplayer'} game started!`);
+    resetTurnState();
+    message.success(`New ${gameType} game initiated.`);
   };
 
   const calculateScores = (dice) => {
-    // Implement scoring logic
-    // This is a placeholder - you'll need to create actual scoring rules
-    return {};
+    const counts = dice.reduce((acc, val) => {
+      acc[val] = (acc[val] || 0) + 1;
+      return acc;
+    }, {});
+
+    const sum = dice.reduce((a, b) => a + b, 0);
+    const scores = {
+      ones: dice.filter(d => d === 1).reduce((a, b) => a + b, 0),
+      twos: dice.filter(d => d === 2).reduce((a, b) => a + b, 0),
+      threes: dice.filter(d => d === 3).reduce((a, b) => a + b, 0),
+      fours: dice.filter(d => d === 4).reduce((a, b) => a + b, 0),
+      fives: dice.filter(d => d === 5).reduce((a, b) => a + b, 0),
+      sixes: dice.filter(d => d === 6).reduce((a, b) => a + b, 0),
+      threeOfAKind: Object.values(counts).some(count => count >= 3) ? sum : 0,
+      fourOfAKind: Object.values(counts).some(count => count >= 4) ? sum : 0,
+      fullHouse: Object.values(counts).some(count => count === 3) && 
+                Object.values(counts).some(count => count === 2) ? 25 : 0,
+      smallStraight: [1,2,3,4].every(val => dice.includes(val)) || 
+                     [2,3,4,5].every(val => dice.includes(val)) || 
+                     [3,4,5,6].every(val => dice.includes(val)) ? 30 : 0,
+      largeStraight: [1,2,3,4,5].every(val => dice.includes(val)) || 
+                     [2,3,4,5,6].every(val => dice.includes(val)) ? 40 : 0,
+      yahtzee: Object.values(counts).some(count => count === 5) ? 50 : 0,
+      chance: sum
+    };
+
+    return scores;
   };
 
   const menu = (
@@ -147,7 +183,6 @@ function Lobby() {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      {/* Top Navigation */}
       <Header className="top-nav" style={{ background: '#FF4500', padding: '0 20px' }}>
         <Space>
           <Dropdown overlay={menu} trigger={['click']}>
@@ -175,24 +210,19 @@ function Lobby() {
         </Space>
       </Header>
 
-      {/* Main Content */}
       <Content style={{ display: 'flex', padding: '20px', justifyContent: 'space-between' }}>
-        {/* Game Board */}
-        <div
-          className="game-board"
-          style={{
-            border: '2px solid #000',
-            width: '80%',
-            height: '500px',
-            padding: '10px',
-            textAlign: 'center',
-            background: '#fff',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <Title level={3} className="game-board-title">Game Board</Title>
+        <div className="game-board" style={{
+          border: '2px solid #000',
+          width: '80%',
+          height: '500px',
+          padding: '10px',
+          textAlign: 'center',
+          background: '#fff',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}>
+          <Title level={3}>Game Board</Title>
           <div className="game-dice-container">
             {diceValues.map((value, index) => (
               <Dice
@@ -205,26 +235,22 @@ function Lobby() {
             ))}
           </div>
           <div className="player-name">
-            Current Player: {currentPlayer ? currentPlayer.name : 'Not assigned'}
+            Current Player: {currentPlayer?.name || 'Not assigned'}
           </div>
         </div>
 
-        {/* Scoreboard */}
-        <div
-          className="scoreboard"
-          style={{
-            border: '2px solid #000',
-            width: '30%',
-            padding: '10px',
-            background: '#f9f9f9',
-          }}
-        >
+        <div className="scoreboard" style={{
+          border: '2px solid #000',
+          width: '30%',
+          padding: '10px',
+          background: '#f9f9f9',
+        }}>
           <Title level={4}>Scoreboard</Title>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '5px', borderBottom: '1px solid #ccc' }}>Category</th>
-                <th style={{ textAlign: 'right', padding: '5px', borderBottom: '1px solid #ccc' }}>Score</th>
+                <th style={{ textAlign: 'left', padding: '5px' }}>Category</th>
+                <th style={{ textAlign: 'right', padding: '5px' }}>Score</th>
               </tr>
             </thead>
             <tbody>
@@ -234,8 +260,12 @@ function Lobby() {
                   style={{ cursor: 'pointer' }}
                   onClick={() => handleScoreCategoryClick(category)}
                 >
-                  <td style={{ padding: '5px', textTransform: 'capitalize' }}>{category}</td>
-                  <td style={{ padding: '5px', textAlign: 'right' }}>{score || '-'}</td>
+                  <td style={{ padding: '5px', textTransform: 'capitalize' }}>
+                    {category}
+                  </td>
+                  <td style={{ padding: '5px', textAlign: 'right' }}>
+                    {score || '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -243,20 +273,20 @@ function Lobby() {
         </div>
       </Content>
 
-      {/* Roll Dice Button */}
       <div style={{ textAlign: 'center', marginTop: '20px' }}>
         <Button
           type="primary"
           style={{ marginTop: '20px' }}
           onClick={rollDiceHandler}
-          disabled={!gameId}
+          disabled={!gameId || rollCount >= 3}
         >
           Roll Dice
         </Button>
-        <Text style={{ marginTop: '10px' }}>Roll Count: {rollCount}/3</Text>
+        <Text style={{ marginLeft: '10px' }}>
+          Roll Count: {rollCount}/3
+        </Text>
       </div>
 
-      {/* Chat Modal for Multiplayer */}
       <Modal
         title="Game Chat"
         visible={isChatVisible && mode === 'multiplayer'}
@@ -264,7 +294,12 @@ function Lobby() {
         footer={null}
         width={400}
       >
-        <ChatComponent gameId={gameId} />
+        {gameId && currentPlayer && (
+          <Chat 
+            gameId={gameId} 
+            playerId={currentPlayer.player_id} 
+          />
+        )}
       </Modal>
     </Layout>
   );
