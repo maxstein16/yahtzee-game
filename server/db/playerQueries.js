@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcrypt'); // Import bcrypt
 const { Connector } = require('@google-cloud/cloud-sql-connector');
 
 // Initialize the Cloud SQL connector
@@ -24,7 +25,7 @@ const runSQL = async (sql, data) => {
 
 // Create a new player
 async function createPlayer(username, password, name) {
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 10); // Hash the password
   const query = `
     INSERT INTO player (username, password_hash, name, score)
     VALUES (?, ?, ?, ?);
@@ -55,7 +56,7 @@ async function loginPlayer(username, password) {
   }
 
   const player = result[0];
-  const isPasswordValid = await bcrypt.compare(password, player.password_hash);
+  const isPasswordValid = await bcrypt.compare(password, player.password_hash); // Compare passwords
 
   if (!isPasswordValid) {
     throw new Error('Invalid password');
