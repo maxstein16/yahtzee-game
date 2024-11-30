@@ -34,13 +34,13 @@
   }
   
   .dice {
-    width: 40px;
-    height: 40px;
-    background-color: #ffffff;
-    border-radius: 5px;
+    width: 50px; /* Adjust size as needed */
+    height: 50px;
+    background-image: url('../img/dice.gif'); /* Replace with the actual path to your dice image */
+    background-size: cover;
+    background-repeat: no-repeat;
     position: absolute;
     animation: floatDice 10s linear infinite;
-    box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.2);
   }
   
   /* Keyframes for Floating Dice Movement */
