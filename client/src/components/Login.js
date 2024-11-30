@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Typography, Modal, Space } from 'antd';
+import { login } from '../utils/api';
 import '../styles/Auth.css';
 import '../styles/Dice.css';
 
@@ -13,22 +14,11 @@ function Login() {
   const handleLogin = async (values) => {
     try {
       setLoading(true);
-      const res = await fetch('https://yahtzee-backend-621359075899.us-east1.run.app/api/players/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        setErrorMessage(error.message || 'Invalid credentials');
-        throw new Error(error.message || 'Invalid credentials');
-      }
-
-      const data = await res.json();
+      const data = await login(values);
       localStorage.setItem('token', data.token);
       window.location.href = '/lobby'; // Redirect to the lobby
     } catch (err) {
+      setErrorMessage(err.message);
       setIsModalVisible(true);
     } finally {
       setLoading(false);

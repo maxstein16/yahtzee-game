@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Typography, Modal, Space } from 'antd';
+import { register } from '../utils/api'; // Import the API function
 import '../styles/Auth.css';
 import '../styles/Dice.css';
 
@@ -21,17 +22,7 @@ function Signup() {
     }
 
     try {
-      const res = await fetch('https://yahtzee-backend-621359075899.us-east1.run.app/api/players/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, name }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Signup failed');
-      }
-
+      await register({ username, password, name }); // Use the register function from api.js
       setIsModalVisible(true);
     } catch (err) {
       Modal.error({
