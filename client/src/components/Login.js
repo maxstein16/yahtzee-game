@@ -1,4 +1,5 @@
-import React, { useState, useNavigate } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Typography, Modal, Space } from 'antd';
 import { login } from '../utils/api';
 import '../styles/Auth.css';
