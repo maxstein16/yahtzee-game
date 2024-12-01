@@ -16,6 +16,7 @@ import '../styles/diceGame.css';
 import Dice from '../components/Dice';
 import Chat from '../components/Chat';
 import * as API from '../utils/api';
+import initializeWebSocket from '../utils/websocketService'; // Import WebSocket service
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -32,6 +33,9 @@ function Lobby() {
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(false);
+
+  // WebSocket reference
+  const [socket, setSocket] = useState(null);
 
   // Fetch current player data and check authentication
   useEffect(() => {
@@ -66,12 +70,45 @@ function Lobby() {
     }
   }, [mode, currentPlayer]);
 
+  // Initialize WebSocket for multiplayer mode
+  useEffect(() => {
+    if (mode === 'multiplayer' && gameId && currentPlayer) {
+      initializeWebSocket(gameId, currentPlayer.player_id)
+        .then((socketInstance) => {
+          setSocket(socketInstance);
+
+          // Listen for chat messages
+          socketInstance.on('NEW_CHAT_MESSAGE', (message) => {
+            console.log('New chat message:', message);
+            // Handle incoming chat messages (optional)
+          });
+
+          // Handle game updates
+          socketInstance.on('GAME_UPDATE', (update) => {
+            console.log('Game update received:', update);
+            // Handle game updates
+          });
+        })
+        .catch((error) => {
+          console.error('WebSocket initialization failed:', error);
+        });
+
+      // Clean up WebSocket on unmount or mode change
+      return () => {
+        if (socket) {
+          socket.disconnect();
+          setSocket(null);
+        }
+      };
+    }
+  }, [mode, gameId, currentPlayer]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('playerId');
     navigate('/login');
   };
-
+  
   const initializeGame = async () => {
     if (!currentPlayer) return;
 

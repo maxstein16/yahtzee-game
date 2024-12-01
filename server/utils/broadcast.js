@@ -2,10 +2,13 @@
  * Placeholder function for broadcasting messages to WebSocket clients.
  * @param {Object} message - The message to broadcast.
  */
-function broadcastMessage(message) {
-    // Placeholder logic - replace with actual WebSocket broadcasting code
-    console.log("Broadcasting message:", message);
-}
+function broadcastMessage(data) {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(data));
+      }
+    });
+  }  
 
 module.exports = broadcastMessage;
   
