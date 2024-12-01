@@ -1,18 +1,41 @@
+const express = require('express');
 const http = require('http');
-const { app, wss } = require('./app'); // Assuming 'app' contains your Express app or other HTTP server setup
+const { Server } = require('socket.io');
+const cors = require('cors');
 
-// Use the PORT environment variable provided by Cloud Run, with a default for local development
-const port = process.env.PORT || 8080;
+const app = express();
 const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ['https://yahtzee.maxstein.info'], // Add your frontend URL here
+    methods: ['GET', 'POST'],
+  },
+});
 
-// Handle WebSocket upgrade request
-server.on('upgrade', (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit('connection', ws, request); // Emit a connection event for the WebSocket
+app.use(cors());
+app.use(express.json());
+
+io.on('connection', (socket) => {
+  console.log(`Client connected: ${socket.id}`);
+
+  socket.on('disconnect', () => {
+    console.log(`Client disconnected: ${socket.id}`);
+  });
+
+  socket.on('chatMessage', (msg) => {
+    console.log('Chat message received:', msg);
+    // Broadcast the chat message to all clients
+    io.emit('NEW_CHAT_MESSAGE', msg);
+  });
+
+  socket.on('gameUpdate', (update) => {
+    console.log('Game update received:', update);
+    // Broadcast game updates
+    io.emit('GAME_UPDATE', update);
   });
 });
 
-// Start the server and log the port
-server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
