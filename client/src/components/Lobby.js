@@ -16,7 +16,7 @@ import '../styles/diceGame.css';
 import Dice from '../components/Dice';
 import Chat from '../components/Chat';
 import * as API from '../utils/api';
-import initializeWebSocket from '../utils/websocketService'; // Import WebSocket service
+import initializeWebSocket from '../services/websocketService'; // Import WebSocket service
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
