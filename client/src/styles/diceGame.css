@@ -1,89 +1,49 @@
-/* Dice container for all the dice */
+.game-dice {
+  width: 60px;
+  height: 60px;
+  position: relative;
+  transition: transform 0.3s ease;
+  cursor: pointer;
+  perspective: 1000px;
+}
+
+.game-dice.selected {
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(0, 0, 255, 0.5);
+}
+
+.game-dice-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.game-dice.rolling {
+  animation: rollAndMove 1s ease-out forwards;
+}
+
+@keyframes rollAndMove {
+  0% {
+    transform: rotate(0deg) translate(0, 0);
+  }
+  
+  50% {
+    transform: 
+      rotate(calc(360deg * var(--rotations))) 
+      translate(var(--x-offset), var(--y-offset));
+  }
+  
+  100% {
+    transform: 
+      rotate(0deg) 
+      translate(var(--final-x), var(--final-y));
+  }
+}
+
 .game-dice-container {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-top: 20px;
-  }
-  
-  /* Individual dice styles */
-  .game-dice {
-    width: 70px;
-    height: 70px;
-    cursor: pointer;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-  }
-  
-  /* Hover effect on dice */
-  .game-dice:hover {
-    transform: scale(1.1);
-  }
-  
-  /* Selected dice will have a border and different background */
-  .game-dice.selected {
-    border-color: #FF4500;
-    background-color: rgba(255, 69, 0, 0.1);
-  }
-  
-  /* Dice image that shows the face of the dice */
-  .game-dice-image {
-    width: 100%;
-    height: 100%;
-  }
-  
-  /* Animation for rolling the dice */
-  @keyframes roll {
-    0% {
-      transform: rotate(0deg) translate(0, 0);
-    }
-    25% {
-      transform: rotate(90deg) translate(50px, 0);
-    }
-    50% {
-      transform: rotate(180deg) translate(0, 50px);
-    }
-    75% {
-      transform: rotate(270deg) translate(-50px, 0);
-    }
-    100% {
-      transform: rotate(360deg) translate(0, 0);
-    }
-  }
-  
-  /* Add rolling effect when the dice are animated */
-  .game-dice-rolling {
-    animation: roll 1s ease-in-out;
-    animation-iteration-count: 1;
-  }
-  
-  /* Game board */
-  .game-board {
-    border: 2px solid #000;
-    width: 80%;
-    height: 500px;
-    padding: 10px;
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-  }
-  
-  .game-board-title {
-    font-size: 2rem;
-    margin-bottom: 20px;
-  }
-  
-  /* Style the player's name at the bottom of the game board */
-  .game-board .player-name {
-    margin-top: 20px;
-    font-size: 1.2rem;
-    font-weight: bold;
-  }
-  
+  position: relative;
+  width: 100%;
+  height: 200px;
+  margin: 20px 0;
+  overflow: hidden;
+}
