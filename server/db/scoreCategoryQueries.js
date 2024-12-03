@@ -1,11 +1,11 @@
-const pool = require('../db');
+const { runSQL } = require('../db');
 
 async function createScoreCategory(name, maxScore, playerId) {
   const query = `
     INSERT INTO scorecategory (name, max_score, player_id, score) 
     VALUES (?, ?, ?, 0);
   `;
-  const [result] = await pool.query(query, [name, maxScore, playerId]);
+  const result = await runSQL(query, [name, maxScore, playerId]);
   return result.insertId;
 }
 
@@ -14,8 +14,8 @@ async function getScoreCategoryById(categoryId) {
     SELECT * FROM scorecategory 
     WHERE category_id = ?;
   `;
-  const [rows] = await pool.query(query, [categoryId]);
-  return rows[0];
+  const results = await runSQL(query, [categoryId]);
+  return results[0];
 }
 
 async function getPlayerCategories(playerId) {
@@ -23,8 +23,7 @@ async function getPlayerCategories(playerId) {
     SELECT * FROM scorecategory 
     WHERE player_id = ?;
   `;
-  const [rows] = await pool.query(query, [playerId]);
-  return rows;
+  return await runSQL(query, [playerId]);
 }
 
 async function updateScoreCategory(categoryId, score) {
@@ -33,7 +32,7 @@ async function updateScoreCategory(categoryId, score) {
     SET score = ? 
     WHERE category_id = ?;
   `;
-  const [result] = await pool.query(query, [score, categoryId]);
+  const result = await runSQL(query, [score, categoryId]);
   return result.affectedRows > 0;
 }
 
@@ -54,14 +53,20 @@ async function initializePlayerCategories(playerId) {
     ['chance', 30]
   ];
 
-  const query = `
-    INSERT INTO scorecategory (name, max_score, player_id, score) 
-    VALUES ?;
-  `;
-  
-  const values = categories.map(([name, maxScore]) => [name, maxScore, playerId, 0]);
-  const [result] = await pool.query(query, [values]);
-  return result.affectedRows === categories.length;
+  try {
+    // Using multiple single inserts since runSQL doesn't support multiple value sets
+    for (const [name, maxScore] of categories) {
+      const query = `
+        INSERT INTO scorecategory (name, max_score, player_id, score) 
+        VALUES (?, ?, ?, 0);
+      `;
+      await runSQL(query, [name, maxScore, playerId]);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize player categories:', error);
+    return false;
+  }
 }
 
 async function getPlayerTotalScore(playerId) {
@@ -70,8 +75,8 @@ async function getPlayerTotalScore(playerId) {
     FROM scorecategory 
     WHERE player_id = ?;
   `;
-  const [rows] = await pool.query(query, [playerId]);
-  return rows[0].total || 0;
+  const results = await runSQL(query, [playerId]);
+  return results[0].total || 0;
 }
 
 async function resetPlayerCategories(playerId) {
@@ -80,7 +85,7 @@ async function resetPlayerCategories(playerId) {
     SET score = 0 
     WHERE player_id = ?;
   `;
-  const [result] = await pool.query(query, [playerId]);
+  const result = await runSQL(query, [playerId]);
   return result.affectedRows > 0;
 }
 
@@ -91,8 +96,8 @@ async function getPlayerCategory(playerId, categoryName) {
     WHERE player_id = ? 
     AND name = ?;
   `;
-  const [rows] = await pool.query(query, [playerId, categoryName]);
-  return rows[0];
+  const results = await runSQL(query, [playerId, categoryName]);
+  return results[0];
 }
 
 module.exports = {
