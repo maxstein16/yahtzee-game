@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Typography } from 'antd';
 
 const { Title } = Typography;
@@ -14,6 +14,8 @@ const Scoreboard = ({
   handleScoreCategoryClick,
   aiCategories
 }) => {
+  const scores = useMemo(() => calculateScores(diceValues), [diceValues, calculateScores]);
+
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
@@ -27,7 +29,7 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const currentScore = calculateScores(diceValues)[category.name];
+            const currentScore = scores[category.name];
             return (
               <tr
                 key={category.category_id}
@@ -50,4 +52,4 @@ const Scoreboard = ({
   );
 };
 
-export default Scoreboard;
+export default React.memo(Scoreboard);
