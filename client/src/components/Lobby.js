@@ -12,6 +12,7 @@ import {
 import { DownOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { initializeGame, rollDice, submitScore, calculateScores } from '../services/lobbyService';
+import { playAITurn } from '../services/aiOpponentService';
 import '../styles/Lobby.css';
 import Dice from '../components/Dice';
 import Chat from '../components/Chat';
@@ -32,7 +33,11 @@ function Lobby() {
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(false);
+  const [isAITurn, setIsAITurn] = useState(false);
+  const [aiPlayer, setAiPlayer] = useState(null);
+  const [gameHistory, setGameHistory] = useState([]);
 
+  // Initialize player and check authentication
   useEffect(() => {
     const fetchCurrentPlayer = async () => {
       try {
@@ -57,12 +62,24 @@ function Lobby() {
     fetchCurrentPlayer();
   }, [navigate]);
 
+  // Initialize game and AI player
   useEffect(() => {
     if (currentPlayer) {
       const init = async () => {
         const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
         if (result.success) {
           message.success(result.message);
+          
+          // Initialize AI player for single player mode
+          if (mode === 'singleplayer') {
+            setAiPlayer({
+              player_id: 'ai-opponent',
+              name: 'AI Opponent',
+              scores: {}
+            });
+          } else {
+            setAiPlayer(null);
+          }
         } else {
           message.error(result.message);
         }
@@ -70,6 +87,21 @@ function Lobby() {
       init();
     }
   }, [mode, currentPlayer]);
+
+  // Track game history
+  useEffect(() => {
+    if (gameId) {
+      const updateHistory = () => {
+        setGameHistory(prev => [...prev, {
+          player: currentPlayer?.name,
+          scores: scores,
+          timestamp: new Date().toISOString()
+        }]);
+      };
+
+      return () => updateHistory();
+    }
+  }, [gameId, scores, currentPlayer]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -87,6 +119,7 @@ function Lobby() {
   const handleNewGame = (gameType) => {
     setMode(gameType);
     resetTurnState();
+    setGameHistory([]);
   };
 
   const handleRollDice = async () => {
@@ -118,12 +151,39 @@ function Lobby() {
     if (result.success) {
       resetTurnState();
       message.success(result.message);
+      
+      // Start AI turn in single player mode
+      if (mode === 'singleplayer' && aiPlayer) {
+        setIsAITurn(true);
+        try {
+          // Add slight delay for better UX
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const aiResult = await playAITurn(gameId, aiPlayer);
+          if (aiResult.success) {
+            message.success(`AI played ${aiResult.category} for ${aiResult.score} points!`);
+            // Update AI scores in game history
+            setGameHistory(prev => [...prev, {
+              player: 'AI Opponent',
+              category: aiResult.category,
+              score: aiResult.score,
+              timestamp: new Date().toISOString()
+            }]);
+          }
+        } catch (error) {
+          message.error('AI turn failed: ' + error.message);
+        } finally {
+          setIsAITurn(false);
+        }
+      }
     } else {
       message.error(result.message);
     }
   };
 
   const toggleDiceSelection = (index) => {
+    if (isRolling || isAITurn) return;
+    
     setSelectedDice((prev) =>
       prev.includes(index)
         ? prev.filter((i) => i !== index)
@@ -133,8 +193,12 @@ function Lobby() {
 
   const menu = (
     <Menu>
-      <Menu.Item onClick={() => handleNewGame('singleplayer')}>New Single Player</Menu.Item>
-      <Menu.Item onClick={() => handleNewGame('multiplayer')}>New Multiplayer</Menu.Item>
+      <Menu.Item key="single" onClick={() => handleNewGame('singleplayer')}>
+        New Single Player
+      </Menu.Item>
+      <Menu.Item key="multi" onClick={() => handleNewGame('multiplayer')}>
+        New Multiplayer
+      </Menu.Item>
     </Menu>
   );
 
@@ -144,7 +208,9 @@ function Lobby() {
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
             <Dropdown overlay={menu} trigger={['click']}>
-              <Button>New Game <DownOutlined /></Button>
+              <Button>
+                New Game <DownOutlined />
+              </Button>
             </Dropdown>
             <Button
               type={mode === 'singleplayer' ? 'primary' : 'default'}
@@ -166,7 +232,9 @@ function Lobby() {
             <span style={{ color: 'white' }}>
               {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
             </span>
-            <Button onClick={handleLogout} type="primary" danger>Logout</Button>
+            <Button onClick={handleLogout} type="primary" danger>
+              Logout
+            </Button>
           </Space>
         </Space>
       </Header>
@@ -182,11 +250,12 @@ function Lobby() {
                 isSelected={selectedDice.includes(index)}
                 isRolling={isRolling}
                 onClick={() => toggleDiceSelection(index)}
+                disabled={isAITurn}
               />
             ))}
           </div>
-          <div className="player-name">
-            Current Player: {currentPlayer?.name || 'Loading...'}
+          <div className="player-info">
+            <Text>Current Player: {isAITurn ? 'AI Opponent' : currentPlayer?.name || 'Loading...'}</Text>
           </div>
         </div>
 
@@ -196,17 +265,26 @@ function Lobby() {
             <thead>
               <tr>
                 <th>Category</th>
-                <th>Score</th>
+                <th>{currentPlayer?.name || 'Player'}</th>
+                {mode === 'singleplayer' && <th>AI Opponent</th>}
               </tr>
             </thead>
             <tbody>
               {Object.entries(scores).map(([category, score]) => (
                 <tr
                   key={category}
-                  onClick={() => handleScoreCategoryClick(category)}
+                  onClick={() => !isAITurn && handleScoreCategoryClick(category)}
+                  className={isAITurn ? 'disabled' : 'clickable'}
                 >
                   <td style={{ textTransform: 'capitalize' }}>{category}</td>
                   <td>{score || '-'}</td>
+                  {mode === 'singleplayer' && (
+                    <td>
+                      {gameHistory
+                        .filter(h => h.player === 'AI Opponent' && h.category === category)
+                        .map(h => h.score)[0] || '-'}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -218,12 +296,18 @@ function Lobby() {
         <Button
           type="primary"
           onClick={handleRollDice}
-          disabled={!gameId || rollCount >= 3}
+          disabled={!gameId || rollCount >= 3 || isAITurn}
         >
           Roll Dice
         </Button>
         <Text className="roll-count">Roll Count: {rollCount}/3</Text>
       </div>
+
+      {mode === 'singleplayer' && isAITurn && (
+        <div className="ai-turn-indicator">
+          <Text>AI is thinking...</Text>
+        </div>
+      )}
 
       <Modal
         title="Game Chat"
