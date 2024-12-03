@@ -1,8 +1,8 @@
 // src/services/aiOpponentService.js
 import * as API from '../utils/api';
 import { message } from 'antd';
-import { rollDice, calculateScores } from './diceService';
-import { submitScore } from './gameService';
+import { rollDice, calculateScores } from '../services/diceService';
+import { submitScore } from '../services/gameStateService';
 
 // Constants
 const SCORE_PRIORITIES = {
