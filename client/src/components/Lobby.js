@@ -7,6 +7,7 @@ import {
   Menu,
   Space,
   message,
+  Modal,
 } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -24,16 +25,13 @@ function Lobby() {
   const [mode, setMode] = useState('singleplayer');
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
-  const [aiPlayer, setAiPlayer] = useState({ name: 'AI Player', id: 'ai-player' });
-  const [currentTurn, setCurrentTurn] = useState('player');
   const [players, setPlayers] = useState([]);
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
-  const [aiDiceValues, setAiDiceValues] = useState([1, 1, 1, 1, 1]);
   const [selectedDice, setSelectedDice] = useState([]);
   const [scores, setScores] = useState({});
-  const [aiScores, setAiScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
+  const [isChatVisible, setIsChatVisible] = useState(false);
 
   useEffect(() => {
     const fetchCurrentPlayer = async () => {
@@ -65,9 +63,6 @@ function Lobby() {
         const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
         if (result.success) {
           message.success(result.message);
-          if (mode === 'singleplayer') {
-            setPlayers([currentPlayer, aiPlayer]);
-          }
         } else {
           message.error(result.message);
         }
@@ -75,52 +70,6 @@ function Lobby() {
       init();
     }
   }, [mode, currentPlayer]);
-
-  useEffect(() => {
-    if (mode === 'singleplayer' && currentTurn === 'ai' && !isRolling) {
-      handleAiTurn();
-    }
-  }, [currentTurn, isRolling]);
-
-  const handleAiTurn = async () => {
-    if (rollCount < 3) {
-      // AI logic for selecting dice and rolling
-      const aiSelectedDice = calculateAiDiceSelection(aiDiceValues);
-      await handleRollDice(true, aiSelectedDice);
-    } else {
-      // AI logic for choosing score category
-      const bestCategory = calculateBestScoreCategory(aiDiceValues, aiScores);
-      await handleScoreCategoryClick(bestCategory, true);
-      setCurrentTurn('player');
-    }
-  };
-
-  const calculateAiDiceSelection = (diceValues) => {
-    // Simple AI logic: keep high numbers and matching dice
-    const counts = {};
-    diceValues.forEach((value, index) => {
-      counts[value] = (counts[value] || 0) + 1;
-    });
-
-    return diceValues.map((value, index) => 
-      value >= 4 || counts[value] >= 2 ? index : null
-    ).filter(index => index !== null);
-  };
-
-  const calculateBestScoreCategory = (diceValues, scores) => {
-    const possibleScores = calculateScores(diceValues);
-    let bestCategory = null;
-    let bestScore = -1;
-
-    Object.entries(possibleScores).forEach(([category, score]) => {
-      if (score > bestScore && !scores[category]) {
-        bestScore = score;
-        bestCategory = category;
-      }
-    });
-
-    return bestCategory;
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -130,66 +79,44 @@ function Lobby() {
 
   const resetTurnState = () => {
     setDiceValues([1, 1, 1, 1, 1]);
-    setAiDiceValues([1, 1, 1, 1, 1]);
     setSelectedDice([]);
     setRollCount(0);
     setScores({});
-    setAiScores({});
   };
 
   const handleNewGame = (gameType) => {
     setMode(gameType);
-    setCurrentTurn('player');
     resetTurnState();
   };
 
-  const handleRollDice = async (isAi = false, aiSelected = []) => {
+  const handleRollDice = async () => {
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
       return;
     }
 
     setIsRolling(true);
-    const result = await rollDice(
-      gameId, 
-      isAi ? aiPlayer : currentPlayer, 
-      isAi ? aiDiceValues : diceValues, 
-      isAi ? aiSelected : selectedDice
-    );
+    const result = await rollDice(gameId, currentPlayer, diceValues, selectedDice);
     
     if (result.success) {
-      if (isAi) {
-        setAiDiceValues(result.dice);
-        setAiScores(calculateScores(result.dice));
-      } else {
-        setDiceValues(result.dice);
-        setScores(calculateScores(result.dice));
-      }
+      setDiceValues(result.dice);
+      setScores(calculateScores(result.dice));
       setRollCount(result.rollCount);
     } else {
       message.error(result.message);
     }
-    
-    setTimeout(() => setIsRolling(false), 1000);
+    setIsRolling(false);
   };
 
-  const handleScoreCategoryClick = async (category, isAi = false) => {
-    const currentScores = isAi ? aiScores : scores;
-    if (!currentScores[category]) {
+  const handleScoreCategoryClick = async (category) => {
+    if (!scores[category]) {
       message.warning('Select a valid dice combination.');
       return;
     }
 
-    const result = await submitScore(
-      gameId, 
-      isAi ? aiPlayer.id : currentPlayer.player_id, 
-      category, 
-      currentScores[category]
-    );
-
+    const result = await submitScore(gameId, currentPlayer, category, scores[category]);
     if (result.success) {
       resetTurnState();
-      setCurrentTurn(isAi ? 'player' : 'ai');
       message.success(result.message);
     } else {
       message.error(result.message);
@@ -212,7 +139,7 @@ function Lobby() {
   );
 
   return (
-    <Layout className="layout-container">
+    <Layout style={{ height: '100vh' }}>
       <Header className="top-nav">
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
@@ -231,6 +158,9 @@ function Lobby() {
             >
               Multiplayer
             </Button>
+            {mode === 'multiplayer' && (
+              <Button onClick={() => setIsChatVisible(true)}>Chat</Button>
+            )}
           </Space>
           <Space>
             <span style={{ color: 'white' }}>
@@ -241,68 +171,22 @@ function Lobby() {
         </Space>
       </Header>
 
-      <Content className="content-layout">
-        {mode === 'multiplayer' && (
-          <div className="chat-sidebar">
-            <Title level={4}>Game Chat</Title>
-            {gameId && currentPlayer && (
-              <Chat gameId={gameId} playerId={currentPlayer.player_id} />
-            )}
-          </div>
-        )}
-
+      <Content style={{ display: 'flex', padding: '20px', justifyContent: 'space-between' }}>
         <div className="game-board">
-          <Title level={3}>Yahtzee</Title>
-          
-          <div className="players-section">
-            <div className="opponent-area">
-              <Title level={4}>
-                {mode === 'singleplayer' ? 'AI Player' : 'Opponent'}
-                {currentTurn === 'ai' && ' (Playing)'}
-              </Title>
-              {mode === 'singleplayer' && (
-                <div className="game-dice-container">
-                  {aiDiceValues.map((value, index) => (
-                    <Dice
-                      key={index}
-                      value={value}
-                      isSelected={false}
-                      isRolling={isRolling && currentTurn === 'ai'}
-                      onClick={() => {}}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className="player-area">
-              <div className="game-dice-container">
-                {diceValues.map((value, index) => (
-                  <Dice
-                    key={index}
-                    value={value}
-                    isSelected={selectedDice.includes(index)}
-                    isRolling={isRolling && currentTurn === 'player'}
-                    onClick={() => toggleDiceSelection(index)}
-                  />
-                ))}
-              </div>
-              <div className="player-name">
-                {currentPlayer?.name || 'Loading...'}
-                {currentTurn === 'player' && ' (Playing)'}
-              </div>
-            </div>
+          <Title level={3}>Game Board</Title>
+          <div className="game-dice-container">
+            {diceValues.map((value, index) => (
+              <Dice
+                key={index}
+                value={value}
+                isSelected={selectedDice.includes(index)}
+                isRolling={isRolling}
+                onClick={() => toggleDiceSelection(index)}
+              />
+            ))}
           </div>
-
-          <div className="roll-button-container">
-            <Button
-              type="primary"
-              onClick={() => handleRollDice(false)}
-              disabled={!gameId || rollCount >= 3 || currentTurn === 'ai'}
-            >
-              Roll Dice
-            </Button>
-            <Text className="roll-count">Roll Count: {rollCount}/3</Text>
+          <div className="player-name">
+            Current Player: {currentPlayer?.name || 'Loading...'}
           </div>
         </div>
 
@@ -312,18 +196,16 @@ function Lobby() {
             <thead>
               <tr>
                 <th>Category</th>
-                <th>{mode === 'singleplayer' ? 'AI' : 'P2'}</th>
-                <th>You</th>
+                <th>Score</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(scores).map(([category, score]) => (
                 <tr
                   key={category}
-                  onClick={() => currentTurn === 'player' && handleScoreCategoryClick(category)}
+                  onClick={() => handleScoreCategoryClick(category)}
                 >
-                  <td>{category}</td>
-                  <td>{aiScores[category] || '-'}</td>
+                  <td style={{ textTransform: 'capitalize' }}>{category}</td>
                   <td>{score || '-'}</td>
                 </tr>
               ))}
@@ -331,6 +213,32 @@ function Lobby() {
           </table>
         </div>
       </Content>
+
+      <div className="roll-button-container">
+        <Button
+          type="primary"
+          onClick={handleRollDice}
+          disabled={!gameId || rollCount >= 3}
+        >
+          Roll Dice
+        </Button>
+        <Text className="roll-count">Roll Count: {rollCount}/3</Text>
+      </div>
+
+      <Modal
+        title="Game Chat"
+        visible={isChatVisible && mode === 'multiplayer'}
+        onCancel={() => setIsChatVisible(false)}
+        footer={null}
+        width={400}
+      >
+        {gameId && currentPlayer && (
+          <Chat 
+            gameId={gameId} 
+            playerId={currentPlayer.player_id} 
+          />
+        )}
+      </Modal>
     </Layout>
   );
 }
