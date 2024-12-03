@@ -37,6 +37,32 @@ export const deleteGame = (gameId) => apiRequest(`/game/${gameId}`, 'DELETE');
 export const startGame = (gameId) =>
   apiRequest(`/game/${gameId}/start`, 'PUT');
 
+// Score Category Management
+export const initializePlayerCategories = (playerId) => 
+  apiRequest(`/scorecategory/init/${playerId}`, 'POST');
+
+export const getPlayerCategories = (playerId) => 
+  apiRequest(`/scorecategory/player/${playerId}`);
+
+export const getPlayerCategory = (playerId, categoryName) => 
+  apiRequest(`/scorecategory/player/${playerId}/category/${categoryName}`);
+
+export const updateScoreCategory = (categoryId, score) => 
+  apiRequest(`/scorecategory/${categoryId}`, 'PUT', { score });
+
+export const getPlayerTotalScore = (playerId) => 
+  apiRequest(`/scorecategory/player/${playerId}/total`);
+
+export const resetPlayerCategories = (playerId) => 
+  apiRequest(`/scorecategory/player/${playerId}/reset`, 'PUT');
+
+export const submitGameScore = (gameId, playerId, categoryName, score) => 
+  apiRequest(`/scorecategory/game/${gameId}/submit`, 'PUT', {
+    playerId,
+    categoryName,
+    score
+  });
+
 // Chat Management
 export const getChatMessages = (gameId) => apiRequest(`/game/${gameId}/chat`);
 

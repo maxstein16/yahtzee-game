@@ -11,7 +11,14 @@ import {
 } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { initializeGame, rollDice, submitScore, calculateScores } from '../services/lobbyService';
+import { 
+  initializeGame, 
+  rollDice, 
+  submitScore, 
+  calculateScores,
+  getPlayerTotalScore,
+  getAvailableCategories 
+} from '../services/lobbyService';
 import { playAITurn } from '../services/aiOpponentService';
 import '../styles/Lobby.css';
 import Dice from '../components/Dice';
@@ -30,6 +37,8 @@ function Lobby() {
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
   const [aiDiceValues, setAiDiceValues] = useState([1, 1, 1, 1, 1]);
   const [selectedDice, setSelectedDice] = useState([]);
+  const [playerCategories, setPlayerCategories] = useState([]);
+  const [aiCategories, setAiCategories] = useState([]);
   const [scores, setScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [aiRollCount, setAiRollCount] = useState(0);
@@ -37,7 +46,8 @@ function Lobby() {
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isAITurn, setIsAITurn] = useState(false);
   const [aiPlayer, setAiPlayer] = useState(null);
-  const [gameHistory, setGameHistory] = useState([]);
+  const [playerTotal, setPlayerTotal] = useState(0);
+  const [aiTotal, setAiTotal] = useState(0);
 
   useEffect(() => {
     const fetchCurrentPlayer = async () => {
@@ -52,6 +62,14 @@ function Lobby() {
 
         const playerData = await API.getPlayerById(playerId);
         setCurrentPlayer(playerData);
+
+        // Load player categories
+        const categories = await API.getPlayerCategories(playerId);
+        setPlayerCategories(categories);
+
+        // Get initial total score
+        const total = await API.getPlayerTotalScore(playerId);
+        setPlayerTotal(total.totalScore);
       } catch (error) {
         message.error('Session expired. Please login again');
         localStorage.removeItem('token');
@@ -73,11 +91,17 @@ function Lobby() {
           if (mode === 'singleplayer') {
             setAiPlayer({
               player_id: 'ai-opponent',
-              name: 'AI Opponent',
-              scores: {}
+              name: 'AI Opponent'
             });
+            // Load AI categories
+            const aiCategories = await API.getPlayerCategories('ai-opponent');
+            setAiCategories(aiCategories);
+            const aiTotal = await API.getPlayerTotalScore('ai-opponent');
+            setAiTotal(aiTotal.totalScore);
           } else {
             setAiPlayer(null);
+            setAiCategories([]);
+            setAiTotal(0);
           }
         } else {
           message.error(result.message);
@@ -100,13 +124,27 @@ function Lobby() {
     setScores({});
   };
 
-  const handleNewGame = (gameType) => {
+  const handleNewGame = async (gameType) => {
     setMode(gameType);
     resetTurnState();
-    setGameHistory([]);
     setAiDiceValues([1, 1, 1, 1, 1]);
     setAiRollCount(0);
     setIsAITurn(false);
+    
+    if (currentPlayer) {
+      // Reset and reload categories
+      await API.resetPlayerCategories(currentPlayer.player_id);
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(categories);
+      setPlayerTotal(0);
+
+      if (gameType === 'singleplayer') {
+        await API.resetPlayerCategories('ai-opponent');
+        const aiCategories = await API.getPlayerCategories('ai-opponent');
+        setAiCategories(aiCategories);
+        setAiTotal(0);
+      }
+    }
   };
 
   const handleRollDice = async () => {
@@ -139,6 +177,12 @@ function Lobby() {
       resetTurnState();
       message.success(result.message);
       
+      // Update player categories and total
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(categories);
+      const newTotal = await API.getPlayerTotalScore(currentPlayer.player_id);
+      setPlayerTotal(newTotal.totalScore);
+      
       if (mode === 'singleplayer' && aiPlayer) {
         setIsAITurn(true);
         try {
@@ -160,13 +204,13 @@ function Lobby() {
           const aiResult = await submitScore(gameId, aiPlayer, bestCategory, bestScore);
           
           if (aiResult.success) {
+            // Update AI categories and total
+            const newAiCategories = await API.getPlayerCategories('ai-opponent');
+            setAiCategories(newAiCategories);
+            const newAiTotal = await API.getPlayerTotalScore('ai-opponent');
+            setAiTotal(newAiTotal.totalScore);
+            
             message.success(`AI played ${bestCategory} for ${bestScore} points!`);
-            setGameHistory(prev => [...prev, {
-              player: 'AI Opponent',
-              category: bestCategory,
-              score: bestScore,
-              timestamp: new Date().toISOString()
-            }]);
           }
         } catch (error) {
           message.error('AI turn failed: ' + error.message);
@@ -242,7 +286,7 @@ function Lobby() {
       <Content className="game-container">
         <div className="game-board">
           <div className="opponent-section">
-            <Title level={4}>AI Opponent</Title>
+            <Title level={4}>AI Opponent (Total: {aiTotal})</Title>
             {isAITurn && (
               <>
                 <div className="game-dice-container">
@@ -261,7 +305,7 @@ function Lobby() {
           </div>
           
           <div className="player-section">
-            <Title level={4}>{currentPlayer?.name || 'Player'}</Title>
+            <Title level={4}>{currentPlayer?.name || 'Player'} (Total: {playerTotal})</Title>
             <div className="game-dice-container">
               {!isAITurn && diceValues.map((value, index) => (
                 <Dice
@@ -298,23 +342,24 @@ function Lobby() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(scores).map(([category, score]) => (
-                <tr
-                  key={category}
-                  onClick={() => !isAITurn && rollCount > 0 && handleScoreCategoryClick(category)}
-                  className={(!isAITurn && rollCount > 0) ? 'clickable' : 'disabled'}
-                >
-                  <td style={{ textTransform: 'capitalize' }}>{category}</td>
-                  <td>{score || '-'}</td>
-                  {mode === 'singleplayer' && (
-                    <td>
-                      {gameHistory
-                        .filter(h => h.player === 'AI Opponent' && h.category === category)
-                        .map(h => h.score)[0] || '-'}
-                    </td>
-                  )}
-                </tr>
-              ))}
+              {playerCategories.map((category) => {
+                const currentScore = calculateScores(diceValues)[category.name];
+                return (
+                  <tr
+                    key={category.category_id}
+                    onClick={() => !isAITurn && rollCount > 0 && !category.score && handleScoreCategoryClick(category.name)}
+                    className={(!isAITurn && rollCount > 0 && !category.score) ? 'clickable' : 'disabled'}
+                  >
+                    <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+                    <td>{category.score || (rollCount > 0 ? currentScore : '-')}</td>
+                    {mode === 'singleplayer' && (
+                      <td>
+                        {aiCategories.find(c => c.name === category.name)?.score || '-'}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
