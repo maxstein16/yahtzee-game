@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './components/Login';
-import Signup from './components/Signup';
-import Lobby from './components/Lobby';
+import Login from './pages/Login'
+import Signup from './pages/Signup';
+import Lobby from './pages/Lobby/Lobby';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {

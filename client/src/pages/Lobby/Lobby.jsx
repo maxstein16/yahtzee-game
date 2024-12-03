@@ -4,7 +4,7 @@ import { Layout, Typography, Button, Space, Menu, Dropdown } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import Dice from '../../components/Dice';
 import Chat from '../../components/Chat';
-import './Lobby.css';
+import '../../styles/Lobby.css';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
