@@ -7,7 +7,7 @@ import { handleRollDice, toggleDiceSelection, resetTurnState } from '../../servi
 import { submitScore, resetPlayerCategories } from '../../services/scoreTurnService';
 import { initializeAIPlayer, handleAITurn } from '../../services/aiOpponentService';
 import LobbyView from './Lobby.jsx';
-import API from '../../services/apiService';
+import API from '../../utils/api.js';
 
 const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 
