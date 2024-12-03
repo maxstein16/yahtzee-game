@@ -3,7 +3,8 @@ import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { initializeGame } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
-import { handleRollDice, toggleDiceSelection, resetTurnState } from '../../services/diceService';
+import { resetTurnState } from '../../services/gameStateService.js'
+import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
 import { submitScore, resetPlayerCategories } from '../../services/scoreTurnService';
 import { initializeAIPlayer, handleAITurn } from '../../services/aiOpponentService';
 import LobbyView from './Lobby.jsx';
