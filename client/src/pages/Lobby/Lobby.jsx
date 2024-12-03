@@ -2,8 +2,8 @@
 import React from 'react';
 import { Layout, Typography, Button, Space, Menu, Dropdown } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
-import Dice from '../../components/Dice';
-import Chat from '../../components/Chat';
+import Dice from '../../pages/Dice';
+import Chat from '../../pages/Chat';
 import '../../styles/Lobby.css';
 
 const { Header, Content } = Layout;
