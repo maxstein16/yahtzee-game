@@ -38,8 +38,15 @@ export const startGame = (gameId) =>
   apiRequest(`/game/${gameId}/start`, 'PUT');
 
 // Score Category Management
-export const initializePlayerCategories = (playerId) => 
-  apiRequest(`/scorecategory/init/${playerId}`, 'POST');
+export const initializePlayerCategories = async (playerId) => {
+  try {
+    const response = await apiRequest(`/scorecategory/init/${playerId}`, 'POST');
+    return response.categories;
+  } catch (error) {
+    console.error('Error initializing categories:', error);
+    throw error;
+  }
+};
 
 export const getPlayerCategories = (playerId) => 
   apiRequest(`/scorecategory/player/${playerId}`);

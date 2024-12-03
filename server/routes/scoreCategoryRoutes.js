@@ -12,8 +12,22 @@ const {
 // POST route to initialize categories for a player
 router.post('/scorecategory/init/:playerId', async (req, res) => {
   try {
+    // First check if player already has categories
+    const existingCategories = await getPlayerCategories(req.params.playerId);
+    if (existingCategories && existingCategories.length > 0) {
+      return res.json({ 
+        message: 'Score categories already exist',
+        categories: existingCategories 
+      });
+    }
+
+    // If no categories exist, initialize them
     await initializePlayerCategories(req.params.playerId);
-    res.json({ message: 'Score categories initialized successfully' });
+    const newCategories = await getPlayerCategories(req.params.playerId);
+    res.json({ 
+      message: 'Score categories initialized successfully',
+      categories: newCategories
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

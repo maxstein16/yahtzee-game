@@ -58,6 +58,12 @@ async function updateScoreCategory(categoryId, score) {
 }
 
 async function initializePlayerCategories(playerId) {
+  // First check if player already has categories
+  const existingCategories = await getPlayerCategories(playerId);
+  if (existingCategories && existingCategories.length > 0) {
+    return true; // Categories already exist, no need to initialize
+  }
+
   const categories = [
     ['ones', 5],
     ['twos', 10],
