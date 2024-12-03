@@ -9,17 +9,32 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
     const newGame = await API.createGame(gameStatus);
     setGameId(newGame.game_id);
 
-    // Reset and initialize categories for current player
-    await API.resetPlayerCategories(currentPlayer.player_id);
-    await API.initializePlayerCategories(currentPlayer.player_id);
+    // Check current player's categories
+    const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
+    const hasStartedPlaying = currentCategories.some(category => category.score !== null);
+
+    if (hasStartedPlaying) {
+      // If they've played, reset their categories
+      await API.resetPlayerCategories(currentPlayer.player_id);
+    } else if (currentCategories.length === 0) {
+      // If they have no categories, initialize new ones
+      await API.initializePlayerCategories(currentPlayer.player_id);
+    }
+    // If they have categories but haven't played, do nothing
 
     if (mode === 'multiplayer') {
       const gamePlayers = await API.getPlayersInGame(newGame.game_id);
       setPlayers(gamePlayers);
     } else {
-      // Initialize AI player categories
-      await API.resetPlayerCategories('ai-opponent');
-      await API.initializePlayerCategories('ai-opponent');
+      // Check AI categories
+      const aiCategories = await API.getPlayerCategories('ai-opponent');
+      const aiHasStartedPlaying = aiCategories.some(category => category.score !== null);
+
+      if (aiHasStartedPlaying) {
+        await API.resetPlayerCategories('ai-opponent');
+      } else if (aiCategories.length === 0) {
+        await API.initializePlayerCategories('ai-opponent');
+      }
     }
 
     await API.startGame(newGame.game_id);

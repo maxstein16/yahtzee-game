@@ -141,18 +141,47 @@ function Lobby() {
   };
 
   const resetPlayerCategories = async (gameType) => {
-    await API.resetPlayerCategories(currentPlayer.player_id);
-    const categories = await API.getPlayerCategories(currentPlayer.player_id);
-    setPlayerCategories(categories);
-    setPlayerTotal(0);
+  try {
+    // Get current categories to check if player has started playing
+    const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
+    const hasStartedPlaying = currentCategories.some(category => category.score !== null);
 
-    if (gameType === 'singleplayer') {
-      await API.resetPlayerCategories('ai-opponent');
-      const aiCategories = await API.getPlayerCategories('ai-opponent');
-      setAiCategories(aiCategories);
-      setAiTotal(0);
+    if (hasStartedPlaying) {
+      // If they've played, reset their categories
+      await API.resetPlayerCategories(currentPlayer.player_id);
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(categories);
+      setPlayerTotal(0);
+    } else if (currentCategories.length === 0) {
+      // If they have no categories, initialize new ones
+      await API.initializePlayerCategories(currentPlayer.player_id);
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(categories);
+      setPlayerTotal(0);
     }
-  };
+    // If they have categories but haven't played, do nothing
+    
+    if (gameType === 'singleplayer') {
+      // Do the same check for AI
+      const currentAICategories = await API.getPlayerCategories('ai-opponent');
+      const aiHasStartedPlaying = currentAICategories.some(category => category.score !== null);
+
+      if (aiHasStartedPlaying) {
+        await API.resetPlayerCategories('ai-opponent');
+        const aiCategories = await API.getPlayerCategories('ai-opponent');
+        setAiCategories(aiCategories);
+        setAiTotal(0);
+      } else if (currentAICategories.length === 0) {
+        await API.initializePlayerCategories('ai-opponent');
+        const aiCategories = await API.getPlayerCategories('ai-opponent');
+        setAiCategories(aiCategories);
+        setAiTotal(0);
+      }
+    }
+  } catch (error) {
+    message.error('Failed to manage categories: ' + error.message);
+  }
+};
 
   const handleRollDice = async () => {
     if (rollCount >= 3) {
