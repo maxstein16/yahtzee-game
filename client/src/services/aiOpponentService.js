@@ -1,8 +1,12 @@
-import { rollDice, submitScore, calculateScores } from './lobbyService';
+// src/services/aiOpponentService.js
+import * as API from '../utils/api';
+import { message } from 'antd';
+import { rollDice, calculateScores } from './diceService';
+import { submitScore } from './gameService';
 
-// Score priorities and weights for different combinations
+// Constants
 const SCORE_PRIORITIES = {
-  yahtzee: 100,        // Highest priority
+  yahtzee: 100,
   largeStraight: 80,
   smallStraight: 70,
   fullHouse: 60,
@@ -14,10 +18,9 @@ const SCORE_PRIORITIES = {
   threes: 20,
   twos: 15,
   ones: 10,
-  chance: 5           // Lowest priority
+  chance: 5
 };
 
-// Threshold values for "good enough" scores to stop rolling
 const SCORE_THRESHOLDS = {
   yahtzee: 50,
   largeStraight: 40,
@@ -34,19 +37,17 @@ const SCORE_THRESHOLDS = {
   chance: 20
 };
 
+// Main AI gameplay functions
 export const playAITurn = async (gameId, aiPlayer) => {
   let diceValues = [1, 1, 1, 1, 1];
   let bestScore = 0;
   let bestCategory = null;
   let rollCount = 0;
 
-  // AI will make up to 3 rolls
   while (rollCount < 3) {
-    // Determine which dice to keep based on current values
     const selectedDice = getOptimalDiceToKeep(diceValues);
-    
-    // Perform the roll
     const rollResult = await rollDice(gameId, aiPlayer, diceValues, selectedDice);
+    
     if (!rollResult.success) {
       throw new Error('AI roll failed: ' + rollResult.message);
     }
@@ -54,7 +55,6 @@ export const playAITurn = async (gameId, aiPlayer) => {
     diceValues = rollResult.dice;
     rollCount = rollResult.rollCount;
 
-    // Calculate scores and find best option
     const scores = calculateScores(diceValues);
     const { category, score } = findBestScoreOption(scores);
     
@@ -63,79 +63,71 @@ export const playAITurn = async (gameId, aiPlayer) => {
       bestCategory = category;
     }
 
-    // Check if current score is good enough to stop rolling
     if (isGoodEnoughScore(bestScore, bestCategory)) {
       break;
     }
   }
 
-  // Submit the best score found
-  return await submitScore(gameId, aiPlayer, bestCategory, bestScore);
+  return { category: bestCategory, score: bestScore };
 };
 
+// AI State Management
+export const initializeAIPlayer = async () => {
+  const aiCategories = await API.getPlayerCategories('ai-opponent');
+  const aiTotal = await API.getPlayerTotalScore('ai-opponent');
+
+  return {
+    player: {
+      player_id: 'ai-opponent',
+      name: 'AI Opponent'
+    },
+    categories: aiCategories,
+    totalScore: aiTotal.totalScore
+  };
+};
+
+export const handleAITurn = async (gameState) => {
+  const {
+    gameId,
+    aiPlayer,
+    setIsAITurn,
+    setAiDiceValues,
+    setAiRollCount,
+    setAiCategories,
+    setAiTotal
+  } = gameState;
+
+  setIsAITurn(true);
+  try {
+    const { category, score } = await playAITurn(gameId, aiPlayer);
+    const result = await submitScore(gameId, aiPlayer, category, score);
+    
+    if (result.success) {
+      const newCategories = await API.getPlayerCategories('ai-opponent');
+      const newTotal = await API.getPlayerTotalScore('ai-opponent');
+      
+      setAiCategories(newCategories);
+      setAiTotal(newTotal.totalScore);
+      message.success(`AI played ${category} for ${score} points!`);
+    }
+  } catch (error) {
+    message.error('AI turn failed: ' + error.message);
+  } finally {
+    setIsAITurn(false);
+    setAiDiceValues([1, 1, 1, 1, 1]);
+    setAiRollCount(0);
+  }
+};
+
+// Helper functions
 function getOptimalDiceToKeep(diceValues) {
-  // Count occurrences of each value
   const valueCounts = diceValues.reduce((counts, value) => {
     counts[value] = (counts[value] || 0) + 1;
     return counts;
   }, {});
 
-  // Check for potential scoring combinations
   const potentialCombos = analyzePotentalCombinations(diceValues, valueCounts);
-  
-  // Select dice to keep based on the best potential combination
-  const diceToKeep = [];
-  
-  if (potentialCombos.yahtzee.possible) {
-    // Keep all matching dice for potential Yahtzee
-    const valueToKeep = parseInt(potentialCombos.yahtzee.value);
-    diceValues.forEach((value, index) => {
-      if (value === valueToKeep) {
-        diceToKeep.push(index);
-      }
-    });
-  } else if (potentialCombos.fourOfAKind.possible) {
-    // Keep matching dice for potential 4 of a kind
-    const valueToKeep = parseInt(potentialCombos.fourOfAKind.value);
-    diceValues.forEach((value, index) => {
-      if (value === valueToKeep) {
-        diceToKeep.push(index);
-      }
-    });
-  } else if (potentialCombos.straight.possible) {
-    // Keep sequential dice for potential straight
-    const sequentialValues = potentialCombos.straight.values;
-    diceValues.forEach((value, index) => {
-      if (sequentialValues.includes(value)) {
-        diceToKeep.push(index);
-      }
-    });
-  } else if (potentialCombos.fullHouse.possible) {
-    // Keep dice for potential full house
-    const { threeValue, pairValue } = potentialCombos.fullHouse;
-    diceValues.forEach((value, index) => {
-      if (value === threeValue || value === pairValue) {
-        diceToKeep.push(index);
-      }
-    });
-  } else if (potentialCombos.threeOfAKind.possible) {
-    // Keep matching dice for potential 3 of a kind
-    const valueToKeep = parseInt(potentialCombos.threeOfAKind.value);
-    diceValues.forEach((value, index) => {
-      if (value === valueToKeep) {
-        diceToKeep.push(index);
-      }
-    });
-  } else {
-    // Keep high value dice if no clear combination
-    diceValues.forEach((value, index) => {
-      if (value >= 4) {
-        diceToKeep.push(index);
-      }
-    });
-  }
-
-  return diceToKeep;
+  return selectDiceToKeep(diceValues, potentialCombos);
 }
 
 function analyzePotentalCombinations(diceValues, valueCounts) {
@@ -147,7 +139,7 @@ function analyzePotentalCombinations(diceValues, valueCounts) {
     straight: { possible: false, values: [] }
   };
 
-  // Check for potential Yahtzee
+  // Check each potential combination
   Object.entries(valueCounts).forEach(([value, count]) => {
     if (count >= 4) {
       result.yahtzee.possible = true;
@@ -160,7 +152,7 @@ function analyzePotentalCombinations(diceValues, valueCounts) {
     }
   });
 
-  // Check for potential Full House
+  // Check Full House
   const threeOfAKind = Object.entries(valueCounts).find(([_, count]) => count >= 3);
   const pair = Object.entries(valueCounts).find(([value, count]) => 
     count >= 2 && value !== (threeOfAKind ? threeOfAKind[0] : null)
@@ -172,7 +164,13 @@ function analyzePotentalCombinations(diceValues, valueCounts) {
     result.fullHouse.pairValue = parseInt(pair[0]);
   }
 
-  // Check for potential Straight
+  // Check Straight
+  checkStraightPotential(diceValues, result);
+
+  return result;
+}
+
+function checkStraightPotential(diceValues, result) {
   const uniqueValues = [...new Set(diceValues)].sort((a, b) => a - b);
   if (uniqueValues.length >= 4) {
     for (let i = 0; i < uniqueValues.length - 3; i++) {
@@ -184,8 +182,52 @@ function analyzePotentalCombinations(diceValues, valueCounts) {
       }
     }
   }
+}
 
-  return result;
+function selectDiceToKeep(diceValues, potentialCombos) {
+  const diceToKeep = [];
+
+  if (potentialCombos.yahtzee.possible) {
+    keepMatchingDice(diceValues, potentialCombos.yahtzee.value, diceToKeep);
+  } else if (potentialCombos.fourOfAKind.possible) {
+    keepMatchingDice(diceValues, potentialCombos.fourOfAKind.value, diceToKeep);
+  } else if (potentialCombos.straight.possible) {
+    keepSequentialDice(diceValues, potentialCombos.straight.values, diceToKeep);
+  } else if (potentialCombos.fullHouse.possible) {
+    keepFullHouseDice(diceValues, potentialCombos.fullHouse, diceToKeep);
+  } else if (potentialCombos.threeOfAKind.possible) {
+    keepMatchingDice(diceValues, potentialCombos.threeOfAKind.value, diceToKeep);
+  } else {
+    keepHighValueDice(diceValues, diceToKeep);
+  }
+
+  return diceToKeep;
+}
+
+function keepFullHouseDice(diceValues, fullHouse, diceToKeep) {
+  keepMatchingDice(diceValues, fullHouse.threeValue, diceToKeep);
+  keepMatchingDice(diceValues, fullHouse.pairValue, diceToKeep);
+}
+
+function keepMatchingDice(diceValues, value, diceToKeep) {
+  diceValues.forEach((dice) => {
+    if (dice === value) {
+      diceToKeep.push(dice);
+    }
+  });
+}
+
+function keepSequentialDice(diceValues, sequence, diceToKeep) {
+  sequence.forEach((value) => {
+    if (diceValues.includes(value)) {
+      diceToKeep.push(value);
+    }
+  });
+}
+
+function keepHighValueDice(diceValues, diceToKeep) {
+  const sortedValues = [...diceValues].sort((a, b) => b - a);
+  diceToKeep.push(sortedValues[0], sortedValues[1]);
 }
 
 function findBestScoreOption(scores) {
@@ -212,4 +254,10 @@ function isGoodEnoughScore(score, category) {
   return score >= (SCORE_THRESHOLDS[category] || 0);
 }
 
-export default playAITurn;
+const aiOpponentService = {
+  playAITurn,
+  initializeAIPlayer,
+  handleAITurn
+};
+
+export default aiOpponentService;

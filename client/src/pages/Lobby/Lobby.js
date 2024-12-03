@@ -1,18 +1,13 @@
-// src/pages/Lobby/Lobby.js
 import React, { useState, useEffect } from 'react';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { 
-  initializeGame, 
-  rollDice, 
-  submitScore, 
-  calculateScores,
-  getPlayerTotalScore,
-  getAvailableCategories 
-} from '../../services/lobbyService';
-import { playAITurn } from '../../services/aiOpponentService';
-import * as API from '../../utils/api';
+import { initializeGame } from '../../services/lobbyService';
+import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
+import { handleRollDice, toggleDiceSelection, resetTurnState } from '../../services/diceService';
+import { submitScore, resetPlayerCategories } from '../../services/scoreTurnService';
+import { initializeAIPlayer, handleAITurn } from '../../services/aiOpponentService';
 import LobbyView from './Lobby.jsx';
+import API from '../../services/apiService';
 
 const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 
@@ -47,162 +42,67 @@ function Lobby() {
 
   // Initialize player data and session check
   useEffect(() => {
-    const fetchCurrentPlayer = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const playerId = localStorage.getItem('playerId');
-        
-        if (!token || !playerId) {
-          navigate('/login');
-          return;
-        }
-
-        const playerData = await API.getPlayerById(playerId);
-        setCurrentPlayer(playerData);
-
-        const categories = await API.getPlayerCategories(playerId);
-        setPlayerCategories(categories);
-
-        const total = await API.getPlayerTotalScore(playerId);
-        setPlayerTotal(total.totalScore);
-      } catch (error) {
-        message.error('Session expired. Please login again');
-        localStorage.removeItem('token');
-        localStorage.removeItem('playerId');
-        navigate('/login');
+    const initializePlayer = async () => {
+      const playerInfo = await fetchCurrentPlayer(navigate);
+      if (playerInfo) {
+        setCurrentPlayer(playerInfo.playerData);
+        setPlayerCategories(playerInfo.categories);
+        setPlayerTotal(playerInfo.total);
       }
     };
 
-    fetchCurrentPlayer();
+    initializePlayer();
   }, [navigate]);
 
   // Initialize game when player or mode changes
   useEffect(() => {
-    if (currentPlayer) {
-      initializeGameSession();
-    }
-  }, [mode, currentPlayer]);
+    const initializeGameSession = async () => {
+      if (!currentPlayer) return;
 
-  const initializeGameSession = async () => {
-    const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
-    if (result.success) {
-      message.success(result.message);
+      const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
       
-      if (mode === 'singleplayer') {
-        await initializeAIPlayer();
+      if (result.success) {
+        message.success(result.message);
+        if (mode === 'singleplayer') {
+          const aiInfo = await initializeAIPlayer();
+          setAiPlayer(aiInfo.player);
+          setAiCategories(aiInfo.categories);
+          setAiTotal(aiInfo.totalScore);
+        } else {
+          setAiPlayer(null);
+          setAiCategories([]);
+          setAiTotal(0);
+        }
       } else {
-        resetAIState();
+        message.error(result.message);
       }
-    } else {
-      message.error(result.message);
-    }
-  };
+    };
 
-  const initializeAIPlayer = async () => {
-    setAiPlayer({
-      player_id: 'ai-opponent',
-      name: 'AI Opponent'
-    });
-    const aiCategories = await API.getPlayerCategories('ai-opponent');
-    setAiCategories(aiCategories);
-    const aiTotal = await API.getPlayerTotalScore('ai-opponent');
-    setAiTotal(aiTotal.totalScore);
-  };
-
-  const resetAIState = () => {
-    setAiPlayer(null);
-    setAiCategories([]);
-    setAiTotal(0);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('playerId');
-    navigate('/login');
-  };
-
-  const resetTurnState = () => {
-    setDiceValues(INITIAL_DICE_VALUES);
-    setSelectedDice([]);
-    setRollCount(0);
-    setScores({});
-  };
+    initializeGameSession();
+  }, [mode, currentPlayer]);
 
   const handleNewGame = async (gameType) => {
     setMode(gameType);
-    resetTurnState();
+    resetTurnState({
+      setDiceValues,
+      setSelectedDice,
+      setRollCount,
+      setScores
+    });
+    
     setAiDiceValues(INITIAL_DICE_VALUES);
     setAiRollCount(0);
     setIsAITurn(false);
     
     if (currentPlayer) {
-      await resetPlayerCategories(gameType);
-    }
-  };
-
-  const resetPlayerCategories = async (gameType) => {
-  try {
-    // Get current categories to check if player has started playing
-    const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
-    const hasStartedPlaying = currentCategories.some(category => category.score !== null);
-
-    if (hasStartedPlaying) {
-      // If they've played, reset their categories
-      await API.resetPlayerCategories(currentPlayer.player_id);
-      const categories = await API.getPlayerCategories(currentPlayer.player_id);
-      setPlayerCategories(categories);
-      setPlayerTotal(0);
-    } else if (currentCategories.length === 0) {
-      // If they have no categories, initialize new ones
-      await API.initializePlayerCategories(currentPlayer.player_id);
-      const categories = await API.getPlayerCategories(currentPlayer.player_id);
-      setPlayerCategories(categories);
-      setPlayerTotal(0);
-    }
-    // If they have categories but haven't played, do nothing
-    
-    if (gameType === 'singleplayer') {
-      // Do the same check for AI
-      const currentAICategories = await API.getPlayerCategories('ai-opponent');
-      const aiHasStartedPlaying = currentAICategories.some(category => category.score !== null);
-
-      if (aiHasStartedPlaying) {
-        await API.resetPlayerCategories('ai-opponent');
-        const aiCategories = await API.getPlayerCategories('ai-opponent');
-        setAiCategories(aiCategories);
-        setAiTotal(0);
-      } else if (currentAICategories.length === 0) {
-        await API.initializePlayerCategories('ai-opponent');
-        const aiCategories = await API.getPlayerCategories('ai-opponent');
-        setAiCategories(aiCategories);
-        setAiTotal(0);
-      }
-    }
-  } catch (error) {
-    message.error('Failed to manage categories: ' + error.message);
-  }
-};
-
-  const handleRollDice = async () => {
-    if (rollCount >= 3) {
-      message.warning('Maximum rolls reached for this turn.');
-      return;
-    }
-
-    setIsRolling(true);
-    try {
-      const result = await rollDice(gameId, currentPlayer, diceValues, selectedDice);
-      if (result.success) {
-        setDiceValues(result.dice);
-        setScores(calculateScores(result.dice));
-        setRollCount(result.rollCount);
-      } else {
-        message.error(result.message);
-      }
-    } catch (error) {
-      message.error('Failed to roll dice');
-    } finally {
-      setIsRolling(false);
+      await resetPlayerCategories({
+        currentPlayer,
+        gameType,
+        setPlayerCategories,
+        setPlayerTotal,
+        setAiCategories,
+        setAiTotal
+      });
     }
   };
 
@@ -213,115 +113,79 @@ function Lobby() {
     }
 
     const result = await submitScore(gameId, currentPlayer, category, scores[category]);
+    
     if (result.success) {
-      await handlePlayerTurnComplete();
+      resetTurnState({
+        setDiceValues,
+        setSelectedDice,
+        setRollCount,
+        setScores
+      });
+      
+      message.success(result.message);
+      setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
+      setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
       
       if (mode === 'singleplayer' && aiPlayer) {
-        await handleAITurn();
+        await handleAITurn({
+          gameId,
+          aiPlayer,
+          setIsAITurn,
+          setAiDiceValues,
+          setAiRollCount,
+          setAiCategories,
+          setAiTotal
+        });
       }
     } else {
       message.error(result.message);
     }
   };
 
-  const handlePlayerTurnComplete = async () => {
-    resetTurnState();
-    message.success('Score submitted successfully!');
-    
-    const categories = await API.getPlayerCategories(currentPlayer.player_id);
-    setPlayerCategories(categories);
-    const newTotal = await API.getPlayerTotalScore(currentPlayer.player_id);
-    setPlayerTotal(newTotal.totalScore);
-  };
+  const handleDiceRoll = () => handleRollDice({
+    rollCount,
+    gameId,
+    currentPlayer,
+    diceValues,
+    selectedDice,
+    setIsRolling,
+    setDiceValues,
+    setScores,
+    setRollCount
+  });
 
-  const handleAITurn = async () => {
-    setIsAITurn(true);
-    try {
-      await simulateAIRolls();
-      await executeAIMove();
-    } catch (error) {
-      message.error('AI turn failed: ' + error.message);
-    } finally {
-      resetAITurnState();
-    }
-  };
+  const handleDiceSelection = (index) => toggleDiceSelection(
+    index,
+    isRolling,
+    isAITurn,
+    setSelectedDice
+  );
 
-  const simulateAIRolls = async () => {
-    for (let i = 0; i < 3; i++) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const rollResult = await rollDice(gameId, aiPlayer, aiDiceValues, []);
-      if (rollResult.success) {
-        setAiDiceValues(rollResult.dice);
-        setAiRollCount(i + 1);
-      }
-    }
-  };
-
-  const executeAIMove = async () => {
-    const scores = calculateScores(aiDiceValues);
-    const { category: bestCategory, score: bestScore } = await playAITurn(gameId, aiPlayer);
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const aiResult = await submitScore(gameId, aiPlayer, bestCategory, bestScore);
-    
-    if (aiResult.success) {
-      const newAiCategories = await API.getPlayerCategories('ai-opponent');
-      setAiCategories(newAiCategories);
-      const newAiTotal = await API.getPlayerTotalScore('ai-opponent');
-      setAiTotal(newAiTotal.totalScore);
-      
-      message.success(`AI played ${bestCategory} for ${bestScore} points!`);
-    }
-  };
-
-  const resetAITurnState = () => {
-    setIsAITurn(false);
-    setAiDiceValues(INITIAL_DICE_VALUES);
-    setAiRollCount(0);
-  };
-
-  const toggleDiceSelection = (index) => {
-    if (isRolling || isAITurn) return;
-    setSelectedDice(prev =>
-      prev.includes(index)
-        ? prev.filter((i) => i !== index)
-        : [...prev, index]
-    );
-  };
+  const handlePlayerLogout = () => handleLogout(navigate);
 
   // Props to pass to the view component
   const viewProps = {
-    // Game props
     mode,
     currentPlayer,
     gameId,
-    
-    // Player props
     diceValues,
     selectedDice,
     isRolling,
     rollCount,
     playerTotal,
     playerCategories,
-    
-    // AI props
     aiDiceValues,
     aiRollCount,
     isAITurn,
     aiTotal,
     aiCategories,
-    
-    // UI props
     isChatVisible,
-    
-    // Action handlers
     handleNewGame,
-    handleLogout,
-    handleRollDice,
-    toggleDiceSelection,
+    handleLogout: handlePlayerLogout,
+    handleRollDice: handleDiceRoll,
+    toggleDiceSelection: handleDiceSelection,
     handleScoreCategoryClick,
-    setIsChatVisible,
-    calculateScores
+    setIsChatVisible
   };
 
   return <LobbyView {...viewProps} />;
