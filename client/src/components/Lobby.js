@@ -28,16 +28,17 @@ function Lobby() {
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [players, setPlayers] = useState([]);
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
+  const [aiDiceValues, setAiDiceValues] = useState([1, 1, 1, 1, 1]);
   const [selectedDice, setSelectedDice] = useState([]);
   const [scores, setScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
+  const [aiRollCount, setAiRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isAITurn, setIsAITurn] = useState(false);
   const [aiPlayer, setAiPlayer] = useState(null);
   const [gameHistory, setGameHistory] = useState([]);
 
-  // Initialize player and check authentication
   useEffect(() => {
     const fetchCurrentPlayer = async () => {
       try {
@@ -62,7 +63,6 @@ function Lobby() {
     fetchCurrentPlayer();
   }, [navigate]);
 
-  // Initialize game and AI player
   useEffect(() => {
     if (currentPlayer) {
       const init = async () => {
@@ -70,7 +70,6 @@ function Lobby() {
         if (result.success) {
           message.success(result.message);
           
-          // Initialize AI player for single player mode
           if (mode === 'singleplayer') {
             setAiPlayer({
               player_id: 'ai-opponent',
@@ -87,21 +86,6 @@ function Lobby() {
       init();
     }
   }, [mode, currentPlayer]);
-
-  // Track game history
-  useEffect(() => {
-    if (gameId) {
-      const updateHistory = () => {
-        setGameHistory(prev => [...prev, {
-          player: currentPlayer?.name,
-          scores: scores,
-          timestamp: new Date().toISOString()
-        }]);
-      };
-
-      return () => updateHistory();
-    }
-  }, [gameId, scores, currentPlayer]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -120,6 +104,9 @@ function Lobby() {
     setMode(gameType);
     resetTurnState();
     setGameHistory([]);
+    setAiDiceValues([1, 1, 1, 1, 1]);
+    setAiRollCount(0);
+    setIsAITurn(false);
   };
 
   const handleRollDice = async () => {
@@ -152,21 +139,32 @@ function Lobby() {
       resetTurnState();
       message.success(result.message);
       
-      // Start AI turn in single player mode
       if (mode === 'singleplayer' && aiPlayer) {
         setIsAITurn(true);
         try {
-          // Add slight delay for better UX
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Simulate AI rolls with animation
+          for (let i = 0; i < 3; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const rollResult = await rollDice(gameId, aiPlayer, aiDiceValues, []);
+            if (rollResult.success) {
+              setAiDiceValues(rollResult.dice);
+              setAiRollCount(i + 1);
+            }
+          }
           
-          const aiResult = await playAITurn(gameId, aiPlayer);
+          // Calculate best score and submit
+          const scores = calculateScores(aiDiceValues);
+          const { category: bestCategory, score: bestScore } = await playAITurn(gameId, aiPlayer);
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const aiResult = await submitScore(gameId, aiPlayer, bestCategory, bestScore);
+          
           if (aiResult.success) {
-            message.success(`AI played ${aiResult.category} for ${aiResult.score} points!`);
-            // Update AI scores in game history
+            message.success(`AI played ${bestCategory} for ${bestScore} points!`);
             setGameHistory(prev => [...prev, {
               player: 'AI Opponent',
-              category: aiResult.category,
-              score: aiResult.score,
+              category: bestCategory,
+              score: bestScore,
               timestamp: new Date().toISOString()
             }]);
           }
@@ -174,6 +172,8 @@ function Lobby() {
           message.error('AI turn failed: ' + error.message);
         } finally {
           setIsAITurn(false);
+          setAiDiceValues([1, 1, 1, 1, 1]);
+          setAiRollCount(0);
         }
       }
     } else {
@@ -239,23 +239,51 @@ function Lobby() {
         </Space>
       </Header>
 
-      <Content style={{ display: 'flex', padding: '20px', justifyContent: 'space-between' }}>
+      <Content className="game-container">
         <div className="game-board">
-          <Title level={3}>Game Board</Title>
-          <div className="game-dice-container">
-            {diceValues.map((value, index) => (
-              <Dice
-                key={index}
-                value={value}
-                isSelected={selectedDice.includes(index)}
-                isRolling={isRolling}
-                onClick={() => toggleDiceSelection(index)}
-                disabled={isAITurn}
-              />
-            ))}
+          <div className="opponent-section">
+            <Title level={4}>AI Opponent</Title>
+            {isAITurn && (
+              <>
+                <div className="game-dice-container">
+                  {aiDiceValues.map((value, index) => (
+                    <Dice
+                      key={index}
+                      value={value}
+                      isRolling={isRolling}
+                      disabled={true}
+                    />
+                  ))}
+                </div>
+                <Text>Roll Count: {aiRollCount}/3</Text>
+              </>
+            )}
           </div>
-          <div className="player-info">
-            <Text>Current Player: {isAITurn ? 'AI Opponent' : currentPlayer?.name || 'Loading...'}</Text>
+          
+          <div className="player-section">
+            <Title level={4}>{currentPlayer?.name || 'Player'}</Title>
+            <div className="game-dice-container">
+              {!isAITurn && diceValues.map((value, index) => (
+                <Dice
+                  key={index}
+                  value={value}
+                  isSelected={selectedDice.includes(index)}
+                  isRolling={isRolling}
+                  onClick={() => toggleDiceSelection(index)}
+                  disabled={isAITurn || rollCount >= 3}
+                />
+              ))}
+            </div>
+            <div className="roll-button-container">
+              <Button
+                type="primary"
+                onClick={handleRollDice}
+                disabled={!gameId || rollCount >= 3 || isAITurn}
+              >
+                Roll Dice
+              </Button>
+              <Text className="roll-count">Roll Count: {rollCount}/3</Text>
+            </div>
           </div>
         </div>
 
@@ -266,15 +294,15 @@ function Lobby() {
               <tr>
                 <th>Category</th>
                 <th>{currentPlayer?.name || 'Player'}</th>
-                {mode === 'singleplayer' && <th>AI Opponent</th>}
+                {mode === 'singleplayer' && <th>AI</th>}
               </tr>
             </thead>
             <tbody>
               {Object.entries(scores).map(([category, score]) => (
                 <tr
                   key={category}
-                  onClick={() => !isAITurn && handleScoreCategoryClick(category)}
-                  className={isAITurn ? 'disabled' : 'clickable'}
+                  onClick={() => !isAITurn && rollCount > 0 && handleScoreCategoryClick(category)}
+                  className={(!isAITurn && rollCount > 0) ? 'clickable' : 'disabled'}
                 >
                   <td style={{ textTransform: 'capitalize' }}>{category}</td>
                   <td>{score || '-'}</td>
@@ -291,23 +319,6 @@ function Lobby() {
           </table>
         </div>
       </Content>
-
-      <div className="roll-button-container">
-        <Button
-          type="primary"
-          onClick={handleRollDice}
-          disabled={!gameId || rollCount >= 3 || isAITurn}
-        >
-          Roll Dice
-        </Button>
-        <Text className="roll-count">Roll Count: {rollCount}/3</Text>
-      </div>
-
-      {mode === 'singleplayer' && isAITurn && (
-        <div className="ai-turn-indicator">
-          <Text>AI is thinking...</Text>
-        </div>
-      )}
 
       <Modal
         title="Game Chat"
