@@ -9,10 +9,21 @@ export const rollDice = async (gameId, currentPlayer, diceValues, selectedDice) 
   }
 
   try {
-    const result = await API.rollDice(gameId, diceValues, selectedDice);
+    // Create an array marking which dice should be rerolled (not selected)
+    const diceToReroll = diceValues.map((_, index) => !selectedDice.includes(index));
+    
+    // Pass both current values and reroll instructions to API
+    const result = await API.rollDice(gameId, diceValues, diceToReroll);
+    
+    // If result.dice is returned, use it; otherwise, create new dice array
+    const newDiceValues = result.dice.map((value, index) => {
+      // Keep selected dice, only update non-selected ones
+      return selectedDice.includes(index) ? diceValues[index] : value;
+    });
+
     return { 
       success: true, 
-      dice: result.dice, 
+      dice: newDiceValues,
       rollCount: result.rollCount 
     };
   } catch (error) {
@@ -43,7 +54,6 @@ export const handleRollDice = async ({
     if (result.success) {
       setDiceValues(result.dice);
       setScores(calculateScores(result.dice));
-      // Increment roll count manually to ensure proper state update
       const newRollCount = rollCount + 1;
       setRollCount(newRollCount);
     } else {
