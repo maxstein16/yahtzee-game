@@ -1,26 +1,4 @@
 const API_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app/api';
-const API = {
-  login,
-  register,
-  createGame,
-  getGameById,
-  updateGame,
-  deleteGame,
-  startGame,
-  initializePlayerCategories,
-  getPlayerCategories,
-  getPlayerCategory,
-  updateScoreCategory,
-  getPlayerTotalScore,
-  resetPlayerCategories,
-  submitGameScore,
-  getChatMessages,
-  sendMessage,
-  rollDice,
-  submitTurn,
-  getPlayersInGame,
-  getPlayerById
-};
 
 // Helper function to handle API requests
 const apiRequest = async (endpoint, method = 'GET', body = null) => {
@@ -113,5 +91,28 @@ export const submitTurn = (gameId, playerId, categoryId, score) =>
 export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);
 
 export const getPlayerById = (playerId) => apiRequest(`/players/${playerId}`);
+
+const API = {
+  login,
+  register,
+  createGame,
+  getGameById,
+  updateGame,
+  deleteGame,
+  startGame,
+  initializePlayerCategories,
+  getPlayerCategories,
+  getPlayerCategory,
+  updateScoreCategory,
+  getPlayerTotalScore,
+  resetPlayerCategories,
+  submitGameScore,
+  getChatMessages,
+  sendMessage,
+  rollDice,
+  submitTurn,
+  getPlayersInGame,
+  getPlayerById
+};
 
 export default API;
