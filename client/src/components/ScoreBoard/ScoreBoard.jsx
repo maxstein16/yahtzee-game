@@ -29,22 +29,21 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const currentScore = calculateScores(diceValues)[category.name];
-            const isClickable = !isAITurn && rollCount > 0 && !category.score;
             
             return (
               <tr
-                key={category.category_id}
-                onClick={() => isClickable && handleScoreCategoryClick(category.name)}
-                className={isClickable ? 'clickable' : 'disabled'}
-              >
-                <td style={{ textTransform: 'capitalize' }}>{category.name.replace(/_/g, ' ')}</td>
-                <td>{category.score !== null ? category.score : (rollCount > 0 ? currentScore : '-')}</td>
-                {mode === 'singleplayer' && (
-                  <td>
-                    {aiCategories.find(c => c.name === category.name)?.score ?? '-'}
-                  </td>
-                )}
-              </tr>
+                  key={category.category_id}
+                  onClick={() => !isAITurn && rollCount > 0 && !category.score && handleScoreCategoryClick(category.name)}
+                  className={(!isAITurn && rollCount > 0 && !category.score) ? 'clickable' : 'disabled'}
+                >
+                  <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+                  <td>{category.score || (rollCount > 0 ? currentScore : '-')}</td>
+                  {mode === 'singleplayer' && (
+                    <td>
+                      {aiCategories.find(c => c.name === category.name)?.score || '-'}
+                    </td>
+                  )}
+            </tr>
             );
           })}
         </tbody>
