@@ -28,28 +28,27 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const currentScore = calculateScores(diceValues)[category.name];
-            const scoreExists = category.score !== null && category.score !== undefined;
+            const possibleScores = calculateScores(diceValues);
+            const currentScore = possibleScores[category.name];
+            const hasScore = category.score !== undefined;
             
             return (
               <tr
                 key={category.category_id}
-                onClick={() => !isAITurn && rollCount > 0 && !scoreExists && handleScoreCategoryClick(category.name)}
-                className={(!isAITurn && rollCount > 0 && !scoreExists) ? 'clickable' : 'disabled'}
+                onClick={() => !isAITurn && rollCount > 0 && !hasScore && handleScoreCategoryClick(category.name)}
+                className={(!isAITurn && rollCount > 0 && !hasScore) ? 'clickable' : 'disabled'}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
                 <td>
-                  {scoreExists 
-                    ? category.score 
-                    : (rollCount > 0 ? currentScore : '-')}
+                  {hasScore
+                    ? category.score
+                    : (rollCount > 0 ? (currentScore ?? '-') : '-')}
                 </td>
                 {mode === 'singleplayer' && (
                   <td>
                     {(() => {
                       const aiCategory = aiCategories.find(c => c.name === category.name);
-                      return aiCategory && (aiCategory.score !== null && aiCategory.score !== undefined)
-                        ? aiCategory.score
-                        : '-';
+                      return aiCategory?.score !== undefined ? aiCategory.score : '-';
                     })()}
                   </td>
                 )}
