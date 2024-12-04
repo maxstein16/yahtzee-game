@@ -2,42 +2,42 @@ import * as API from '../utils/api';
 import { message } from 'antd';
 
 export const submitScore = async (gameId, currentPlayer, category, score) => {
-    if (!gameId || !currentPlayer) {
-      return { success: false, message: 'Game or player not set.' };
+  if (!gameId || !currentPlayer) {
+    return { success: false, message: 'Game or player not set.' };
+  }
+
+  try {
+    // Get the specific category
+    const scoreCategory = await API.getPlayerCategory(
+      currentPlayer.player_id, 
+      category
+    );
+
+    if (!scoreCategory) {
+      return { success: false, message: 'Invalid category.' };
     }
-  
-    try {
-      // Get the specific category
-      const scoreCategory = await API.getPlayerCategory(
-        currentPlayer.player_id, 
-        category
-      );
-      
-      if (!scoreCategory) {
-        return { success: false, message: 'Invalid category.' };
-      }
-  
-      // Check if score is already set
-      if (scoreCategory.score > 0) {
-        return { success: false, message: 'Category already scored.' };
-      }
-  
-      // Submit score for the category
-      const result = await API.submitGameScore(gameId, currentPlayer.player_id, category, score);
-  
-      if (!result) {
-        throw new Error('Failed to update score');
-      }
-  
-      return { 
-        success: true, 
-        message: `${category} score saved!`,
-        updatedCategory: result.category
-      };
-    } catch (error) {
-      return { success: false, message: `Turn submission failed: ${error.message}` };
+
+    // Check if the score is already set (not null or undefined)
+    if (scoreCategory.score !== null && scoreCategory.score !== undefined) {
+      return { success: false, message: 'Category already scored.' };
     }
-  };
+
+    // Submit the score for the category
+    const result = await API.submitGameScore(gameId, currentPlayer.player_id, category, score);
+
+    if (!result) {
+      throw new Error('Failed to update score');
+    }
+
+    return { 
+      success: true, 
+      message: `${category} score saved!`,
+      updatedCategory: result.category
+    };
+  } catch (error) {
+    return { success: false, message: `Turn submission failed: ${error.message}` };
+  }
+};
 
   export const getAvailableCategories = async (playerId) => {
     try {
