@@ -59,29 +59,26 @@ export const submitScore = async (gameId, currentPlayer, category, score) => {
     }
   };
 
-  /**
- * Calculates scores for the Yahtzee categories based on dice values.
- * @param {number[]} dice - Array of dice values.
- * @returns {Object} - An object with scores for each category.
- */
-export function calculateScores(dice) {
-  const counts = Array(6).fill(0);
-  dice.forEach((value) => counts[value - 1]++);
-
-  return {
-    ones: counts[0] * 1,
-    twos: counts[1] * 2,
-    threes: counts[2] * 3,
-    fours: counts[3] * 4,
-    fives: counts[4] * 5,
-    sixes: counts[5] * 6,
-    fullHouse: counts.includes(3) && counts.includes(2) ? 25 : 0,
-    smallStraight: isSmallStraight(dice) ? 30 : 0,
-    largeStraight: isLargeStraight(dice) ? 40 : 0,
-    yahtzee: counts.includes(5) ? 50 : 0,
-    chance: dice.reduce((sum, value) => sum + value, 0),
-  };
-}
+  export function calculateScores(dice) {
+    const counts = Array(6).fill(0);
+    dice.forEach((value) => counts[value - 1]++);
+  
+    return {
+      ones: counts[0] * 1,
+      twos: counts[1] * 2,
+      threes: counts[2] * 3,
+      fours: counts[3] * 4,
+      fives: counts[4] * 5,
+      sixes: counts[5] * 6,
+      threeOfAKind: counts.some(count => count >= 3) ? dice.reduce((sum, value) => sum + value, 0) : 0,
+      fourOfAKind: counts.some(count => count >= 4) ? dice.reduce((sum, value) => sum + value, 0) : 0,
+      fullHouse: counts.includes(3) && counts.includes(2) ? 25 : 0,
+      smallStraight: isSmallStraight(dice) ? 30 : 0,
+      largeStraight: isLargeStraight(dice) ? 40 : 0,
+      yahtzee: counts.includes(5) ? 50 : 0,
+      chance: dice.reduce((sum, value) => sum + value, 0),
+    };
+  }
   
   function isSmallStraight(dice) {
     const uniqueValues = [...new Set(dice)].sort();

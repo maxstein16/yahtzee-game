@@ -32,18 +32,18 @@ const Scoreboard = ({
             
             return (
               <tr
-                  key={category.category_id}
-                  onClick={() => !isAITurn && rollCount > 0 && !category.score && handleScoreCategoryClick(category.name)}
-                  className={(!isAITurn && rollCount > 0 && !category.score) ? 'clickable' : 'disabled'}
-                >
-                  <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                  <td>{category.score || (rollCount > 0 ? currentScore : '-')}</td>
-                  {mode === 'singleplayer' && (
-                    <td>
-                      {aiCategories.find(c => c.name === category.name)?.score || '-'}
-                    </td>
-                  )}
-            </tr>
+                key={category.category_id}
+                onClick={() => !isAITurn && rollCount > 0 && !category.score && handleScoreCategoryClick(category.name)}
+                className={(!isAITurn && rollCount > 0 && !category.score) ? 'clickable' : 'disabled'}
+              >
+                <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+                <td>{category.score || (rollCount > 0 ? currentScore : '-')}</td>
+                {mode === 'singleplayer' && (
+                  <td>
+                    {aiCategories.find(c => c.name === category.name)?.score || '-'}
+                  </td>
+                )}
+              </tr>
             );
           })}
         </tbody>
