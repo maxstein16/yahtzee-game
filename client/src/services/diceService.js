@@ -1,7 +1,7 @@
 // src/services/diceService.js
 import * as API from '../utils/api';
 import { message } from 'antd';
-import { calculateScores } from '../utils/api';
+import { calculateScores } from './scoreTurnService';
 
 export const rollDice = async (gameId, currentPlayer, diceValues, selectedDice) => {
   if (!gameId || !currentPlayer) {
