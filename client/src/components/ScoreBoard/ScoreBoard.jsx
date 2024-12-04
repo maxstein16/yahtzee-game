@@ -19,9 +19,6 @@ const Scoreboard = ({
     return calculateScores(diceValues);
   }, [diceValues, calculateScores]);
 
-  console.log('Player Categories:', playerCategories); // Add this to see category structure
-  console.log('Calculated Scores:', scores); // Add this to see scores structure
-
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
@@ -35,21 +32,20 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            // Use the correct key from category to match scores object
-            const currentScore = scores[category.category_name] || scores[category.name];
+            const currentScore = scores[category.name.toLowerCase()];
             const isClickable = !isAITurn && rollCount > 0 && !category.score;
             
             return (
               <tr
                 key={category.category_id}
-                onClick={() => isClickable && handleScoreCategoryClick(category.category_name || category.name)}
+                onClick={() => isClickable && handleScoreCategoryClick(category.name)}
                 className={isClickable ? 'clickable' : 'disabled'}
               >
-                <td style={{ textTransform: 'capitalize' }}>{category.category_name || category.name}</td>
+                <td style={{ textTransform: 'capitalize' }}>{category.name.replace(/_/g, ' ')}</td>
                 <td>{category.score !== null ? category.score : (rollCount > 0 ? currentScore : '-')}</td>
                 {mode === 'singleplayer' && (
                   <td>
-                    {aiCategories.find(c => c.category_name === category.category_name || c.name === category.name)?.score ?? '-'}
+                    {aiCategories.find(c => c.name === category.name)?.score ?? '-'}
                   </td>
                 )}
               </tr>
