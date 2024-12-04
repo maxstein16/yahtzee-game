@@ -69,26 +69,19 @@ export function calculateScores(dice) {
   dice.forEach((value) => counts[value - 1]++);
 
   return {
-    'ones': counts[0] * 1,
-    'twos': counts[1] * 2,
-    'threes': counts[2] * 3,
-    'fours': counts[3] * 4,
-    'fives': counts[4] * 5,
-    'sixes': counts[5] * 6,
-    'three_of_a_kind': hasCount(counts, 3) ? dice.reduce((sum, value) => sum + value, 0) : 0,
-    'four_of_a_kind': hasCount(counts, 4) ? dice.reduce((sum, value) => sum + value, 0) : 0,
-    'full_house': counts.includes(3) && counts.includes(2) ? 25 : 0,
-    'small_straight': isSmallStraight(dice) ? 30 : 0,
-    'large_straight': isLargeStraight(dice) ? 40 : 0,
-    'yahtzee': counts.includes(5) ? 50 : 0,
-    'chance': dice.reduce((sum, value) => sum + value, 0),
+    ones: counts[0] * 1,
+    twos: counts[1] * 2,
+    threes: counts[2] * 3,
+    fours: counts[3] * 4,
+    fives: counts[4] * 5,
+    sixes: counts[5] * 6,
+    fullHouse: counts.includes(3) && counts.includes(2) ? 25 : 0,
+    smallStraight: isSmallStraight(dice) ? 30 : 0,
+    largeStraight: isLargeStraight(dice) ? 40 : 0,
+    yahtzee: counts.includes(5) ? 50 : 0,
+    chance: dice.reduce((sum, value) => sum + value, 0),
   };
 }
-  
-  // Helper functions for score calculation
-  function hasCount(counts, target) {
-    return counts.some(count => count >= target);
-  }
   
   function isSmallStraight(dice) {
     const uniqueValues = [...new Set(dice)].sort();
