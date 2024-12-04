@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Typography } from 'antd';
 import '../../styles/ScoreBoard.css'
 const { Title } = Typography;
@@ -14,10 +14,6 @@ const Scoreboard = ({
   handleScoreCategoryClick,
   aiCategories
 }) => {
-  const scores = useMemo(() => {
-    if (!diceValues || diceValues.length === 0) return {};
-    return calculateScores(diceValues);
-  }, [diceValues, calculateScores]);
 
   return (
     <div className="scoreboard">
@@ -32,7 +28,7 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const currentScore = scores[category.name.toLowerCase()];
+            const currentScore = calculateScores(diceValues)[category.name];
             const isClickable = !isAITurn && rollCount > 0 && !category.score;
             
             return (
