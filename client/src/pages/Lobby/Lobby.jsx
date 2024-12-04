@@ -3,7 +3,6 @@ import React from 'react';
 import { Layout, Typography, Button, Space, Menu, Dropdown } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
-import { calculateScores } from '../../services/scoreTurnService';
 import Dice from '../../pages/Dice';
 import Chat from '../../pages/Chat';
 import '../../styles/Lobby.css';
@@ -132,10 +131,16 @@ const LobbyView = ({
                 type="primary"
                 onClick={handleRollDice}
                 disabled={!gameId || rollCount >= 3 || isAITurn}
+                style={{
+                  cursor: rollCount >= 3 ? 'not-allowed' : 'pointer',
+                  opacity: rollCount >= 3 ? 0.5 : 1
+                }}
               >
                 Roll Dice
               </Button>
-              <Text className="roll-count">Roll Count: {rollCount}/3</Text>
+              <Text className="roll-count" style={{ marginLeft: '8px' }}>
+                Roll Count: {Math.min(rollCount, 3)}/3
+              </Text>
             </div>
           </div>
         </div>
