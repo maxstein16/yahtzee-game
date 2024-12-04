@@ -2,8 +2,7 @@
 import * as API from '../utils/api';
 import { message } from 'antd';
 import { rollDice } from '../services/diceService';
-import { calculateScores } from './scoreTurnService';
-import { submitScore } from '../services/gameStateService';
+import { calculateScores, submitScore } from './scoreTurnService';
 
 // Constants
 const SCORE_PRIORITIES = {
