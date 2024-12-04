@@ -29,18 +29,28 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const currentScore = calculateScores(diceValues)[category.name];
+            const scoreExists = category.score !== null && category.score !== undefined;
             
             return (
               <tr
                 key={category.category_id}
-                onClick={() => !isAITurn && rollCount > 0 && !category.score && handleScoreCategoryClick(category.name)}
-                className={(!isAITurn && rollCount > 0 && !category.score) ? 'clickable' : 'disabled'}
+                onClick={() => !isAITurn && rollCount > 0 && !scoreExists && handleScoreCategoryClick(category.name)}
+                className={(!isAITurn && rollCount > 0 && !scoreExists) ? 'clickable' : 'disabled'}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td>{category.score || (rollCount > 0 ? currentScore : '-')}</td>
+                <td>
+                  {scoreExists 
+                    ? category.score 
+                    : (rollCount > 0 ? currentScore : '-')}
+                </td>
                 {mode === 'singleplayer' && (
                   <td>
-                    {aiCategories.find(c => c.name === category.name)?.score || '-'}
+                    {(() => {
+                      const aiCategory = aiCategories.find(c => c.name === category.name);
+                      return aiCategory && (aiCategory.score !== null && aiCategory.score !== undefined)
+                        ? aiCategory.score
+                        : '-';
+                    })()}
                   </td>
                 )}
               </tr>
