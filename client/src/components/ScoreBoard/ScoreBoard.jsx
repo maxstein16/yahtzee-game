@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Typography } from 'antd';
-import '../../styles/Scoreboard.css';
+import '../../styles/ScoreBoard.css'
 const { Title } = Typography;
 
 const Scoreboard = ({
