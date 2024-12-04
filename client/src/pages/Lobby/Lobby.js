@@ -106,8 +106,8 @@ function Lobby() {
   };
 
   const handleScoreCategoryClick = async (category) => {
-    // Calculate the score for the selected category, defaulting to 0 if no valid combination
-    const scoreValue = scores[category] || 0;
+    // Use explicit 0 if the category score is undefined
+    const scoreValue = scores.hasOwnProperty(category) ? scores[category] : 0;
 
     const result = await submitScore(gameId, currentPlayer, category, scoreValue);
     
