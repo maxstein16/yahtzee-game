@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Typography } from 'antd';
-
+import '../../styles/Scoreboard.css'
 const { Title } = Typography;
 
 const Scoreboard = ({
@@ -14,7 +14,10 @@ const Scoreboard = ({
   handleScoreCategoryClick,
   aiCategories
 }) => {
-  const scores = useMemo(() => calculateScores(diceValues), [diceValues, calculateScores]);
+  const scores = useMemo(() => {
+    if (!diceValues || diceValues.length === 0) return {};
+    return calculateScores(diceValues);
+  }, [diceValues, calculateScores]);
 
   return (
     <div className="scoreboard">
@@ -30,17 +33,19 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const currentScore = scores[category.name];
+            const isClickable = !isAITurn && rollCount > 0 && !category.score;
+            
             return (
               <tr
                 key={category.category_id}
-                onClick={() => !isAITurn && rollCount > 0 && !category.score && handleScoreCategoryClick(category.name)}
-                className={(!isAITurn && rollCount > 0 && !category.score) ? 'clickable' : 'disabled'}
+                onClick={() => isClickable && handleScoreCategoryClick(category.name)}
+                className={isClickable ? 'clickable' : 'disabled'}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td>{category.score || (rollCount > 0 ? currentScore : '-')}</td>
+                <td>{category.score !== null ? category.score : (rollCount > 0 ? currentScore : '-')}</td>
                 {mode === 'singleplayer' && (
                   <td>
-                    {aiCategories.find(c => c.name === category.name)?.score || '-'}
+                    {aiCategories.find(c => c.name === category.name)?.score ?? '-'}
                   </td>
                 )}
               </tr>

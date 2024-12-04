@@ -5,7 +5,7 @@ import { initializeGame } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { resetTurnState } from '../../services/gameStateService.js'
 import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
-import { submitScore, resetPlayerCategories } from '../../services/scoreTurnService';
+import { submitScore, resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { initializeAIPlayer, handleAITurn } from '../../services/aiOpponentService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api.js';
@@ -186,7 +186,8 @@ function Lobby() {
     handleRollDice: handleDiceRoll,
     toggleDiceSelection: handleDiceSelection,
     handleScoreCategoryClick,
-    setIsChatVisible
+    setIsChatVisible,
+    calculateScores
   };
 
   return <LobbyView {...viewProps} />;

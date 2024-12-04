@@ -3,6 +3,7 @@ import React from 'react';
 import { Layout, Typography, Button, Space, Menu, Dropdown } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
+import { calculateScores } from '../../services/scoreTurnService';
 import Dice from '../../pages/Dice';
 import Chat from '../../pages/Chat';
 import '../../styles/Lobby.css';
