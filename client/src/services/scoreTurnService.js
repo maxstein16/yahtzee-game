@@ -6,7 +6,9 @@ export const submitScore = async (gameId, currentPlayer, categoryName, score, cu
     const scoreCategory = await API.getPlayerCategory(currentPlayer.player_id, categoryName);
     if (!scoreCategory) return { success: false, message: 'Invalid category.' };
  
-    const validCurrentDice = Array.isArray(currentDice) ? currentDice : [];
+    const validCurrentDice = Array.isArray(currentDice) 
+    ? currentDice.map(dice => Math.min(6, Math.max(1, dice)))
+    : [];
     const keepIndices = validCurrentDice.map((_, i) => i);
  
     const result = await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
