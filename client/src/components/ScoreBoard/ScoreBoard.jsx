@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Typography } from 'antd';
-import '../../styles/ScoreBoard.css'
+import API from '../../utils/api';
+import '../../styles/ScoreBoard.css';
+
 const { Title } = Typography;
 
 const Scoreboard = ({
@@ -12,8 +14,50 @@ const Scoreboard = ({
   isAITurn,
   rollCount,
   handleScoreCategoryClick,
-  aiCategories
+  aiCategories,
+  gameId
 }) => {
+  const [dbScores, setDbScores] = useState({});
+
+  useEffect(() => {
+    const fetchScores = async () => {
+      if (!currentPlayer?.player_id || !gameId) return;
+
+      try {
+        const categories = await API.getPlayerCategories(currentPlayer.player_id);
+        const scoreMap = {};
+        categories.forEach(cat => {
+          scoreMap[cat.name] = cat.score;
+        });
+        setDbScores(scoreMap);
+      } catch (error) {
+        console.error('Error fetching scores:', error);
+      }
+    };
+
+    fetchScores();
+  }, [currentPlayer?.player_id, gameId, rollCount]);
+
+  const getDisplayScore = (category) => {
+    if (dbScores[category.name] !== null && dbScores[category.name] !== undefined) {
+      return dbScores[category.name];
+    }
+    return rollCount > 0 ? calculateScores(diceValues)[category.name] : '-';
+  };
+  
+  const isCategoryAvailable = (category) => {
+    return !isAITurn && rollCount > 0;
+  };
+
+  const handleClick = (category) => {
+    console.log('Click attempt:', {
+      category: category.name,
+      isAITurn,
+      rollCount,
+      score: getDisplayScore(category)
+    });
+    handleScoreCategoryClick(category.name);
+  };
 
   return (
     <div className="scoreboard">
@@ -27,25 +71,21 @@ const Scoreboard = ({
           </tr>
         </thead>
         <tbody>
-          {playerCategories.map((category) => {
-            const currentScore = calculateScores(diceValues)[category.name];
-            
-            return (
-              <tr
-                key={category.category_id}
-                onClick={() => !isAITurn && rollCount > 0 && !category.score && handleScoreCategoryClick(category.name)}
-                className={(!isAITurn && rollCount > 0 && !category.score) ? 'clickable' : 'disabled'}
+          {playerCategories.map((category) => (
+            <tr
+              key={category.category_id}
+              onClick={() => handleClick(category)}
+              className={isCategoryAvailable(category) ? 'clickable' : 'disabled'}
               >
-                <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td>{category.score || (rollCount > 0 ? currentScore : '-')}</td>
-                {mode === 'singleplayer' && (
-                  <td>
-                    {aiCategories.find(c => c.name === category.name)?.score || '-'}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
+              <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+              <td>{getDisplayScore(category)}</td>
+              {mode === 'singleplayer' && (
+                <td>
+                  {aiCategories.find(c => c.name === category.name)?.score || '-'}
+                </td>
+              )}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

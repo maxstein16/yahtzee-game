@@ -9,15 +9,11 @@ export const rollDice = async (gameId, currentPlayer, diceValues, selectedDice) 
   }
 
   try {
-    // Create an array marking which dice should be rerolled (not selected)
     const diceToReroll = diceValues.map((_, index) => !selectedDice.includes(index));
     
-    // Pass both current values and reroll instructions to API
     const result = await API.rollDice(gameId, diceValues, diceToReroll);
     
-    // If result.dice is returned, use it; otherwise, create new dice array
     const newDiceValues = result.dice.map((value, index) => {
-      // Keep selected dice, only update non-selected ones
       return selectedDice.includes(index) ? diceValues[index] : value;
     });
 
@@ -42,7 +38,6 @@ export const handleRollDice = async ({
   setScores,
   setRollCount
 }) => {
-  // Prevent rolling if already at max rolls
   if (rollCount >= 3) {
     message.warning('Maximum rolls reached for this turn.');
     return;

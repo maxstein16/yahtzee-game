@@ -41,6 +41,7 @@ function Lobby() {
   // UI State
   const [isChatVisible, setIsChatVisible] = useState(false);
 
+  // Initialize player data and session check
   useEffect(() => {
     const initializePlayer = async () => {
       const playerInfo = await fetchCurrentPlayer(navigate);
@@ -54,6 +55,7 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
+  // Initialize game when player or mode changes
   useEffect(() => {
     const initializeGameSession = async () => {
       if (!currentPlayer) return;
@@ -106,10 +108,8 @@ function Lobby() {
   };
 
   const handleScoreCategoryClick = async (category) => {
-    // Use explicit 0 if the category score is undefined
-    const scoreValue = scores.hasOwnProperty(category) ? scores[category] : 0;
 
-    const result = await submitScore(gameId, currentPlayer, category, scoreValue);
+    const result = await submitScore(gameId, currentPlayer, category, scores[category], diceValues);
     
     if (result.success) {
       resetTurnState({
@@ -160,6 +160,7 @@ function Lobby() {
 
   const handlePlayerLogout = () => handleLogout(navigate);
 
+  // Props to pass to the view component
   const viewProps = {
     mode,
     currentPlayer,

@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { submitTurn } = require('../db/turnQueries');
-const broadcastMessage = require('../utils/broadcast');
 const { playTurn } = require('../utils/diceUtils');
+const { getLatestTurn, updateTurn, submitTurn} = require('../db/turnQueries');
 
 let rollCount = 0; 
 
@@ -27,17 +26,55 @@ router.post('/game/:id/roll', async (req, res) => {
     }
   });
 
+
+router.put('/game/:id/roll', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const { playerId, dice } = req.body;
+
+    if (!gameId || !playerId || !dice) {
+      return res.status(400).json({ error: 'Missing parameters' });
+    }
+
+    const turn = await updateTurn(gameId, playerId, dice);
+    res.json(turn);
+  } catch (error) {
+    console.error('Update turn error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/game/:id/turn', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const playerId = req.query.player_id;
+
+    if (!gameId || !playerId) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    const turn = await getLatestTurn(gameId, playerId);
+    res.json(turn);
+  } catch (error) {
+    console.error('Get turn error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.put('/game/:id/turn', async (req, res) => {
   try {
-    const { player_id, category_id, score } = req.body;
-    const game_id = req.params.id;
+    const gameId = req.params.id;
+    const { playerId, categoryId, score } = req.body;
 
-    const turnResult = await submitTurn(game_id, player_id, category_id, score);
-    broadcastMessage(turnResult);
+    if (!gameId || !playerId || !categoryId || score === undefined) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
 
-    res.json(turnResult);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const turn = await submitTurn(gameId, playerId, categoryId, score);
+    res.json(turn);
+  } catch (error) {
+    console.error('Submit turn error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -80,13 +80,26 @@ export const sendMessage = (gameId, playerId, message) =>
 export const rollDice = (gameId, currentDice, keepIndices) =>
   apiRequest(`/game/${gameId}/roll`, 'POST', { currentDice, keepIndices });
 
-export const submitTurn = (gameId, playerId, categoryId, score) =>
+export const submitTurn = (gameId, playerId, categoryId, score, dice) =>
   apiRequest(`/game/${gameId}/turn`, 'PUT', {
-    player_id: playerId,
-    category_id: categoryId,
+    playerId,
+    categoryId,
     score,
+    dice
   });
 
+export const getLatestTurn = (gameId, playerId) => 
+  apiRequest(`/game/${gameId}/turn?player_id=${playerId}`);
+
+export const updateTurn = (gameId, playerId, turnData) =>
+  apiRequest(`/game/${gameId}/roll`, 'PUT', {
+    playerId,
+    dice: turnData.dice,
+    turn_score: turnData.turn_score,
+    status: turnData.status,
+    categoryId: turnData.categoryId
+  });
+  
 // Players in Game
 export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);
 
@@ -112,7 +125,9 @@ const API = {
   rollDice,
   submitTurn,
   getPlayersInGame,
-  getPlayerById
+  getPlayerById,
+  getLatestTurn,
+  updateTurn
 };
 
 export default API;

@@ -1,38 +1,39 @@
-.scoreboard {
-    padding: 20px;
-    height: 600px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  .scoreboard table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 16px;
-  }
-  
-  .scoreboard th,
-  .scoreboard td {
-    padding: 12px;
-    text-align: center;
-    border: 1px solid #f0f0f0;
-  }
-  
-  .scoreboard th {
-    background-color: #fafafa;
-    font-weight: 600;
-  }
-  
-  .scoreboard tr.clickable {
-    cursor: pointer;
-  }
-  
-  .scoreboard tr.clickable:hover {
-    background-color: rgba(24, 144, 255, 0.1);
-  }
-  
-  .scoreboard tr.disabled {
-    cursor: default;
-  }
-  
+.scoreboard table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.scoreboard th,
+.scoreboard td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.scoreboard th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.scoreboard .clickable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.scoreboard .clickable:hover {
+  background-color: #f0f0f0;
+}
+
+.scoreboard .selected {
+  background-color: #e6f7ff;
+}
+
+.scoreboard .disabled {
+  color: #999;
+  background-color: #fafafa;
+}
+
+.scoreboard .selected:hover {
+  background-color: #bae7ff;
+}

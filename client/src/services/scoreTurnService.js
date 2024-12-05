@@ -1,63 +1,61 @@
 import * as API from '../utils/api';
 import { message } from 'antd';
 
-export const submitScore = async (gameId, currentPlayer, category, score) => {
-  if (!gameId || !currentPlayer) {
-    return { success: false, message: 'Game or player not set.' };
-  }
-
+export const submitScore = async (gameId, currentPlayer, categoryName, score, currentDice) => {
   try {
-    // Get the specific category
-    const scoreCategory = await API.getPlayerCategory(
-      currentPlayer.player_id, 
-      category
-    );
-
-    if (!scoreCategory) {
-      return { success: false, message: 'Invalid category.' };
-    }
-
-    // Check if the score is already set (not null or undefined)
-    if (scoreCategory.score !== null && scoreCategory.score !== undefined) {
-      return { success: false, message: 'Category already scored.' };
-    }
-
-    // Submit the score for the category
-    const result = await API.submitGameScore(gameId, currentPlayer.player_id, category, score);
-
-    if (!result) {
-      throw new Error('Failed to update score');
-    }
-
-    return { 
-      success: true, 
-      message: `${category} score saved!`,
-      updatedCategory: result.category
+    const scoreCategory = await API.getPlayerCategory(currentPlayer.player_id, categoryName);
+    if (!scoreCategory) return { success: false, message: 'Invalid category.' };
+ 
+    const validCurrentDice = Array.isArray(currentDice) ? currentDice : [];
+    const keepIndices = validCurrentDice.map((_, i) => i);
+ 
+    const result = await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
+    if (!result) throw new Error('Failed to update score');
+ 
+    await API.rollDice(gameId, {
+      playerId: currentPlayer.player_id,
+      currentDice: validCurrentDice,
+      keepIndices
+    });
+ 
+    const turnResult = await API.updateTurn(gameId, currentPlayer.player_id, {
+      dice: validCurrentDice,
+      turn_score: score,
+      categoryId: scoreCategory.category_id,
+      status: 'completed'
+    });
+ 
+    return {
+      success: true,
+      message: `${categoryName} score saved!`,
+      updatedCategory: result.category,
+      turn: turnResult
     };
   } catch (error) {
+    console.error('Score submission error:', error);
     return { success: false, message: `Turn submission failed: ${error.message}` };
   }
 };
 
-  export const getAvailableCategories = async (playerId) => {
-    try {
-      const categories = await API.getPlayerCategories(playerId);
-      return categories;
-    } catch (error) {
-      console.error('Failed to get player categories:', error);
-      return [];
-    }
-  };
+export const getAvailableCategories = async (playerId) => {
+  try {
+    const categories = await API.getPlayerCategories(playerId);
+    return categories;
+  } catch (error) {
+    console.error('Failed to get player categories:', error);
+    return [];
+  }
+};
 
-  export const getPlayerTotalScore = async (playerId) => {
-    try {
-      const response = await API.getPlayerTotalScore(playerId);
-      return response.totalScore;
-    } catch (error) {
-      console.error('Failed to get total score:', error);
-      return 0;
-    }
-  };
+export const getPlayerTotalScore = async (playerId) => {
+  try {
+    const response = await API.getPlayerTotalScore(playerId);
+    return response.totalScore;
+  } catch (error) {
+    console.error('Failed to get total score:', error);
+    return 0;
+  }
+};
 
   export function calculateScores(dice) {
     const counts = Array(6).fill(0);

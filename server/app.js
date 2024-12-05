@@ -12,8 +12,7 @@ app.get('/', (req, res) => {
   res.send('Welcome to the Game Server API');
 });
 
-const wss = new WebSocket.Server({ noServer: true });
-app.use('/api', routes(wss));
+app.use('/api', routes());
 
-module.exports = { app, wss };
+module.exports = { app };
 

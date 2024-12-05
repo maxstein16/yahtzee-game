@@ -1,9 +1,9 @@
 const mysql = require("mysql2/promise");
 const { Connector } = require('@google-cloud/cloud-sql-connector');
 
-module.exports = function () {
-
-    this.runSQL = async (sql, data) => {
+// Export an object with runSQL function
+module.exports = {
+    runSQL: async (sql, data) => {
         const connector = new Connector();
         const clientOpts = await connector.getOptions({
             instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME,
@@ -21,6 +21,5 @@ module.exports = function () {
         const [result] = await pool.execute(sql, data);
 
         return result;
-    };
-
+    }
 };
