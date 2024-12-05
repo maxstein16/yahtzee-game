@@ -27,9 +27,6 @@ export const register = async (userData) => apiRequest('/players/register', 'POS
 export const createGame = (status = 'pending', round = 0) =>
   apiRequest('/game', 'POST', { status, round });
 
-export const getLastGameByPlayerId = (playerId) =>
-  apiRequest(`/game/player/${playerId}/last`);
-
 export const updateGame = (gameId, status, round) =>
   apiRequest(`/game/${gameId}`, 'PUT', { status, round });
 
@@ -38,8 +35,11 @@ export const deleteGame = (gameId) => apiRequest(`/game/${gameId}`, 'DELETE');
 export const startGame = (gameId) =>
   apiRequest(`/game/${gameId}/start`, 'PUT');
 
+export const getLastGameByPlayerId = (playerId) =>
+  apiRequest(`/players/${playerId}/lastgame`);
+
 export const addPlayerToGame = (gameId, playerId) =>
-  apiRequest('/gameplayer', 'POST', { gameId, playerId });
+  apiRequest(`/gameplayer`, 'POST', { gameId, playerId });
 
 // Score Category Management
 export const initializePlayerCategories = async (playerId) => {
