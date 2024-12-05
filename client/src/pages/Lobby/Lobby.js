@@ -109,24 +109,28 @@ function Lobby() {
 
   const handleScoreCategoryClick = async (category) => {
     try {
-      // Get category info
+      // First get category info
       const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
       if (!categoryInfo) {
         message.error('Invalid category selected');
         return;
       }
   
-      // Create initial turn
-      await API.createTurn(
+      // Step 1: Create the turn with initial state
+      const turnCreated = await API.createTurn(
         gameId,
         currentPlayer.player_id,
         diceValues,
         rollCount,
         scores[category],
-        false // not completed yet
+        false // Start as not completed
       );
   
-      // Submit the score
+      if (!turnCreated) {
+        throw new Error('Failed to create turn');
+      }
+  
+      // Step 2: Submit the score to the category
       const scoreResult = await API.submitGameScore(
         gameId, 
         currentPlayer.player_id, 
@@ -138,8 +142,8 @@ function Lobby() {
         throw new Error('Failed to submit score');
       }
   
-      // Complete the turn
-      const completedTurn = await API.submitTurn(
+      // Step 3: Complete the turn with final state
+      const turnResult = await API.submitTurn(
         gameId,
         currentPlayer.player_id,
         categoryInfo.category_id,
@@ -148,11 +152,11 @@ function Lobby() {
         rollCount
       );
   
-      if (!completedTurn) {
+      if (!turnResult) {
         throw new Error('Failed to complete turn');
       }
   
-      // Reset the turn state
+      // Now that everything is saved, reset the game state
       resetTurnState({
         setDiceValues,
         setSelectedDice,
