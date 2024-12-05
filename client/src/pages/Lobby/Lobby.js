@@ -59,69 +59,29 @@ function Lobby() {
   useEffect(() => {
     const initializeGameSession = async () => {
       if (!currentPlayer) return;
-  
-      try {
-        // First check if player has an existing game
-        const lastGame = await API.getLastGameByPlayerId(currentPlayer.player_id);
-        console.log('Last game found:', lastGame); // Debug log
-        
-        if (lastGame) {
-          // Use existing game
-          setGameId(lastGame.game_id);
-          
-          // Get last turn state if it exists
-          const lastTurn = await API.getLatestTurn(lastGame.game_id, currentPlayer.player_id);
-          if (lastTurn) {
-            setDiceValues(lastTurn.dice || INITIAL_DICE_VALUES);
-            setRollCount(lastTurn.rerolls || 0);
-          }
-  
-          // Initialize AI if it's a singleplayer game
-          const players = await API.getPlayersInGame(lastGame.game_id);
-          const isSinglePlayer = players.length === 1;
-          setMode(isSinglePlayer ? 'singleplayer' : 'multiplayer');
-  
-          if (isSinglePlayer) {
-            const aiInfo = await initializeAIPlayer();
-            setAiPlayer(aiInfo.player);
-            setAiCategories(aiInfo.categories);
-            setAiTotal(aiInfo.totalScore);
-          }
-  
-          message.success('Previous game restored!');
+
+      const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
+      
+      if (result.success) {
+        message.success(result.message);
+        if (mode === 'singleplayer') {
+          const aiInfo = await initializeAIPlayer();
+          setAiPlayer(aiInfo.player);
+          setAiCategories(aiInfo.categories);
+          setAiTotal(aiInfo.totalScore);
         } else {
-          // Create new game
-          const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
-          console.log('New game created:', result); // Debug log
-          
-          if (result.success && result.game) {
-            // Add player to game
-            await API.addPlayerToGame(result.game.game_id, currentPlayer.player_id);
-            
-            if (mode === 'singleplayer') {
-              // Initialize AI
-              const aiInfo = await initializeAIPlayer();
-              setAiPlayer(aiInfo.player);
-              setAiCategories(aiInfo.categories);
-              setAiTotal(aiInfo.totalScore);
-              
-              // Add AI to game
-              await API.addPlayerToGame(result.game.game_id, 'ai-opponent');
-            }
-            
-            message.success(result.message);
-          } else {
-            throw new Error(result.message || 'Failed to create game');
-          }
+          setAiPlayer(null);
+          setAiCategories([]);
+          setAiTotal(0);
         }
-      } catch (error) {
-        console.error('Error initializing game session:', error);
-        message.error('Failed to initialize game: ' + error.message);
+      } else {
+        message.error(result.message);
       }
     };
-  
+
     initializeGameSession();
   }, [mode, currentPlayer]);
+
   const handleNewGame = async (gameType) => {
     setMode(gameType);
     resetTurnState({

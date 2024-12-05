@@ -66,54 +66,6 @@ async function getGameById(id) {
   }
 }
 
-async function getLastGameByPlayerId(playerId) {
-  const query = `
-    SELECT g.* 
-    FROM game g
-    JOIN gameplayer gp ON g.game_id = gp.game_id
-    WHERE gp.player_id = ?
-    ORDER BY g.created_at DESC
-    LIMIT 1;
-  `;
-  
-  try {
-    const result = await runSQL(query, [playerId]);
-    if (result.length === 0) {
-      return null;
-    }
-    return result[0];
-  } catch (error) {
-    console.error("Error fetching last game:", error.message);
-    throw error;
-  }
-}
-
-async function addPlayerToGame(gameId, playerId) {
-  // First check if the relationship already exists
-  const checkQuery = `
-    SELECT * FROM gameplayer 
-    WHERE game_id = ? AND player_id = ?;
-  `;
-  
-  const existingEntry = await runSQL(checkQuery, [gameId, playerId]);
-  
-  if (existingEntry.length > 0) {
-    return existingEntry[0];
-  }
-
-  // If not exists, create new entry
-  const insertQuery = `
-    INSERT INTO gameplayer (game_id, player_id)
-    VALUES (?, ?);
-  `;
-
-  await runSQL(insertQuery, [gameId, playerId]);
-  
-  // Return the newly created relationship
-  const result = await runSQL(checkQuery, [gameId, playerId]);
-  return result[0];
-}
-
 // Update a game's status or round
 async function updateGame(id, status, round) {
   const query = `
@@ -248,6 +200,5 @@ module.exports = {
   deleteGame,
   addPlayerToGame,
   getPlayersInGame,
-  removePlayerFromGame,
-  getLastGameByPlayerId
+  removePlayerFromGame
 };
