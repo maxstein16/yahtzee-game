@@ -54,4 +54,19 @@ router.put('/game/:id/start', async (req, res) => {
   }
 });
 
+router.post('/gameplayer', async (req, res) => {
+  try {
+    const { gameId, playerId } = req.body;
+    
+    if (!gameId || !playerId) {
+      return res.status(400).json({ error: 'Game ID and Player ID are required' });
+    }
+
+    const result = await addPlayerToGame(gameId, playerId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
