@@ -3,30 +3,63 @@ import { message } from 'antd';
 
 export const submitScore = async (gameId, currentPlayer, categoryName, score, currentDice) => {
   try {
+    // Validate inputs
+    if (!gameId || !currentPlayer || !currentPlayer.player_id || !categoryName) {
+      return { 
+        success: false, 
+        message: 'Missing required parameters.' 
+      };
+    }
+
+    // Get category first to validate it exists
     const scoreCategory = await API.getPlayerCategory(currentPlayer.player_id, categoryName);
-    if (!scoreCategory) return { success: false, message: 'Invalid category.' };
- 
-    const validCurrentDice = Array.isArray(currentDice) 
-    ? currentDice.map(dice => Math.min(6, Math.max(1, dice)))
-    : [];
+    if (!scoreCategory) {
+      return { 
+        success: false, 
+        message: 'Invalid category.' 
+      };
+    }
+
+    // Ensure currentDice is always an array and contains valid values
+    let validCurrentDice = [];
+    if (currentDice) {
+      // Handle both array-like objects and arrays
+      const diceArray = Array.isArray(currentDice) ? currentDice : Array.from(currentDice);
+      validCurrentDice = diceArray
+        .map(dice => {
+          const num = parseInt(dice, 10);
+          return isNaN(num) ? 1 : Math.min(6, Math.max(1, num));
+        });
+    }
+
+    // If we still don't have valid dice, initialize with default values
+    if (validCurrentDice.length === 0) {
+      validCurrentDice = [1, 1, 1, 1, 1]; // Default dice values
+    }
+
     const keepIndices = validCurrentDice.map((_, i) => i);
- 
+
+    // Submit the score
     const result = await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
-    if (!result) throw new Error('Failed to update score');
- 
+    if (!result) {
+      throw new Error('Failed to update score');
+    }
+
+    // Roll dice for next turn
     await API.rollDice(gameId, {
       playerId: currentPlayer.player_id,
       currentDice: validCurrentDice,
       keepIndices
     });
- 
+
+    // Update turn status
     const turnResult = await API.updateTurn(gameId, currentPlayer.player_id, {
       dice: validCurrentDice,
       turn_score: score,
       categoryId: scoreCategory.category_id,
       status: 'completed'
     });
- 
+
     return {
       success: true,
       message: `${categoryName} score saved!`,
@@ -35,7 +68,11 @@ export const submitScore = async (gameId, currentPlayer, categoryName, score, cu
     };
   } catch (error) {
     console.error('Score submission error:', error);
-    return { success: false, message: `Turn submission failed: ${error.message}` };
+    return { 
+      success: false, 
+      message: `Turn submission failed: ${error.message}`,
+      error: error 
+    };
   }
 };
 
