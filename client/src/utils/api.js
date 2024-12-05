@@ -81,11 +81,20 @@ export const rollDice = (gameId, currentDice, keepIndices) =>
   apiRequest(`/game/${gameId}/roll`, 'POST', { currentDice, keepIndices });
 
 export const submitTurn = (gameId, playerId, categoryId, score, dice) =>
-  apiRequest(`/game/${gameId}/turn`, 'PUT', {
+  apiRequest(`/game/${gameId}/turn`, 'POST', {
     playerId,
     categoryId,
     score,
     dice
+  });
+
+export const createTurn = (gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) =>
+  apiRequest(`/game/${gameId}/turn`, 'POST', {
+    playerId,
+    dice,
+    rerolls,
+    turnScore,
+    turnCompleted
   });
 
 export const getLatestTurn = (gameId, playerId) => 
@@ -124,6 +133,7 @@ const API = {
   sendMessage,
   rollDice,
   submitTurn,
+  createTurn,
   getPlayersInGame,
   getPlayerById,
   getLatestTurn,

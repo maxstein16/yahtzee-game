@@ -109,26 +109,28 @@ function Lobby() {
 
   const handleScoreCategoryClick = async (category) => {
     try {
-      // Get the latest turn first to ensure one exists
-      const latestTurn = await API.getLatestTurn(gameId, currentPlayer.player_id);
-      
-      // If no turn exists, create one
-      if (!latestTurn) {
-        await API.rollDice(gameId, {
-          playerId: currentPlayer.player_id,
-          currentDice: diceValues,
-          keepIndices: []
-        });
-      }
-  
-      // Get category info for the category ID
+      // Get category info
       const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
       if (!categoryInfo) {
         message.error('Invalid category selected');
         return;
       }
   
-      // Submit the score to update the score category
+      // Create turn with current game state
+      const newTurn = await API.createTurn(
+        gameId, 
+        currentPlayer.player_id, 
+        diceValues,
+        rollCount,
+        scores[category],
+        false
+      );
+  
+      if (!newTurn) {
+        throw new Error('Failed to create turn');
+      }
+  
+      // Submit the score
       const scoreResult = await API.submitGameScore(
         gameId, 
         currentPlayer.player_id, 
@@ -140,7 +142,7 @@ function Lobby() {
         throw new Error('Failed to submit score');
       }
   
-      // Submit the turn - note we only need gameId, playerId, categoryId, and score
+      // Complete the turn
       const turnResult = await API.submitTurn(
         gameId,
         currentPlayer.player_id,
