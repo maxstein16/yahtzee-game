@@ -77,16 +77,21 @@ export const sendMessage = (gameId, playerId, message) =>
   apiRequest(`/game/${gameId}/chat`, 'POST', { player_id: playerId, message });
 
 // Turn Management
-export const rollDice = (gameId, currentDice, keepIndices) =>
-  apiRequest(`/game/${gameId}/roll`, 'POST', { currentDice, keepIndices });
+// Turn Management
+export const rollDice = (gameId, {playerId, currentDice, keepIndices}) =>
+  apiRequest(`/game/${gameId}/roll`, 'POST', { 
+    playerId, 
+    currentDice, 
+    keepIndices 
+  });
 
-export const submitTurn = (gameId, playerId, rerolls, turnScore, dice, turnCompleted) =>
+export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) =>
   apiRequest(`/game/${gameId}/turn`, 'PUT', {
     playerId,
+    categoryId,
+    score,
     dice,
-    rerolls,
-    turnScore,
-    turnCompleted
+    rerolls
   });
 
 export const createTurn = (gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) =>
@@ -101,13 +106,13 @@ export const createTurn = (gameId, playerId, dice, rerolls = 0, turnScore = 0, t
 export const getLatestTurn = (gameId, playerId) => 
   apiRequest(`/game/${gameId}/turn?player_id=${playerId}`);
 
-export const updateTurn = (gameId, playerId, turnData) =>
+export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompleted) =>
   apiRequest(`/game/${gameId}/roll`, 'PUT', {
     playerId,
-    dice: turnData.dice,
-    turn_score: turnData.turn_score,
-    status: turnData.status,
-    categoryId: turnData.categoryId
+    dice,
+    rerolls,
+    turnScore,
+    turnCompleted
   });
   
 // Players in Game

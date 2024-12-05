@@ -128,14 +128,14 @@ function Lobby() {
         throw new Error('Failed to submit score');
       }
   
-      // Submit the turn with all required fields
+      // Submit the turn
       const turnResult = await API.submitTurn(
         gameId,
         currentPlayer.player_id,
-        rollCount,  // rerolls
-        scores[category],  // turnScore
-        diceValues,  // dice
-        true  // turnCompleted - mark as completed immediately
+        categoryInfo.category_id,  // This was missing before
+        scores[category],
+        diceValues,
+        rollCount
       );
   
       if (!turnResult) {
