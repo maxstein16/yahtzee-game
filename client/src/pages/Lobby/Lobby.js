@@ -116,21 +116,17 @@ function Lobby() {
         return;
       }
   
-      // Step 1: Create a new turn first
-      const newTurn = await API.createTurn(
-        gameId, 
-        currentPlayer.player_id, 
-        diceValues,  // Current dice values
-        rollCount,   // Number of rerolls
-        scores[category], // Current score
-        false  // Not completed yet
+      // Create initial turn
+      await API.createTurn(
+        gameId,
+        currentPlayer.player_id,
+        diceValues,
+        rollCount,
+        scores[category],
+        false // not completed yet
       );
   
-      if (!newTurn) {
-        throw new Error('Failed to create turn');
-      }
-  
-      // Step 2: Submit the score
+      // Submit the score
       const scoreResult = await API.submitGameScore(
         gameId, 
         currentPlayer.player_id, 
@@ -142,15 +138,17 @@ function Lobby() {
         throw new Error('Failed to submit score');
       }
   
-      // Step 3: Submit the turn with all required fields
-      const turnResult = await API.submitTurn(
+      // Complete the turn
+      const completedTurn = await API.submitTurn(
         gameId,
         currentPlayer.player_id,
         categoryInfo.category_id,
-        scores[category]
+        scores[category],
+        diceValues,
+        rollCount
       );
   
-      if (!turnResult) {
+      if (!completedTurn) {
         throw new Error('Failed to complete turn');
       }
   
