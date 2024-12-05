@@ -108,34 +108,68 @@ function Lobby() {
   };
 
   const handleScoreCategoryClick = async (category) => {
-
-    const result = await submitScore(gameId, currentPlayer, category, scores[category], diceValues);
-    
-    if (result.success) {
-      resetTurnState({
-        setDiceValues,
-        setSelectedDice,
-        setRollCount,
-        setScores
-      });
-      
-      message.success(result.message);
-      setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
-      setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
-      
-      if (mode === 'singleplayer' && aiPlayer) {
-        await handleAITurn({
-          gameId,
-          aiPlayer,
-          setIsAITurn,
-          setAiDiceValues,
-          setAiRollCount,
-          setAiCategories,
-          setAiTotal
-        });
+    try {
+      // First get the category info to get the category ID
+      const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
+      if (!categoryInfo) {
+        message.error('Invalid category selected');
+        return;
       }
-    } else {
-      message.error(result.message);
+  
+      // Submit the score first
+      const scoreResult = await API.submitGameScore(
+        gameId, 
+        currentPlayer.player_id, 
+        category, 
+        scores[category]
+      );
+      
+      if (!scoreResult) {
+        throw new Error('Failed to submit score');
+      }
+  
+      // Submit the turn with the current game state
+      const turnResult = await API.submitTurn(
+        gameId,
+        currentPlayer.player_id,
+        categoryInfo.category_id,
+        scores[category],
+        diceValues
+      );
+  
+      if (turnResult) {
+        // Reset the turn state
+        resetTurnState({
+          setDiceValues,
+          setSelectedDice,
+          setRollCount,
+          setScores
+        });
+        
+        // Update categories and total score
+        setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
+        setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
+        
+        message.success(`${category} score saved!`);
+        
+        // Handle AI turn if in singleplayer mode
+        if (mode === 'singleplayer' && aiPlayer) {
+          await handleAITurn({
+            gameId,
+            aiPlayer,
+            setIsAITurn,
+            setAiDiceValues,
+            setAiRollCount,
+            setAiCategories,
+            setAiTotal
+          });
+        }
+      } else {
+        throw new Error('Failed to submit turn');
+      }
+    } catch (error) {
+      console.error('Error submitting score and turn:', error);
+      message.error(error.message || 'Failed to submit score and turn');
     }
   };
 
