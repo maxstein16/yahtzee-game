@@ -41,6 +41,22 @@ function Lobby() {
   // UI State
   const [isChatVisible, setIsChatVisible] = useState(false);
 
+  useEffect(() => {
+    const reconnectToGame = async () => {
+      if (!currentPlayer) return;
+  
+      try {
+        const game = await API.getGameByPlayerId(currentPlayer.player_id);
+        setGameId(game.game_id);
+        message.success('Reconnected to your game!');
+      } catch (error) {
+        console.log('No active game found for the player:', error.message);
+      }
+    };
+  
+    reconnectToGame();
+  }, [currentPlayer]);
+
   // Initialize player data and session check
   useEffect(() => {
     const initializePlayer = async () => {
@@ -123,7 +139,7 @@ function Lobby() {
         diceValues,
         rollCount,
         scores[category],
-        false // Start as not completed
+        false
       );
   
       if (!turnCreated) {

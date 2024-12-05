@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGame, getGameById, updateGame, deleteGame } = require('../db/gameQueries');
+const { createGame, getGameById, updateGame, deleteGame, addPlayerToGame } = require('../db/gameQueries');
 
 // POST route for creating a new game
 router.post('/game', async (req, res) => {
@@ -48,7 +48,64 @@ router.delete('/game/:id', async (req, res) => {
 router.put('/game/:id/start', async (req, res) => {
   try {
     const game = await updateGame(req.params.id, 'in_progress', 1);
+    const { player_id } = req.body;
+
+    if (player_id) {
+      await addPlayerToGame(req.params.id, player_id);
+    }
+
     res.json(game);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+router.put('/game/:id/end', async (req, res) => {
+  try {
+    const game = await updateGame(req.params.id, 'finished', 0);
+    res.json(game);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/player/:id/game', async (req, res) => {
+  try {
+    const query = `
+      SELECT g.*
+      FROM game g
+      INNER JOIN gameplayer gp ON g.game_id = gp.game_id
+      WHERE gp.player_id = ? AND g.status = 'in_progress';
+    `;
+    const game = await runSQL(query, [req.params.id]);
+
+    if (game.length === 0) {
+      return res.status(404).json({ error: 'No active game found for the player' });
+    }
+
+    res.json(game[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/game/:id/player', async (req, res) => {
+  try {
+    const game = await addPlayerToGame(req.params.id, req.body.playerId);
+    res.json(game);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/game/player/:playerId/active', async (req, res) => {
+  try {
+    const activeGame = await getActiveGameByPlayerId(req.params.playerId);
+    if (!activeGame) {
+      return res.status(404).json({ message: 'No active game found' });
+    }
+    res.json(activeGame);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
