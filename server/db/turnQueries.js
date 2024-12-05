@@ -88,15 +88,26 @@ async function deleteTurn(turnId) {
   return deletedTurn;
 }
 
-async function updateTurn(gameId, playerId, dice) {
+async function updateTurn(gameId, playerId, dice, rerolls, turnScore, turnCompleted) {
   const query = `
     UPDATE turn 
-    SET dice = ?
+    SET 
+      dice = ?,
+      rerolls = ?,
+      turn_score = ?,
+      turn_completed = ?
     WHERE game_id = ? AND player_id = ? 
     AND turn_completed = FALSE
     ORDER BY turn_id DESC LIMIT 1;
   `;
-  const values = [JSON.stringify(dice), gameId, playerId];
+  const values = [
+    JSON.stringify(dice), 
+    rerolls, 
+    turnScore,
+    turnCompleted,
+    gameId, 
+    playerId
+  ];
   return await runSQL(query, values);
 }
 
