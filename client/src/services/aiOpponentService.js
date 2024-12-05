@@ -2,7 +2,7 @@
 import * as API from '../utils/api';
 import { message } from 'antd';
 import { rollDice } from '../services/diceService';
-import { calculateScores, submitScore } from './scoreTurnService';
+import { calculateScores } from './scoreTurnService';
 
 // Constants
 const SCORE_PRIORITIES = {
@@ -100,7 +100,7 @@ export const handleAITurn = async (gameState) => {
   setIsAITurn(true);
   try {
     const { category, score } = await playAITurn(gameId, aiPlayer);
-    const result = await submitScore(gameId, aiPlayer, category, score);
+    const result = await API.submitGameScore(gameId, aiPlayer, category, score);
     
     if (result.success) {
       const newCategories = await API.getPlayerCategories('ai-opponent');
