@@ -9,10 +9,15 @@ export const rollDice = async (gameId, currentPlayer, diceValues, selectedDice) 
   }
 
   try {
-    const diceToReroll = diceValues.map((_, index) => !selectedDice.includes(index));
+    const keepIndices = selectedDice; // Indices of dice to keep
     
-    const result = await API.rollDice(gameId, diceValues, diceToReroll);
+    const result = await API.rollDice(gameId, {
+      playerId: currentPlayer.player_id,
+      currentDice: diceValues,
+      keepIndices
+    });
     
+    // If we have dice values in the result, use them, otherwise keep current values
     const newDiceValues = result.dice.map((value, index) => {
       return selectedDice.includes(index) ? diceValues[index] : value;
     });
