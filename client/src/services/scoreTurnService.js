@@ -2,63 +2,111 @@ import * as API from '../utils/api';
 import { message } from 'antd';
 
 export const submitScore = async (gameId, currentPlayer, categoryName, score, currentDice) => {
+  const debugInfo = {
+    gameId,
+    playerId: currentPlayer?.player_id,
+    categoryName,
+    score,
+    diceInput: currentDice
+  };
+  
+  console.log('Submit Score Debug Info:', debugInfo);
+
   try {
-    // Validate inputs
-    if (!gameId || !currentPlayer || !currentPlayer.player_id || !categoryName) {
-      return { 
-        success: false, 
-        message: 'Missing required parameters.' 
-      };
+    // Validate inputs with detailed error messages
+    if (!gameId) {
+      console.error('Missing gameId:', debugInfo);
+      return { success: false, message: 'Game ID is required.' };
+    }
+    
+    if (!currentPlayer?.player_id) {
+      console.error('Missing player info:', debugInfo);
+      return { success: false, message: 'Valid player information is required.' };
+    }
+    
+    if (!categoryName) {
+      console.error('Missing category:', debugInfo);
+      return { success: false, message: 'Category name is required.' };
     }
 
-    // Get category first to validate it exists
-    const scoreCategory = await API.getPlayerCategory(currentPlayer.player_id, categoryName);
+    // Get and validate category
+    let scoreCategory;
+    try {
+      scoreCategory = await API.getPlayerCategory(currentPlayer.player_id, categoryName);
+      console.log('Retrieved category:', scoreCategory);
+    } catch (categoryError) {
+      console.error('Category retrieval error:', categoryError);
+      return { success: false, message: 'Failed to retrieve category information.' };
+    }
+
     if (!scoreCategory) {
-      return { 
-        success: false, 
-        message: 'Invalid category.' 
-      };
+      console.error('Invalid category result:', { categoryName, playerId: currentPlayer.player_id });
+      return { success: false, message: 'Invalid category.' };
     }
 
-    // Ensure currentDice is always an array and contains valid values
-    let validCurrentDice = [];
-    if (currentDice) {
-      // Handle both array-like objects and arrays
-      const diceArray = Array.isArray(currentDice) ? currentDice : Array.from(currentDice);
-      validCurrentDice = diceArray
-        .map(dice => {
+    // Process dice with extensive validation
+    let validCurrentDice;
+    try {
+      if (!currentDice || (!Array.isArray(currentDice) && typeof currentDice !== 'object')) {
+        validCurrentDice = [1, 1, 1, 1, 1];
+        console.log('Using default dice values:', validCurrentDice);
+      } else {
+        const diceArray = Array.isArray(currentDice) ? currentDice : Array.from(currentDice);
+        validCurrentDice = diceArray.map(dice => {
           const num = parseInt(dice, 10);
           return isNaN(num) ? 1 : Math.min(6, Math.max(1, num));
         });
-    }
-
-    // If we still don't have valid dice, initialize with default values
-    if (validCurrentDice.length === 0) {
-      validCurrentDice = [1, 1, 1, 1, 1]; // Default dice values
+        console.log('Processed dice values:', validCurrentDice);
+      }
+    } catch (diceError) {
+      console.error('Dice processing error:', diceError);
+      validCurrentDice = [1, 1, 1, 1, 1];
+      console.log('Falling back to default dice after error');
     }
 
     const keepIndices = validCurrentDice.map((_, i) => i);
 
-    // Submit the score
-    const result = await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
-    if (!result) {
-      throw new Error('Failed to update score');
+    // Submit score with error handling
+    let result;
+    try {
+      result = await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
+      console.log('Score submission result:', result);
+    } catch (submitError) {
+      console.error('Score submission API error:', submitError);
+      throw new Error(`Failed to submit score: ${submitError.message}`);
     }
 
-    // Roll dice for next turn
-    await API.rollDice(gameId, {
-      playerId: currentPlayer.player_id,
-      currentDice: validCurrentDice,
-      keepIndices
-    });
+    if (!result) {
+      throw new Error('Score submission returned no result');
+    }
 
-    // Update turn status
-    const turnResult = await API.updateTurn(gameId, currentPlayer.player_id, {
-      dice: validCurrentDice,
-      turn_score: score,
-      categoryId: scoreCategory.category_id,
-      status: 'completed'
-    });
+    // Roll dice with error handling
+    try {
+      await API.rollDice(gameId, {
+        playerId: currentPlayer.player_id,
+        currentDice: validCurrentDice,
+        keepIndices
+      });
+      console.log('Dice roll completed');
+    } catch (rollError) {
+      console.error('Dice roll error:', rollError);
+      // Continue execution even if dice roll fails
+    }
+
+    // Update turn with error handling
+    let turnResult;
+    try {
+      turnResult = await API.updateTurn(gameId, currentPlayer.player_id, {
+        dice: validCurrentDice,
+        turn_score: score,
+        categoryId: scoreCategory.category_id,
+        status: 'completed'
+      });
+      console.log('Turn update completed:', turnResult);
+    } catch (turnError) {
+      console.error('Turn update error:', turnError);
+      throw new Error(`Failed to update turn: ${turnError.message}`);
+    }
 
     return {
       success: true,
@@ -67,11 +115,27 @@ export const submitScore = async (gameId, currentPlayer, categoryName, score, cu
       turn: turnResult
     };
   } catch (error) {
-    console.error('Score submission error:', error);
+    console.error('Score submission error:', {
+      error,
+      debugInfo,
+      stack: error.stack
+    });
+    
+    // Provide more specific error message based on where the error occurred
+    let errorMessage = 'An unexpected error occurred while submitting the score.';
+    if (error.message.includes('category')) {
+      errorMessage = 'Failed to process category information.';
+    } else if (error.message.includes('dice')) {
+      errorMessage = 'Failed to process dice values.';
+    } else if (error.message.includes('turn')) {
+      errorMessage = 'Failed to update turn information.';
+    }
+
     return { 
       success: false, 
-      message: `Turn submission failed: ${error.message}`,
-      error: error 
+      message: errorMessage,
+      error: error.message,
+      details: debugInfo
     };
   }
 };
