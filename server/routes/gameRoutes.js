@@ -71,4 +71,13 @@ router.put('/game/:id/end', async (req, res) => {
   }
 });
 
+router.get('/game/active/:playerId', async (req, res) => {
+  try {
+    const activeGame = await getActiveGameForPlayer(req.params.playerId);
+    res.json(activeGame);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

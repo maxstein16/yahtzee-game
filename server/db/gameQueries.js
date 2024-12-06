@@ -233,6 +233,27 @@ async function removePlayerFromGame(gameId, playerId) {
   }
 }
 
+async function getActiveGameForPlayer(playerId) {
+  const query = `
+    SELECT g.*, gp.player_id 
+    FROM game g
+    JOIN gameplayer gp ON g.game_id = gp.game_id
+    WHERE gp.player_id = ? 
+    AND g.status = 'in_progress'
+    ORDER BY g.created_at DESC
+    LIMIT 1;
+  `;
+  
+  try {
+    const result = await runSQL(query, [playerId]);
+    console.log("Active game check result:", result);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("Error checking for active game:", error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   createGame,
   getGameById,
@@ -240,5 +261,6 @@ module.exports = {
   deleteGame,
   addPlayerToGame,
   getPlayersInGame,
-  removePlayerFromGame
+  removePlayerFromGame,
+  getActiveGameForPlayer
 };

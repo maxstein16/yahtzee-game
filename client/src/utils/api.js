@@ -40,6 +40,9 @@ export const startGame = (gameId) =>
 export const endGame = (gameId) =>
   apiRequest(`/game/${gameId}/end`, 'PUT');
 
+export const getActiveGameForPlayer = (playerId) => 
+  apiRequest(`/game/active/${playerId}`);
+
 // Score Category Management
 export const initializePlayerCategories = async (playerId) => {
   try {
