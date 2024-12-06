@@ -14,10 +14,10 @@ const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 function Lobby() {
   const navigate = useNavigate();
   
-  // Game State
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [isNewGame, setIsNewGame] = useState(false);
+  const [mode, setMode] = useState('singleplayer');
 
   // Player State
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
@@ -28,7 +28,6 @@ function Lobby() {
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
 
-  // Initialize player data and session check
   useEffect(() => {
     const initializePlayer = async () => {
       const playerInfo = await fetchCurrentPlayer(navigate);
@@ -42,57 +41,64 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
-  // Initialize game when player changes or when a new game is requested
   useEffect(() => {
     const initializeGameSession = async () => {
-    if (!currentPlayer) return;
+      if (!currentPlayer) return;
 
-    console.log("Initializing game with player:", currentPlayer);
-
-    if (isNewGame || !gameId) {
-      // Pass all required parameters
-      const result = await initializeGame(currentPlayer, 'singleplayer', setGameId, () => {});
-      
-      if (result.success) {
-        message.success(result.message);
+      if (isNewGame || !gameId) {
+        const result = await initializeGame(currentPlayer, mode, setGameId, () => {});
         
-        if (result.existingGame) {
-          // Load existing game state
-          const categories = await API.getPlayerCategories(currentPlayer.player_id);
-          setPlayerCategories(categories);
-          const total = await API.getPlayerTotalScore(currentPlayer.player_id);
-          setPlayerTotal(total.totalScore);
+        if (result.success) {
+          message.success(result.message);
+          
+          if (result.existingGame) {
+            const categories = await API.getPlayerCategories(currentPlayer.player_id);
+            setPlayerCategories(categories);
+            const total = await API.getPlayerTotalScore(currentPlayer.player_id);
+            setPlayerTotal(total.totalScore);
+          }
+          
+          setIsNewGame(false);
+        } else {
+          message.error(result.message);
         }
-        
-        setIsNewGame(false);
-      } else {
-        message.error(result.message);
       }
-    }
-  };
+    };
 
-  initializeGameSession();
-}, [currentPlayer, isNewGame, gameId]);
+    initializeGameSession();
+  }, [currentPlayer, isNewGame, gameId, mode]);
 
-  const handleNewGame = async () => {
-    setIsNewGame(true);
-    
-    resetTurnState({
-      setDiceValues,
-      setSelectedDice,
-      setRollCount,
-      setScores
-    });
-    
-    if (currentPlayer) {
-      await resetPlayerCategories({
-        currentPlayer,
-        setPlayerCategories,
-        setPlayerTotal
+  const handleNewGame = async (selectedMode = 'singleplayer') => {
+    try {
+      if (gameId) {
+        await API.endGame(gameId);
+      }
+      
+      setMode(selectedMode);
+      setIsNewGame(true);
+      setGameId(null);
+      
+      resetTurnState({
+        setDiceValues,
+        setSelectedDice,
+        setRollCount,
+        setScores
       });
+      
+      if (currentPlayer) {
+        await resetPlayerCategories({
+          currentPlayer,
+          setPlayerCategories,
+          setPlayerTotal
+        });
+      }
+    } catch (error) {
+      console.error('Error starting new game:', error);
+      message.error('Failed to start new game');
     }
   };
 
+  // Rest of the component remains the same...
   const handleScoreCategoryClick = async (category) => {
     try {
       const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
@@ -180,6 +186,7 @@ function Lobby() {
   const viewProps = {
     currentPlayer,
     gameId,
+    mode,
     diceValues,
     selectedDice,
     isRolling,
