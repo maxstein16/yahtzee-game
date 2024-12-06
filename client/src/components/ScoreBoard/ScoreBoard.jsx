@@ -83,11 +83,13 @@ const Scoreboard = ({
 
   const getRowStyle = (category) => {
     const isUsed = savedScores[category.name] !== undefined;
+    const isClickable = !isUsed;
+    
     return {
-      cursor: 'pointer',
+      cursor: isClickable ? 'pointer' : 'default',
       backgroundColor: isUsed ? '#f0f0f0' : 'white',
       color: isUsed ? '#666' : 'black',
-      pointerEvents: isUsed ? 'none' : 'auto',
+      pointerEvents: isClickable ? 'auto' : 'none',
       transition: 'all 0.3s ease'
     };
   };
@@ -133,7 +135,7 @@ const Scoreboard = ({
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
-                className={savedScores[category.name] === undefined ? 'clickable' : ''}
+                className={!savedScores[category.name] ? 'clickable' : ''}
                 style={styles}
               >
                 <td style={{ 
