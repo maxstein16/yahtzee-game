@@ -18,6 +18,7 @@ const Scoreboard = ({
   gameId
 }) => {
   const [dbScores, setDbScores] = useState({});
+  const [lastUpdate, setLastUpdate] = useState(0); // Add a trigger for re-fetching
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -36,27 +37,37 @@ const Scoreboard = ({
     };
 
     fetchScores();
-  }, [currentPlayer?.player_id, gameId, rollCount]);
+  }, [currentPlayer?.player_id, gameId, rollCount, lastUpdate]); // Add lastUpdate to dependencies
 
   const getDisplayScore = (category) => {
+    // If score is saved in DB, show it
     if (dbScores[category.name] !== null && dbScores[category.name] !== undefined) {
       return dbScores[category.name];
     }
-    return rollCount > 0 ? calculateScores(diceValues)[category.name] : '-';
+    // If we're mid-turn, show potential score
+    if (rollCount > 0) {
+      return calculateScores(diceValues)[category.name];
+    }
+    // Otherwise show dash
+    return '-';
   };
   
   const isCategoryAvailable = (category) => {
-    return !isAITurn && rollCount > 0;
+    return !isAITurn && 
+           rollCount > 0 && 
+           dbScores[category.name] === null;
   };
 
-  const handleClick = (category) => {
+  const handleClick = async (category) => {
     console.log('Click attempt:', {
       category: category.name,
       isAITurn,
       rollCount,
       score: getDisplayScore(category)
     });
-    handleScoreCategoryClick(category.name);
+    
+    await handleScoreCategoryClick(category.name);
+    setLastUpdate(Date.now()); // Trigger a re-fetch after score is saved
   };
 
   return (
@@ -71,21 +82,26 @@ const Scoreboard = ({
           </tr>
         </thead>
         <tbody>
-          {playerCategories.map((category) => (
-            <tr
-              key={category.category_id}
-              onClick={() => handleClick(category)}
-              className={isCategoryAvailable(category) ? 'clickable' : 'disabled'}
+          {playerCategories.map((category) => {
+            const isAvailable = isCategoryAvailable(category);
+            const score = getDisplayScore(category);
+            
+            return (
+              <tr
+                key={category.category_id}
+                onClick={() => isAvailable && handleClick(category)}
+                className={isAvailable ? 'clickable' : 'disabled'}
               >
-              <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-              <td>{getDisplayScore(category)}</td>
-              {mode === 'singleplayer' && (
-                <td>
-                  {aiCategories.find(c => c.name === category.name)?.score || '-'}
-                </td>
-              )}
-            </tr>
-          ))}
+                <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+                <td>{score}</td>
+                {mode === 'singleplayer' && (
+                  <td>
+                    {aiCategories.find(c => c.name === category.name)?.score || '-'}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
