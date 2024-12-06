@@ -58,11 +58,12 @@ const Scoreboard = ({
     return '-';
   };
 
+  const isClickable = (category) => {
+    return savedScores[category.name] === undefined && rollCount > 0;
+  };
+
   const handleClick = async (category) => {
-    // Only allow clicking if score isn't already saved
-    if (savedScores[category.name] !== undefined) {
-      return;
-    }
+    if (!isClickable(category)) return;
 
     try {
       await handleScoreCategoryClick(category.name);
@@ -96,6 +97,7 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
+            const canClick = isClickable(category);
             const isUsed = savedScores[category.name] !== undefined;
             
             return (
@@ -103,17 +105,16 @@ const Scoreboard = ({
                 key={category.category_id}
                 onClick={() => handleClick(category)}
                 style={{
-                  cursor: isUsed ? 'default' : 'pointer',
+                  cursor: canClick ? 'pointer' : 'default',
                   backgroundColor: isUsed ? '#f0f0f0' : 'white',
+                  color: isUsed ? '#666' : 'black',
+                  pointerEvents: canClick ? 'auto' : 'none'
                 }}
               >
                 <td style={{ textTransform: 'capitalize' }}>
                   {category.name}
                 </td>
-                <td style={{ 
-                  fontWeight: isUsed ? 'bold' : 'normal',
-                  color: isUsed ? '#666' : 'black'
-                }}>
+                <td style={{ fontWeight: isUsed ? 'bold' : 'normal' }}>
                   {getDisplayScore(category)}
                 </td>
               </tr>
