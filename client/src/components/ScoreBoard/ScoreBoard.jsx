@@ -17,38 +17,39 @@ const Scoreboard = ({
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
 
+  const fetchScores = async () => {
+    if (!currentPlayer?.player_id) {
+      setLoading(false);
+      setSavedScores({});
+      return;
+    }
+
+    try {
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      const scoreMap = {};
+      
+      categories.forEach(cat => {
+        if (cat.score !== null) {
+          scoreMap[cat.name] = cat.score;
+        }
+      });
+      
+      setSavedScores(scoreMap);
+    } catch (error) {
+      console.error('Error loading scores:', error);
+      message.error('Failed to load saved scores');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadScores = async () => {
-      if (!currentPlayer?.player_id || !gameId) {
-        setLoading(false);
-        setSavedScores({});
-        return;
-      }
-
-      try {
-        const categories = await API.getPlayerCategories(currentPlayer.player_id);
-        const scoreMap = {};
-        
-        categories.forEach(cat => {
-          if (cat.score !== null) {
-            scoreMap[cat.name] = cat.score;
-          }
-        });
-        
-        setSavedScores(scoreMap);
-      } catch (error) {
-        console.error('Error loading scores:', error);
-        message.error('Failed to load saved scores');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadScores();
-  }, [currentPlayer?.player_id, gameId]);
+    fetchScores();
+  }, [currentPlayer?.player_id]);
 
   const getDisplayScore = (category) => {
-    if (savedScores[category.name] !== undefined) {
+    const isScoreSaved = savedScores[category.name] !== undefined;
+    if (isScoreSaved) {
       return savedScores[category.name];
     }
     
@@ -60,24 +61,12 @@ const Scoreboard = ({
     return '-';
   };
 
-  const isCategoryAvailable = (category) => {
-    return rollCount > 0 && savedScores[category.name] === undefined;
-  };
-
   const handleClick = async (category) => {
-    if (!isCategoryAvailable(category)) return;
+    if (savedScores[category.name] !== undefined) return;
 
     try {
       await handleScoreCategoryClick(category.name);
-      
-      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
-      const newScoreMap = {};
-      updatedCategories.forEach(cat => {
-        if (cat.score !== null) {
-          newScoreMap[cat.name] = cat.score;
-        }
-      });
-      setSavedScores(newScoreMap);
+      await fetchScores();
     } catch (error) {
       console.error('Error saving score:', error);
       message.error('Failed to save score');
@@ -100,13 +89,12 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const isAvailable = isCategoryAvailable(category);
             const isUsed = savedScores[category.name] !== undefined;
             const styles = {
-              cursor: isAvailable ? 'pointer' : 'default',
+              cursor: isUsed ? 'default' : 'pointer',
               backgroundColor: isUsed ? '#f0f0f0' : 'white',
               color: isUsed ? '#666' : 'black',
-              pointerEvents: isAvailable ? 'auto' : 'none',
+              pointerEvents: isUsed ? 'none' : 'auto',
               transition: 'all 0.3s ease'
             };
             
@@ -114,19 +102,12 @@ const Scoreboard = ({
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
-                className={isAvailable ? 'clickable' : ''}
                 style={styles}
               >
-                <td style={{ 
-                  textTransform: 'capitalize',
-                  color: styles.color 
-                }}>
+                <td style={{ textTransform: 'capitalize' }}>
                   {category.name}
                 </td>
-                <td style={{ 
-                  color: styles.color,
-                  fontWeight: isUsed ? 'bold' : 'normal'
-                }}>
+                <td style={{ fontWeight: isUsed ? 'bold' : 'normal' }}>
                   {getDisplayScore(category)}
                 </td>
               </tr>
