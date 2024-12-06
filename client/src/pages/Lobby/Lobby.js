@@ -60,6 +60,8 @@ function Lobby() {
     const initializeGameSession = async () => {
       if (!currentPlayer) return;
 
+      console.log("Initializing game with player:", currentPlayer);
+
       const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
       
       if (result.success) {
