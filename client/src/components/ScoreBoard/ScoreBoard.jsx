@@ -16,16 +16,6 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
-  const [currentScores, setCurrentScores] = useState({});
-
-  useEffect(() => {
-    if (rollCount > 0) {
-      const scores = calculateScores(diceValues);
-      setCurrentScores(scores);
-    } else {
-      setCurrentScores({});
-    }
-  }, [diceValues, rollCount, calculateScores]);
 
   useEffect(() => {
     const loadScores = async () => {
@@ -56,12 +46,15 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id]);
 
   const getDisplayScore = (category) => {
+    // Return saved score if exists
     if (savedScores[category.name] !== undefined) {
       return savedScores[category.name];
     }
     
+    // Calculate potential score if dice have been rolled
     if (rollCount > 0) {
-      return currentScores[category.name] || '-';
+      const potentialScores = calculateScores(diceValues);
+      return potentialScores[category.name] ?? '-';
     }
     
     return '-';
@@ -69,6 +62,13 @@ const Scoreboard = ({
 
   const handleClick = async (category) => {
     if (savedScores[category.name] !== undefined || rollCount === 0) {
+      return;
+    }
+
+    const potentialScores = calculateScores(diceValues);
+    const scoreToSubmit = potentialScores[category.name];
+    
+    if (scoreToSubmit === undefined) {
       return;
     }
 
@@ -105,15 +105,16 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const isUsed = savedScores[category.name] !== undefined;
+            const canClick = !isUsed && rollCount > 0;
             
             return (
               <tr
                 key={category.category_id}
-                onClick={() => handleClick(category)}
-                className={!isUsed && rollCount > 0 ? 'clickable-row' : ''}
+                onClick={() => canClick && handleClick(category)}
+                className={canClick ? 'clickable-row' : ''}
                 style={{
-                  backgroundColor: 'white',
-                  cursor: !isUsed && rollCount > 0 ? 'pointer' : 'default',
+                  cursor: canClick ? 'pointer' : 'default',
+                  backgroundColor: 'white'
                 }}
               >
                 <td style={{ textTransform: 'capitalize' }}>
