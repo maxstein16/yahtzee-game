@@ -16,6 +16,16 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
+  const [possibleScores, setPossibleScores] = useState({});
+
+  useEffect(() => {
+    if (rollCount > 0) {
+      const scores = calculateScores(diceValues);
+      setPossibleScores(scores);
+    } else {
+      setPossibleScores({});
+    }
+  }, [diceValues, rollCount, calculateScores]);
 
   useEffect(() => {
     const loadScores = async () => {
@@ -43,28 +53,27 @@ const Scoreboard = ({
     loadScores();
   }, [currentPlayer?.player_id]);
 
-  const getDisplayScore = (categoryName) => {
-    // If score is saved, show saved score
-    if (savedScores[categoryName] !== undefined) {
-      return savedScores[categoryName];
+  const getDisplayScore = (category) => {
+    if (savedScores[category.name] !== undefined) {
+      return savedScores[category.name];
     }
     
-    // If dice have been rolled, calculate potential score
     if (rollCount > 0) {
-      const scores = calculateScores(diceValues);
-      return scores[categoryName];
+      return possibleScores[category.name] || '-';
     }
     
     return '-';
   };
 
-  const handleClick = async (categoryName) => {
-    if (savedScores[categoryName] !== undefined || rollCount === 0) {
-      return;
-    }
+  const isCategoryAvailable = (category) => {
+    return rollCount > 0 && savedScores[category.name] === undefined;
+  };
+
+  const handleClick = async (category) => {
+    if (!isCategoryAvailable(category)) return;
 
     try {
-      await handleScoreCategoryClick(categoryName);
+      await handleScoreCategoryClick(category.name);
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const newScoreMap = {};
       updatedCategories.forEach(cat => {
@@ -74,6 +83,7 @@ const Scoreboard = ({
       });
       setSavedScores(newScoreMap);
     } catch (error) {
+      console.error('Error saving score:', error);
       message.error('Failed to save score');
     }
   };
@@ -92,17 +102,15 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const isUsed = savedScores[category.name] !== undefined;
-            const canClick = !isUsed && rollCount > 0;
-            const score = getDisplayScore(category.name);
+            const isAvailable = isCategoryAvailable(category);
+            const score = getDisplayScore(category);
             
             return (
               <tr
                 key={category.category_id}
-                onClick={() => canClick && handleClick(category.name)}
-                className={canClick ? 'clickable-row' : ''}
+                onClick={() => handleClick(category)}
                 style={{
-                  cursor: canClick ? 'pointer' : 'default',
+                  cursor: isAvailable ? 'pointer' : 'default',
                   backgroundColor: 'white'
                 }}
               >
