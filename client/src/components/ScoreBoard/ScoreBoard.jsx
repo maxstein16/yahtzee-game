@@ -16,7 +16,6 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadScores = async () => {
@@ -36,7 +35,6 @@ const Scoreboard = ({
         setSavedScores(scoreMap);
       } catch (error) {
         console.error('Error loading scores:', error);
-        setError('Failed to load scores');
       } finally {
         setLoading(false);
       }
@@ -45,31 +43,28 @@ const Scoreboard = ({
     loadScores();
   }, [currentPlayer?.player_id]);
 
-  const getDisplayScore = (category) => {
-    if (savedScores[category.name] !== undefined) {
-      return savedScores[category.name];
+  const getDisplayScore = (categoryName) => {
+    // If score is saved, show saved score
+    if (savedScores[categoryName] !== undefined) {
+      return savedScores[categoryName];
     }
     
+    // If dice have been rolled, calculate potential score
     if (rollCount > 0) {
-      try {
-        const scores = calculateScores(diceValues);
-        return scores[category.name] ?? '-';
-      } catch (error) {
-        console.error('Error calculating score:', error);
-        return '-';
-      }
+      const scores = calculateScores(diceValues);
+      return scores[categoryName];
     }
     
     return '-';
   };
 
-  const handleClick = async (category) => {
-    if (savedScores[category.name] !== undefined || rollCount === 0) {
+  const handleClick = async (categoryName) => {
+    if (savedScores[categoryName] !== undefined || rollCount === 0) {
       return;
     }
 
     try {
-      await handleScoreCategoryClick(category.name);
+      await handleScoreCategoryClick(categoryName);
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const newScoreMap = {};
       updatedCategories.forEach(cat => {
@@ -79,18 +74,11 @@ const Scoreboard = ({
       });
       setSavedScores(newScoreMap);
     } catch (error) {
-      console.error('Error saving score:', error);
       message.error('Failed to save score');
     }
   };
 
-  if (loading) {
-    return <div>Loading scores...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
+  if (loading) return <div>Loading scores...</div>;
 
   return (
     <div className="scoreboard">
@@ -106,11 +94,12 @@ const Scoreboard = ({
           {playerCategories.map((category) => {
             const isUsed = savedScores[category.name] !== undefined;
             const canClick = !isUsed && rollCount > 0;
+            const score = getDisplayScore(category.name);
             
             return (
               <tr
                 key={category.category_id}
-                onClick={() => canClick && handleClick(category)}
+                onClick={() => canClick && handleClick(category.name)}
                 className={canClick ? 'clickable-row' : ''}
                 style={{
                   cursor: canClick ? 'pointer' : 'default',
@@ -120,11 +109,8 @@ const Scoreboard = ({
                 <td style={{ textTransform: 'capitalize' }}>
                   {category.name}
                 </td>
-                <td style={{ 
-                  textAlign: 'center',
-                  fontWeight: isUsed ? 'bold' : 'normal'
-                }}>
-                  {getDisplayScore(category)}
+                <td style={{ textAlign: 'center' }}>
+                  {score}
                 </td>
               </tr>
             );
