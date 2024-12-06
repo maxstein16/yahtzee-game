@@ -45,28 +45,7 @@ const Scoreboard = ({
     };
 
     loadScores();
-  }, [currentPlayer?.player_id, gameId]);
-
-  useEffect(() => {
-    const checkGameCompletion = async () => {
-      if (!currentPlayer?.player_id || !gameId) return;
-
-      try {
-        const categories = await API.getPlayerCategories(currentPlayer.player_id);
-        const allCategoriesUsed = categories.every(cat => cat.score !== null);
-
-        if (allCategoriesUsed) {
-          await API.endGame(gameId);
-          const total = await API.getPlayerTotalScore(currentPlayer.player_id);
-          message.success(`Game Complete! Final Score: ${total.totalScore}`);
-        }
-      } catch (error) {
-        console.error('Error checking game completion:', error);
-      }
-    };
-
-    checkGameCompletion();
-  }, [currentPlayer?.player_id, gameId, savedScores]);
+  }, [currentPlayer?.player_id, gameId, rollCount]); // Added rollCount dependency
 
   const getDisplayScore = (category) => {
     if (savedScores[category.name] !== undefined) {
@@ -81,25 +60,13 @@ const Scoreboard = ({
     return '-';
   };
 
-  const getRowStyle = (category) => {
-    const isUsed = savedScores[category.name] !== undefined;
-    const isClickable = !isUsed;
-    
-    return {
-      cursor: isClickable ? 'pointer' : 'default',
-      backgroundColor: isUsed ? '#f0f0f0' : 'white',
-      color: isUsed ? '#666' : 'black',
-      pointerEvents: isClickable ? 'auto' : 'none',
-      transition: 'all 0.3s ease'
-    };
-  };
-
   const handleClick = async (category) => {
     if (savedScores[category.name] !== undefined) return;
 
     try {
       await handleScoreCategoryClick(category.name);
       
+      // Force reload scores after submitting
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const newScoreMap = {};
       updatedCategories.forEach(cat => {
@@ -130,12 +97,20 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const styles = getRowStyle(category);
+            const isUsed = savedScores[category.name] !== undefined;
+            const styles = {
+              cursor: isUsed ? 'default' : 'pointer',
+              backgroundColor: isUsed ? '#f0f0f0' : 'white',
+              color: isUsed ? '#666' : 'black',
+              pointerEvents: isUsed ? 'none' : 'auto',
+              transition: 'all 0.3s ease'
+            };
+            
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
-                className={!savedScores[category.name] ? 'clickable' : ''}
+                className={!isUsed ? 'clickable' : ''}
                 style={styles}
               >
                 <td style={{ 
@@ -146,7 +121,7 @@ const Scoreboard = ({
                 </td>
                 <td style={{ 
                   color: styles.color,
-                  fontWeight: savedScores[category.name] !== undefined ? 'bold' : 'normal'
+                  fontWeight: isUsed ? 'bold' : 'normal'
                 }}>
                   {getDisplayScore(category)}
                 </td>
