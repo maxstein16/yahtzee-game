@@ -58,12 +58,11 @@ const Scoreboard = ({
     return '-';
   };
 
-  const isClickable = (category) => {
-    return savedScores[category.name] === undefined && rollCount > 0;
-  };
-
   const handleClick = async (category) => {
-    if (!isClickable(category)) return;
+    // Only allow clicking if it's not already scored AND there's been at least one roll
+    if (savedScores[category.name] !== undefined || rollCount === 0) {
+      return;
+    }
 
     try {
       await handleScoreCategoryClick(category.name);
@@ -97,24 +96,26 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const canClick = isClickable(category);
             const isUsed = savedScores[category.name] !== undefined;
+            const isClickable = !isUsed && rollCount > 0;
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
                 style={{
-                  cursor: canClick ? 'pointer' : 'default',
+                  cursor: isClickable ? 'pointer' : 'default',
                   backgroundColor: isUsed ? '#f0f0f0' : 'white',
-                  color: isUsed ? '#666' : 'black',
-                  pointerEvents: canClick ? 'auto' : 'none'
+                  opacity: rollCount === 0 ? 0.5 : 1
                 }}
               >
                 <td style={{ textTransform: 'capitalize' }}>
                   {category.name}
                 </td>
-                <td style={{ fontWeight: isUsed ? 'bold' : 'normal' }}>
+                <td style={{ 
+                  fontWeight: isUsed ? 'bold' : 'normal',
+                  color: isUsed ? '#666' : 'black'
+                }}>
                   {getDisplayScore(category)}
                 </td>
               </tr>
