@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Typography } from 'antd';
+import { Typography, message } from 'antd';
 import API from '../../utils/api';
 import '../../styles/ScoreBoard.css';
 
@@ -16,17 +16,35 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
 
-  const getRowStyles = (category, isAvailable, savedScores) => {
-    const isUsed = category.name in savedScores;
-    return {
-      cursor: isAvailable ? 'pointer' : 'default',
-      backgroundColor: isUsed ? '#f0f0f0' : 'white',
-      color: isUsed ? '#666' : 'black',
-      pointerEvents: isUsed ? 'none' : 'auto'
-    };
-  };
+  // Initial load of scores
+  useEffect(() => {
+    const loadInitialScores = async () => {
+      if (!currentPlayer?.player_id || !gameId) return;
 
-  // Fetch scores when game is loaded or when categories change
+      try {
+        const existingScores = await API.getPlayerCategories(currentPlayer.player_id);
+        const scoreMap = {};
+        existingScores.forEach(cat => {
+          if (cat.score !== null) {
+            scoreMap[cat.name] = cat.score;
+          }
+        });
+        setSavedScores(scoreMap);
+
+        if (Object.keys(scoreMap).length === existingScores.length) {
+          await API.endGame(gameId);
+          const total = await API.getPlayerTotalScore(currentPlayer.player_id);
+          message.success(`Game Complete! Final Score: ${total.totalScore}`);
+        }
+      } catch (error) {
+        console.error('Error loading initial scores:', error);
+      }
+    };
+
+    loadInitialScores();
+  }, []);
+
+  // Update scores during gameplay
   useEffect(() => {
     const fetchSavedScores = async () => {
       if (!currentPlayer?.player_id || !gameId) return;
@@ -40,6 +58,12 @@ const Scoreboard = ({
           }
         });
         setSavedScores(scoreMap);
+
+        if (Object.keys(scoreMap).length === categories.length) {
+          await API.endGame(gameId);
+          const total = await API.getPlayerTotalScore(currentPlayer.player_id);
+          message.success(`Game Complete! Final Score: ${total.totalScore}`);
+        }
       } catch (error) {
         console.error('Error fetching saved scores:', error);
       }
@@ -49,12 +73,10 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id, gameId, playerCategories]);
 
   const getDisplayScore = (category) => {
-    // If category has a saved score, show it
     if (category.name in savedScores) {
       return savedScores[category.name];
     }
     
-    // Show potential score if dice are rolled
     if (rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
       return calculatedScores[category.name];
@@ -64,10 +86,18 @@ const Scoreboard = ({
   };
 
   const isCategoryAvailable = (category) => {
-    // Category is available if:
-    // 1. It hasn't been used yet (no saved score)
-    // 2. We've rolled the dice at least once
     return rollCount > 0 && !(category.name in savedScores);
+  };
+
+  const getRowStyles = (category, isAvailable) => {
+    const isUsed = category.name in savedScores;
+    return {
+      cursor: isAvailable ? 'pointer' : 'default',
+      backgroundColor: isUsed ? '#f0f0f0' : 'white',
+      color: isUsed ? '#666' : 'black',
+      pointerEvents: isUsed ? 'none' : 'auto',
+      transition: 'all 0.3s ease'
+    };
   };
 
   const handleClick = async (category) => {
@@ -77,17 +107,25 @@ const Scoreboard = ({
       const calculatedScores = calculateScores(diceValues);
       const scoreToSave = calculatedScores[category.name];
 
-      // Call parent handler to save score
       await handleScoreCategoryClick(category.name);
 
-      // Update local state with new score
       setSavedScores(prev => ({
         ...prev,
         [category.name]: scoreToSave
       }));
 
+      // Fetch updated scores after saving
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+      const updatedScoreMap = {};
+      updatedCategories.forEach(cat => {
+        if (cat.score !== null) {
+          updatedScoreMap[cat.name] = cat.score;
+        }
+      });
+      setSavedScores(updatedScoreMap);
     } catch (error) {
       console.error('Error saving score:', error);
+      message.error('Failed to save score');
     }
   };
 
@@ -105,7 +143,7 @@ const Scoreboard = ({
           {playerCategories.map((category) => {
             const isAvailable = isCategoryAvailable(category);
             const score = getDisplayScore(category);
-            const styles = getRowStyles(category, isAvailable, savedScores);
+            const styles = getRowStyles(category, isAvailable);
             
             return (
               <tr
