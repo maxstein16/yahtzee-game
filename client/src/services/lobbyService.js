@@ -17,16 +17,10 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
         await API.initializePlayerCategories(currentPlayer.player_id);
       }
 
-      // Check if game is multiplayer by getting players
-      const gamePlayers = await API.getPlayersInGame(gameId);
-      if (gamePlayers.length > 1) {
-        setPlayers(gamePlayers);
-      } else {
-        // For singleplayer games, check AI categories
-        const aiCategories = await API.getPlayerCategories('ai-opponent');
-        if (aiCategories.length === 0) {
-          await API.initializePlayerCategories('ai-opponent');
-        }
+      // Check AI categories
+      const aiCategories = await API.getPlayerCategories('ai-opponent');
+      if (aiCategories.length === 0) {
+        await API.initializePlayerCategories('ai-opponent');
       }
 
       return {
@@ -34,13 +28,11 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
         message: 'Resumed existing game',
         gameId: gameId,
         existingGame: true,
-        players: gamePlayers,
-        mode: gamePlayers.length > 1 ? 'multiplayer' : 'singleplayer'
+        mode: 'singleplayer'
       };
     } else {
       // Create new game if no active game exists
-      const gameStatus = mode === 'singleplayer' ? 'pending' : 'waiting';
-      const response = await API.createGame(gameStatus, 0, currentPlayer.player_id);
+      const response = await API.createGame('pending', 0, currentPlayer.player_id);
       console.log('Raw API Response:', response);
 
       gameId = response.game?.game_id;
@@ -61,27 +53,22 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
         await API.initializePlayerCategories(currentPlayer.player_id);
       }
 
-      if (mode === 'multiplayer') {
-        const gamePlayers = await API.getPlayersInGame(gameId);
-        setPlayers(gamePlayers);
-      } else {
-        const aiCategories = await API.getPlayerCategories('ai-opponent');
-        const aiHasStartedPlaying = aiCategories.some(category => category.score !== null);
+      const aiCategories = await API.getPlayerCategories('ai-opponent');
+      const aiHasStartedPlaying = aiCategories.some(category => category.score !== null);
 
-        if (aiHasStartedPlaying) {
-          await API.resetPlayerCategories('ai-opponent');
-        } else if (aiCategories.length === 0) {
-          await API.initializePlayerCategories('ai-opponent');
-        }
+      if (aiHasStartedPlaying) {
+        await API.resetPlayerCategories('ai-opponent');
+      } else if (aiCategories.length === 0) {
+        await API.initializePlayerCategories('ai-opponent');
       }
 
       await API.startGame(gameId);
       return { 
         success: true, 
-        message: `New ${mode} game created!`,
+        message: 'New game created!',
         gameId: gameId,
         existingGame: false,
-        mode: mode
+        mode: 'singleplayer'
       };
     }
   } catch (error) {
