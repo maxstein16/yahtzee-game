@@ -18,7 +18,7 @@ const Scoreboard = ({
   gameId
 }) => {
   const [dbScores, setDbScores] = useState({});
-  const [lastUpdate, setLastUpdate] = useState(0); // Add a trigger for re-fetching
+  const [lastUpdate, setLastUpdate] = useState(0);
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -26,10 +26,12 @@ const Scoreboard = ({
 
       try {
         const categories = await API.getPlayerCategories(currentPlayer.player_id);
+        console.log('Fetched categories:', categories);
         const scoreMap = {};
         categories.forEach(cat => {
           scoreMap[cat.name] = cat.score;
         });
+        console.log('Score map:', scoreMap);
         setDbScores(scoreMap);
       } catch (error) {
         console.error('Error fetching scores:', error);
@@ -37,38 +39,46 @@ const Scoreboard = ({
     };
 
     fetchScores();
-  }, [currentPlayer?.player_id, gameId, rollCount, lastUpdate]); // Add lastUpdate to dependencies
+  }, [currentPlayer?.player_id, gameId, rollCount, lastUpdate]);
 
   const getDisplayScore = (category) => {
-    // If score is saved in DB, show it
     if (dbScores[category.name] !== null && dbScores[category.name] !== undefined) {
       return dbScores[category.name];
     }
-    // If we're mid-turn, show potential score
     if (rollCount > 0) {
-      return calculateScores(diceValues)[category.name];
+      const calculatedScores = calculateScores(diceValues);
+      return calculatedScores[category.name];
     }
-    // Otherwise show dash
     return '-';
   };
   
   const isCategoryAvailable = (category) => {
-    return !isAITurn && 
-           rollCount > 0 && 
-           dbScores[category.name] === null;
+    const isUsed = dbScores[category.name] !== null && dbScores[category.name] !== undefined;
+    console.log(`Category ${category.name}:`, {
+      isAITurn,
+      rollCount,
+      isUsed,
+      dbScore: dbScores[category.name]
+    });
+    return !isAITurn && rollCount > 0 && !isUsed;
   };
 
   const handleClick = async (category) => {
-    console.log('Click attempt:', {
-      category: category.name,
-      isAITurn,
-      rollCount,
-      score: getDisplayScore(category)
-    });
+    if (!isCategoryAvailable(category)) {
+      console.log('Category not available:', category.name);
+      return;
+    }
     
+    console.log('Clicking category:', category.name);
     await handleScoreCategoryClick(category.name);
-    setLastUpdate(Date.now()); // Trigger a re-fetch after score is saved
+    setLastUpdate(Date.now());
   };
+
+  console.log('Current state:', {
+    isAITurn,
+    rollCount,
+    dbScores
+  });
 
   return (
     <div className="scoreboard">
@@ -84,16 +94,18 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const isAvailable = isCategoryAvailable(category);
-            const score = getDisplayScore(category);
-            
             return (
               <tr
                 key={category.category_id}
-                onClick={() => isAvailable && handleClick(category)}
-                className={isAvailable ? 'clickable' : 'disabled'}
+                onClick={() => handleClick(category)}
+                className={isAvailable ? 'clickable' : ''}
+                style={{ 
+                  cursor: isAvailable ? 'pointer' : 'default',
+                  backgroundColor: isAvailable ? 'white' : '#f5f5f5'
+                }}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td>{score}</td>
+                <td>{getDisplayScore(category)}</td>
                 {mode === 'singleplayer' && (
                   <td>
                     {aiCategories.find(c => c.name === category.name)?.score || '-'}
