@@ -48,7 +48,7 @@ router.delete('/game/:id', async (req, res) => {
 router.put('/game/:id/start', async (req, res) => {
   try {
     const game = await updateGame(req.params.id, 'in_progress', 1);
-    const { player_id } = req.body;
+    const { player_id } = req.body; // Extract player_id from the request body
 
     if (player_id) {
       await addPlayerToGame(req.params.id, player_id);

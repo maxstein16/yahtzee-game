@@ -34,8 +34,8 @@ export const updateGame = (gameId, status, round) =>
 
 export const deleteGame = (gameId) => apiRequest(`/game/${gameId}`, 'DELETE');
 
-export const startGame = (gameId) =>
-  apiRequest(`/game/${gameId}/start`, 'PUT');
+export const startGame = (gameId, playerId) =>
+  apiRequest(`/game/${gameId}/start`, 'PUT', { player_id: playerId });
 
 export const endGame = (gameId) =>
   apiRequest(`/game/${gameId}/end`, 'PUT');
