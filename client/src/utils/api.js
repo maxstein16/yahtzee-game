@@ -24,52 +24,8 @@ export const login = async (credentials) => apiRequest('/players/login', 'POST',
 export const register = async (userData) => apiRequest('/players/register', 'POST', userData);
 
 // Game Management
-// In api.js
-export const createGame = async (status = 'pending', round = 0, playerId) => {
-  console.log('createGame called with:', { status, round, playerId });
-  
-  try {
-    console.log('Making API request with payload:', { 
-      status, 
-      round, 
-      playerId 
-    });
-    
-    const response = await fetch(`${API_BASE_URL}/game`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, round, playerId })
-    });
-    
-    const rawResponse = await response.text();
-    console.log('Raw API response:', rawResponse);
-    
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (e) {
-      console.error('Failed to parse response:', e);
-      console.log('Non-JSON response received:', rawResponse);
-      throw new Error('Invalid response format from server');
-    }
-    
-    console.log('Parsed response data:', data);
-    
-    if (!response.ok) {
-      throw new Error(data.error || `Server returned ${response.status}`);
-    }
-    
-    if (!data.game_id) {
-      console.error('Response missing game_id:', data);
-      throw new Error('Server response missing game ID');
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Create game failed:', error);
-    throw error;
-  }
-};
+export const createGame = (status = 'pending', round = 0, playerId) => 
+  apiRequest('/game', 'POST', { status, round, playerId });
 
 export const getGameById = (gameId) => apiRequest(`/game/${gameId}`);
 
