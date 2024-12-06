@@ -20,7 +20,7 @@ const Scoreboard = ({
     const fetchScores = async () => {
       if (!currentPlayer?.player_id || !gameId) return;
       try {
-        const categories = await API.getPlayerCategories(currentPlayer.player_id);
+        const categories = await API.getPlayerCategories(currentPlayer.player_id, gameId);
         const scoreMap = {};
         categories.forEach(cat => {
           if (cat.score !== null) {
