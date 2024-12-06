@@ -6,34 +6,25 @@
 
 .scoreboard th,
 .scoreboard td {
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  text-align: center;
+  padding: 0.75rem;
+  border: 1px solid #e8e8e8;
+  text-align: left;
 }
 
 .scoreboard th {
-  background-color: #f5f5f5;
-  font-weight: bold;
-}
-
-.scoreboard .clickable {
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.scoreboard .clickable:hover {
-  background-color: #f0f0f0;
-}
-
-.scoreboard .selected {
-  background-color: #e6f7ff;
-}
-
-.scoreboard .disabled {
-  color: #999;
   background-color: #fafafa;
+  font-weight: 600;
 }
 
-.scoreboard .selected:hover {
-  background-color: #bae7ff;
+.scoreboard tr.clickable:hover {
+  background-color: #e6f7ff !important;
+  cursor: pointer;
+}
+
+.scoreboard tr:not(.clickable):hover {
+  cursor: not-allowed;
+}
+
+.scoreboard td {
+  transition: all 0.3s ease;
 }

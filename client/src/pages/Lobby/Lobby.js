@@ -45,24 +45,34 @@ function Lobby() {
   // Initialize game when player changes or when a new game is requested
   useEffect(() => {
     const initializeGameSession = async () => {
-      if (!currentPlayer) return;
+    if (!currentPlayer) return;
 
-      console.log("Initializing game with player:", currentPlayer);
+    console.log("Initializing game with player:", currentPlayer);
 
-      if (isNewGame || !gameId) {
-        const result = await initializeGame(currentPlayer, setGameId);
+    if (isNewGame || !gameId) {
+      // Pass all required parameters
+      const result = await initializeGame(currentPlayer, 'singleplayer', setGameId, () => {});
+      
+      if (result.success) {
+        message.success(result.message);
         
-        if (result.success) {
-          message.success(result.message);
-          setIsNewGame(false);
-        } else {
-          message.error(result.message);
+        if (result.existingGame) {
+          // Load existing game state
+          const categories = await API.getPlayerCategories(currentPlayer.player_id);
+          setPlayerCategories(categories);
+          const total = await API.getPlayerTotalScore(currentPlayer.player_id);
+          setPlayerTotal(total.totalScore);
         }
+        
+        setIsNewGame(false);
+      } else {
+        message.error(result.message);
       }
-    };
+    }
+  };
 
-    initializeGameSession();
-  }, [currentPlayer, isNewGame]);
+  initializeGameSession();
+}, [currentPlayer, isNewGame, gameId]);
 
   const handleNewGame = async () => {
     setIsNewGame(true);
