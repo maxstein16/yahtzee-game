@@ -4,35 +4,47 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
   try {
     const gameStatus = mode === 'singleplayer' ? 'pending' : 'waiting';
     
-    // Log the parameters being sent to createGame
     console.log('Creating game with params:', {
       status: gameStatus,
       round: 0,
       playerId: currentPlayer.player_id
     });
 
-    const newGame = await API.createGame(gameStatus, 0, currentPlayer.player_id);
+    // Add more detailed logging of the API call
+    console.log('Current player:', currentPlayer);
     
-    // Log the entire response from createGame
-    console.log('Response from createGame:', newGame);
+    const newGame = await API.createGame(gameStatus, 0, currentPlayer.player_id);
+    console.log('Raw API Response:', newGame);
+    console.log('Response type:', typeof newGame);
+    console.log('Response keys:', newGame ? Object.keys(newGame) : 'null or undefined response');
 
     // Check if we have a valid game object
     if (!newGame || typeof newGame !== 'object') {
-      throw new Error('Invalid response from createGame');
+      throw new Error(`Invalid response from createGame: ${JSON.stringify(newGame)}`);
     }
 
-    // Check which property contains the game ID
-    const gameId = newGame.game_id || newGame.id || newGame.gameId;
+    // Log all possible ID fields
+    console.log('Possible ID fields:', {
+      game_id: newGame.game_id,
+      id: newGame.id,
+      gameId: newGame.gameId,
+      _id: newGame._id,
+      allFields: JSON.stringify(newGame, null, 2)
+    });
+
+    // Try to find any field that might contain the ID
+    const gameId = newGame.game_id || newGame.id || newGame.gameId || newGame._id;
     
     if (!gameId) {
-      console.error('Game response structure:', newGame);
+      console.error('Game response structure:', JSON.stringify(newGame, null, 2));
       throw new Error('No game ID found in response');
     }
 
-    // Use the found gameId
     setGameId(gameId);
 
     const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
+    console.log('Current categories:', currentCategories);
+    
     const hasStartedPlaying = currentCategories.some(category => category.score !== null);
 
     if (hasStartedPlaying) {
@@ -55,19 +67,20 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
       }
     }
 
-    // Start the game with the found gameId
     await API.startGame(gameId);
     return { 
       success: true, 
       message: `New ${mode} game created!`,
-      gameId: gameId // Include the gameId in the response for additional verification
+      gameId: gameId,
+      fullResponse: newGame  // Include full response for debugging
     };
   } catch (error) {
-    console.error('Full error details:', error);
+    console.error('Full error object:', error);
+    console.error('Error stack:', error.stack);
     return { 
       success: false, 
       message: `Failed to create game: ${error.message}`,
-      error: error // Include the full error for debugging
+      error: error
     };
   }
 };
