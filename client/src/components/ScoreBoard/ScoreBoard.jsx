@@ -44,7 +44,7 @@ const Scoreboard = ({
     };
 
     loadScores();
-  }, [currentPlayer?.player_id]);
+  }, [currentPlayer?.player_id, gameId]); // Added gameId dependency
 
   useEffect(() => {
     const checkGameCompletion = async () => {
@@ -81,7 +81,7 @@ const Scoreboard = ({
   };
 
   const isCategoryAvailable = (category) => {
-    return savedScores[category.name] === undefined;
+    return rollCount > 0 && savedScores[category.name] === undefined;
   };
 
   const getRowStyles = (category) => {
