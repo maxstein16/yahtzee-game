@@ -19,8 +19,9 @@ const Scoreboard = ({
 
   useEffect(() => {
     const loadScores = async () => {
-      if (!currentPlayer?.player_id) {
+      if (!currentPlayer?.player_id || !gameId) {
         setLoading(false);
+        setSavedScores({});
         return;
       }
 
@@ -44,7 +45,7 @@ const Scoreboard = ({
     };
 
     loadScores();
-  }, [currentPlayer?.player_id, gameId]); // Added gameId dependency
+  }, [currentPlayer?.player_id, gameId]);
 
   useEffect(() => {
     const checkGameCompletion = async () => {
@@ -80,16 +81,10 @@ const Scoreboard = ({
     return '-';
   };
 
-  const isCategoryAvailable = (category) => {
-    return rollCount > 0 && savedScores[category.name] === undefined;
-  };
-
-  const getRowStyles = (category) => {
+  const getRowStyle = (category) => {
     const isUsed = savedScores[category.name] !== undefined;
-    const isAvailable = isCategoryAvailable(category);
-    
     return {
-      cursor: isAvailable ? 'pointer' : 'default',
+      cursor: 'pointer',
       backgroundColor: isUsed ? '#f0f0f0' : 'white',
       color: isUsed ? '#666' : 'black',
       pointerEvents: isUsed ? 'none' : 'auto',
@@ -98,7 +93,7 @@ const Scoreboard = ({
   };
 
   const handleClick = async (category) => {
-    if (!isCategoryAvailable(category)) return;
+    if (savedScores[category.name] !== undefined) return;
 
     try {
       await handleScoreCategoryClick(category.name);
@@ -133,14 +128,12 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const isAvailable = isCategoryAvailable(category);
-            const styles = getRowStyles(category);
-            
+            const styles = getRowStyle(category);
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
-                className={isAvailable ? 'clickable' : ''}
+                className={savedScores[category.name] === undefined ? 'clickable' : ''}
                 style={styles}
               >
                 <td style={{ 
