@@ -16,23 +16,12 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
-  const [potentialScores, setPotentialScores] = useState({});
-
-  // Update potential scores whenever dice values change
-  useEffect(() => {
-    if (rollCount > 0) {
-      const scores = calculateScores(diceValues);
-      setPotentialScores(scores);
-    } else {
-      setPotentialScores({});
-    }
-  }, [diceValues, rollCount, calculateScores]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadScores = async () => {
       if (!currentPlayer?.player_id) {
         setLoading(false);
-        setSavedScores({});
         return;
       }
 
@@ -47,7 +36,7 @@ const Scoreboard = ({
         setSavedScores(scoreMap);
       } catch (error) {
         console.error('Error loading scores:', error);
-        message.error('Failed to load saved scores');
+        setError('Failed to load scores');
       } finally {
         setLoading(false);
       }
@@ -61,8 +50,14 @@ const Scoreboard = ({
       return savedScores[category.name];
     }
     
-    if (rollCount > 0 && potentialScores[category.name] !== undefined) {
-      return potentialScores[category.name];
+    if (rollCount > 0) {
+      try {
+        const scores = calculateScores(diceValues);
+        return scores[category.name] ?? '-';
+      } catch (error) {
+        console.error('Error calculating score:', error);
+        return '-';
+      }
     }
     
     return '-';
@@ -93,6 +88,10 @@ const Scoreboard = ({
     return <div>Loading scores...</div>;
   }
 
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
@@ -107,7 +106,6 @@ const Scoreboard = ({
           {playerCategories.map((category) => {
             const isUsed = savedScores[category.name] !== undefined;
             const canClick = !isUsed && rollCount > 0;
-            const currentScore = getDisplayScore(category);
             
             return (
               <tr
@@ -122,8 +120,11 @@ const Scoreboard = ({
                 <td style={{ textTransform: 'capitalize' }}>
                   {category.name}
                 </td>
-                <td>
-                  {currentScore}
+                <td style={{ 
+                  textAlign: 'center',
+                  fontWeight: isUsed ? 'bold' : 'normal'
+                }}>
+                  {getDisplayScore(category)}
                 </td>
               </tr>
             );
