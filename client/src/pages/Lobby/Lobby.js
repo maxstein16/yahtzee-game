@@ -6,7 +6,6 @@ import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { resetTurnState } from '../../services/gameStateService.js'
 import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
-import { initializeAIPlayer, handleAITurn } from '../../services/aiOpponentService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api.js';
 
@@ -16,10 +15,8 @@ function Lobby() {
   const navigate = useNavigate();
   
   // Game State
-  const [mode, setMode] = useState('singleplayer');
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
-  const [players, setPlayers] = useState([]);
   const [isNewGame, setIsNewGame] = useState(false);
 
   // Player State
@@ -30,17 +27,6 @@ function Lobby() {
   const [scores, setScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
-
-  // AI State
-  const [aiPlayer, setAiPlayer] = useState(null);
-  const [aiDiceValues, setAiDiceValues] = useState(INITIAL_DICE_VALUES);
-  const [aiCategories, setAiCategories] = useState([]);
-  const [aiTotal, setAiTotal] = useState(0);
-  const [aiRollCount, setAiRollCount] = useState(0);
-  const [isAITurn, setIsAITurn] = useState(false);
-
-  // UI State
-  const [isChatVisible, setIsChatVisible] = useState(false);
 
   // Initialize player data and session check
   useEffect(() => {
@@ -56,37 +42,18 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
-  // Initialize game when player or mode changes, or when a new game is requested
+  // Initialize game when player changes or when a new game is requested
   useEffect(() => {
     const initializeGameSession = async () => {
       if (!currentPlayer) return;
 
       console.log("Initializing game with player:", currentPlayer);
 
-      // Only create a new game if isNewGame is true or there's no existing game
       if (isNewGame || !gameId) {
-        const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
+        const result = await initializeGame(currentPlayer, setGameId);
         
         if (result.success) {
           message.success(result.message);
-          
-          // If it's an existing game, update the mode based on the game type
-          if (result.existingGame) {
-            setMode(result.players?.length > 1 ? 'multiplayer' : 'singleplayer');
-          }
-          
-          if ((result.existingGame && result.mode === 'singleplayer') || (!result.existingGame && mode === 'singleplayer')) {
-            const aiInfo = await initializeAIPlayer();
-            setAiPlayer(aiInfo.player);
-            setAiCategories(aiInfo.categories);
-            setAiTotal(aiInfo.totalScore);
-          } else {
-            setAiPlayer(null);
-            setAiCategories([]);
-            setAiTotal(0);
-          }
-          
-          // Reset isNewGame flag after successful initialization
           setIsNewGame(false);
         } else {
           message.error(result.message);
@@ -95,11 +62,10 @@ function Lobby() {
     };
 
     initializeGameSession();
-  }, [mode, currentPlayer, isNewGame]);
+  }, [currentPlayer, isNewGame]);
 
-  const handleNewGame = async (gameType) => {
-    setMode(gameType);
-    setIsNewGame(true);  // Set flag to true to trigger new game creation
+  const handleNewGame = async () => {
+    setIsNewGame(true);
     
     resetTurnState({
       setDiceValues,
@@ -108,32 +74,23 @@ function Lobby() {
       setScores
     });
     
-    setAiDiceValues(INITIAL_DICE_VALUES);
-    setAiRollCount(0);
-    setIsAITurn(false);
-    
     if (currentPlayer) {
       await resetPlayerCategories({
         currentPlayer,
-        gameType,
         setPlayerCategories,
-        setPlayerTotal,
-        setAiCategories,
-        setAiTotal
+        setPlayerTotal
       });
     }
   };
 
   const handleScoreCategoryClick = async (category) => {
     try {
-      // First get category info
       const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
       if (!categoryInfo) {
         message.error('Invalid category selected');
         return;
       }
   
-      // Step 1: Create the turn with initial state
       const turnCreated = await API.createTurn(
         gameId,
         currentPlayer.player_id,
@@ -147,7 +104,6 @@ function Lobby() {
         throw new Error('Failed to create turn');
       }
   
-      // Step 2: Submit the score to the category
       const scoreResult = await API.submitGameScore(
         gameId, 
         currentPlayer.player_id, 
@@ -159,7 +115,6 @@ function Lobby() {
         throw new Error('Failed to submit score');
       }
   
-      // Step 3: Complete the turn with final state
       const turnResult = await API.submitTurn(
         gameId,
         currentPlayer.player_id,
@@ -173,7 +128,6 @@ function Lobby() {
         throw new Error('Failed to complete turn');
       }
   
-      // Now that everything is saved, reset the game state
       resetTurnState({
         setDiceValues,
         setSelectedDice,
@@ -181,24 +135,10 @@ function Lobby() {
         setScores
       });
       
-      // Update categories and total score
       setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
       setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
       
       message.success(`${category} score saved!`);
-      
-      // Handle AI turn if in singleplayer mode
-      if (mode === 'singleplayer' && aiPlayer) {
-        await handleAITurn({
-          gameId,
-          aiPlayer,
-          setIsAITurn,
-          setAiDiceValues,
-          setAiRollCount,
-          setAiCategories,
-          setAiTotal
-        });
-      }
   
     } catch (error) {
       console.error('Error submitting score and turn:', error);
@@ -221,15 +161,13 @@ function Lobby() {
   const handleDiceSelection = (index) => toggleDiceSelection(
     index,
     isRolling,
-    isAITurn,
+    false,
     setSelectedDice
   );
 
   const handlePlayerLogout = () => handleLogout(navigate);
 
-  // Props to pass to the view component
   const viewProps = {
-    mode,
     currentPlayer,
     gameId,
     diceValues,
@@ -238,18 +176,11 @@ function Lobby() {
     rollCount,
     playerTotal,
     playerCategories,
-    aiDiceValues,
-    aiRollCount,
-    isAITurn,
-    aiTotal,
-    aiCategories,
-    isChatVisible,
     handleNewGame,
     handleLogout: handlePlayerLogout,
     handleRollDice: handleDiceRoll,
     toggleDiceSelection: handleDiceSelection,
     handleScoreCategoryClick,
-    setIsChatVisible,
     calculateScores
   };
 
