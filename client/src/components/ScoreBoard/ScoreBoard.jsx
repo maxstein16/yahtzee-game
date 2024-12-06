@@ -16,6 +16,16 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
+  const [currentScores, setCurrentScores] = useState({});
+
+  useEffect(() => {
+    if (rollCount > 0) {
+      const scores = calculateScores(diceValues);
+      setCurrentScores(scores);
+    } else {
+      setCurrentScores({});
+    }
+  }, [diceValues, rollCount, calculateScores]);
 
   useEffect(() => {
     const loadScores = async () => {
@@ -51,15 +61,13 @@ const Scoreboard = ({
     }
     
     if (rollCount > 0) {
-      const calculatedScores = calculateScores(diceValues);
-      return calculatedScores[category.name];
+      return currentScores[category.name] || '-';
     }
     
     return '-';
   };
 
   const handleClick = async (category) => {
-    // Only allow clicking if it's not already scored AND there's been at least one roll
     if (savedScores[category.name] !== undefined || rollCount === 0) {
       return;
     }
@@ -97,25 +105,21 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const isUsed = savedScores[category.name] !== undefined;
-            const isClickable = !isUsed && rollCount > 0;
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
+                className={!isUsed && rollCount > 0 ? 'clickable-row' : ''}
                 style={{
-                  cursor: isClickable ? 'pointer' : 'default',
-                  backgroundColor: isUsed ? '#f0f0f0' : 'white',
-                  opacity: rollCount === 0 ? 0.5 : 1
+                  backgroundColor: 'white',
+                  cursor: !isUsed && rollCount > 0 ? 'pointer' : 'default',
                 }}
               >
                 <td style={{ textTransform: 'capitalize' }}>
                   {category.name}
                 </td>
-                <td style={{ 
-                  fontWeight: isUsed ? 'bold' : 'normal',
-                  color: isUsed ? '#666' : 'black'
-                }}>
+                <td>
                   {getDisplayScore(category)}
                 </td>
               </tr>
