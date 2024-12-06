@@ -42,7 +42,7 @@ const Scoreboard = ({
     };
 
     loadInitialScores();
-  }, []);
+  }, [currentPlayer?.player_id, gameId]);
 
   // Update scores during gameplay
   useEffect(() => {
