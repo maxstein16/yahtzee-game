@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGame, getGameById, updateGame, deleteGame } = require('../db/gameQueries');
+const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer } = require('../db/gameQueries');
 
 // POST route for creating a new game
 router.post('/game', async (req, res) => {
