@@ -31,7 +31,8 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
       }
     }
 
-    await API.startGame(setGameId);
+    console.log('newGame object:', newGame);
+    await API.startGame(newGame.game_id);
     return { success: true, message: `New ${mode} game created!` };
   } catch (error) {
     return { success: false, message: `Failed to create game: ${error.message}` };
