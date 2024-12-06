@@ -28,3 +28,15 @@
 .scoreboard td {
   transition: all 0.3s ease;
 }
+
+.scoreboard tr {
+  transition: all 0.3s ease;
+}
+
+.scoreboard tr:not(.clickable):hover {
+  background-color: inherit !important;
+}
+
+.scoreboard .clickable:hover {
+  background-color: #e6f7ff !important;
+}

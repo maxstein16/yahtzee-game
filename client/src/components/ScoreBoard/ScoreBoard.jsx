@@ -16,6 +16,16 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
 
+  const getRowStyles = (category, isAvailable, savedScores) => {
+    const isUsed = category.name in savedScores;
+    return {
+      cursor: isAvailable ? 'pointer' : 'default',
+      backgroundColor: isUsed ? '#f0f0f0' : 'white',
+      color: isUsed ? '#666' : 'black',
+      pointerEvents: isUsed ? 'none' : 'auto'
+    };
+  };
+
   // Fetch scores when game is loaded or when categories change
   useEffect(() => {
     const fetchSavedScores = async () => {
@@ -95,18 +105,27 @@ const Scoreboard = ({
           {playerCategories.map((category) => {
             const isAvailable = isCategoryAvailable(category);
             const score = getDisplayScore(category);
+            const styles = getRowStyles(category, isAvailable, savedScores);
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
                 className={isAvailable ? 'clickable' : ''}
-                style={{ 
-                  cursor: isAvailable ? 'pointer' : 'default',
-                }}
+                style={styles}
               >
-                <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td>{score}</td>
+                <td style={{ 
+                  textTransform: 'capitalize',
+                  color: styles.color 
+                }}>
+                  {category.name}
+                </td>
+                <td style={{ 
+                  color: styles.color,
+                  fontWeight: category.name in savedScores ? 'bold' : 'normal'
+                }}>
+                  {score}
+                </td>
               </tr>
             );
           })}
