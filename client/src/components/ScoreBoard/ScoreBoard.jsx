@@ -7,14 +7,11 @@ const { Title } = Typography;
 
 const Scoreboard = ({
   currentPlayer,
-  mode,
   playerCategories,
   calculateScores,
   diceValues,
-  isAITurn,
   rollCount,
   handleScoreCategoryClick,
-  aiCategories,
   gameId
 }) => {
   const [dbScores, setDbScores] = useState({});
@@ -52,7 +49,7 @@ const Scoreboard = ({
   };
 
   const isCategoryAvailable = (category) => {
-    return !isAITurn && rollCount > 0 && dbScores[category.name] === undefined;
+    return rollCount > 0 && dbScores[category.name] === undefined;
   };
 
   const handleClick = async (category) => {
@@ -79,7 +76,6 @@ const Scoreboard = ({
           <tr>
             <th>Category</th>
             <th>{currentPlayer?.name || 'Player'}</th>
-            {mode === 'singleplayer' && <th>AI</th>}
           </tr>
         </thead>
         <tbody>
@@ -94,9 +90,6 @@ const Scoreboard = ({
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
                 <td>{getDisplayScore(category)}</td>
-                {mode === 'singleplayer' && (
-                  <td>{aiCategories.find(c => c.name === category.name)?.score || '-'}</td>
-                )}
               </tr>
             );
           })}
