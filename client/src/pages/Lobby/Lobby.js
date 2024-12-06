@@ -20,6 +20,7 @@ function Lobby() {
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [isNewGame, setIsNewGame] = useState(false);
 
   // Player State
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
@@ -55,37 +56,51 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
-  // Initialize game when player or mode changes
+  // Initialize game when player or mode changes, or when a new game is requested
   useEffect(() => {
     const initializeGameSession = async () => {
       if (!currentPlayer) return;
 
       console.log("Initializing game with player:", currentPlayer);
 
-      const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
-      
-      if (result.success) {
-        message.success(result.message);
-        if (mode === 'singleplayer') {
-          const aiInfo = await initializeAIPlayer();
-          setAiPlayer(aiInfo.player);
-          setAiCategories(aiInfo.categories);
-          setAiTotal(aiInfo.totalScore);
+      // Only create a new game if isNewGame is true or there's no existing game
+      if (isNewGame || !gameId) {
+        const result = await initializeGame(currentPlayer, mode, setGameId, setPlayers);
+        
+        if (result.success) {
+          message.success(result.message);
+          
+          // If it's an existing game, update the mode based on the game type
+          if (result.existingGame) {
+            setMode(result.players?.length > 1 ? 'multiplayer' : 'singleplayer');
+          }
+          
+          if ((result.existingGame && result.mode === 'singleplayer') || (!result.existingGame && mode === 'singleplayer')) {
+            const aiInfo = await initializeAIPlayer();
+            setAiPlayer(aiInfo.player);
+            setAiCategories(aiInfo.categories);
+            setAiTotal(aiInfo.totalScore);
+          } else {
+            setAiPlayer(null);
+            setAiCategories([]);
+            setAiTotal(0);
+          }
+          
+          // Reset isNewGame flag after successful initialization
+          setIsNewGame(false);
         } else {
-          setAiPlayer(null);
-          setAiCategories([]);
-          setAiTotal(0);
+          message.error(result.message);
         }
-      } else {
-        message.error(result.message);
       }
     };
 
     initializeGameSession();
-  }, [mode, currentPlayer]);
+  }, [mode, currentPlayer, isNewGame]);
 
   const handleNewGame = async (gameType) => {
     setMode(gameType);
+    setIsNewGame(true);  // Set flag to true to trigger new game creation
+    
     resetTurnState({
       setDiceValues,
       setSelectedDice,
