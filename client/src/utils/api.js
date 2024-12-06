@@ -130,6 +130,7 @@ const API = {
   updateGame,
   deleteGame,
   startGame,
+  getActiveGameForPlayer,
   initializePlayerCategories,
   getPlayerCategories,
   getPlayerCategory,
