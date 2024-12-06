@@ -5,6 +5,7 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
     const gameStatus = mode === 'singleplayer' ? 'pending' : 'waiting';
     console.log('Creating game with:', { status: 'pending', round: 0, playerId: currentPlayer.player_id });
     const newGame = await API.createGame(gameStatus, 0, currentPlayer.player_id);
+    console.log('New game created:', newGame); // Log the response from the backend
     setGameId(newGame.game_id);
 
     const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
