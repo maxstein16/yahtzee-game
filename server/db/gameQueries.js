@@ -30,6 +30,10 @@ async function createGame(status, round, playerId) {
       VALUES (?, ?, NOW());
     `;
     const gameValues = [status, round];
+    
+    // Log the values to ensure they are defined
+    console.log("Game values:", gameValues);
+    
     const insertResult = await runSQL(createGameQuery, gameValues);
     console.log("Game insert result:", insertResult);
 
@@ -45,11 +49,19 @@ async function createGame(status, round, playerId) {
     }
 
     // Step 2: Add the player to the newly created game
+    if (!playerId) {
+      throw new Error("Player ID is required to create the game-player association.");
+    }
+
     const addPlayerQuery = `
       INSERT INTO gameplayer (game_id, player_id) 
       VALUES (?, ?);
     `;
     const playerValues = [newGame.game_id, playerId];
+    
+    // Log the values to ensure they are defined
+    console.log("Player values:", playerValues);
+    
     await runSQL(addPlayerQuery, playerValues);
 
     // Retrieve the inserted game-player association

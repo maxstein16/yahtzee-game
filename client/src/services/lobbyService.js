@@ -3,7 +3,8 @@ import * as API from '../utils/api';
 export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers) => {
   try {
     const gameStatus = mode === 'singleplayer' ? 'pending' : 'waiting';
-    const newGame = await API.createGame(gameStatus, currentPlayer.player_id);
+    console.log('Creating game with:', { status: 'pending', round: 0, playerId: currentPlayer.player_id });
+    const newGame = await API.createGame(gameStatus, 0, currentPlayer.player_id);
     setGameId(newGame.game_id);
 
     const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
