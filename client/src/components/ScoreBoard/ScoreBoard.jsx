@@ -81,7 +81,7 @@ const Scoreboard = ({
   };
 
   const isCategoryAvailable = (category) => {
-    return rollCount > 0 && savedScores[category.name] === undefined;
+    return savedScores[category.name] === undefined;
   };
 
   const getRowStyles = (category) => {
