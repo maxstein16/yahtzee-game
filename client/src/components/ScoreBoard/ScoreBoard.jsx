@@ -60,8 +60,12 @@ const Scoreboard = ({
     return '-';
   };
 
+  const isCategoryAvailable = (category) => {
+    return rollCount > 0 && savedScores[category.name] === undefined;
+  };
+
   const handleClick = async (category) => {
-    if (savedScores[category.name] !== undefined) return;
+    if (!isCategoryAvailable(category)) return;
 
     try {
       await handleScoreCategoryClick(category.name);
@@ -96,12 +100,13 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
+            const isAvailable = isCategoryAvailable(category);
             const isUsed = savedScores[category.name] !== undefined;
             const styles = {
-              cursor: isUsed ? 'default' : 'pointer',
+              cursor: isAvailable ? 'pointer' : 'default',
               backgroundColor: isUsed ? '#f0f0f0' : 'white',
               color: isUsed ? '#666' : 'black',
-              pointerEvents: isUsed ? 'none' : 'auto',
+              pointerEvents: isAvailable ? 'auto' : 'none',
               transition: 'all 0.3s ease'
             };
             
@@ -109,7 +114,7 @@ const Scoreboard = ({
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
-                className={!isUsed ? 'clickable' : ''}
+                className={isAvailable ? 'clickable' : ''}
                 style={styles}
               >
                 <td style={{ 
