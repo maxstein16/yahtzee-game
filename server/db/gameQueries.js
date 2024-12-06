@@ -22,29 +22,57 @@ const runSQL = async (sql, data) => {
 }
 
 // Create a new game
-async function createGame(status, round) {
-  // Insert the new game into the database
-  const query = `
-    INSERT INTO game (status, round, created_at)
-    VALUES (?, ?, NOW());
-  `;
-  const values = [status, round];
-  const insertResult = await runSQL(query, values);
-  console.log("Insert result:", insertResult); // Log the result of the insert query
+async function createGame(status, round, playerId) {
+  try {
+    // Step 1: Create a new game
+    const createGameQuery = `
+      INSERT INTO game (status, round, created_at)
+      VALUES (?, ?, NOW());
+    `;
+    const gameValues = [status, round];
+    const insertResult = await runSQL(createGameQuery, gameValues);
+    console.log("Game insert result:", insertResult);
 
-  // Now confirm the insertion by selecting the most recently inserted game
-  const selectQuery = `
-    SELECT * FROM game ORDER BY created_at DESC LIMIT 1;
-  `;
-  const selectResult = await runSQL(selectQuery);
-  console.log("Select result:", selectResult);  // Log the result of the select query
+    // Retrieve the newly created game
+    const selectGameQuery = `
+      SELECT * FROM game ORDER BY created_at DESC LIMIT 1;
+    `;
+    const newGame = (await runSQL(selectGameQuery))[0];
+    console.log("Newly created game:", newGame);
 
-  if (selectResult.length === 0) {
-    console.error("Game not found after insertion");
-    throw new Error("Game not found after insertion");
+    if (!newGame) {
+      throw new Error("Failed to create game. No game found after insertion.");
+    }
+
+    // Step 2: Add the player to the newly created game
+    const addPlayerQuery = `
+      INSERT INTO gameplayer (game_id, player_id) 
+      VALUES (?, ?);
+    `;
+    const playerValues = [newGame.game_id, playerId];
+    await runSQL(addPlayerQuery, playerValues);
+
+    // Retrieve the inserted game-player association
+    const selectPlayerQuery = `
+      SELECT * FROM gameplayer
+      WHERE game_id = ? AND player_id = ?;
+    `;
+    const gamePlayerAssociation = (await runSQL(selectPlayerQuery, [newGame.game_id, playerId]))[0];
+    console.log("Game-player association:", gamePlayerAssociation);
+
+    if (!gamePlayerAssociation) {
+      throw new Error("Failed to add player to game. No association found after insertion.");
+    }
+
+    // Step 3: Return the game and game-player association
+    return {
+      game: newGame,
+      gamePlayer: gamePlayerAssociation,
+    };
+  } catch (error) {
+    console.error("Error creating game and adding player:", error.message);
+    throw error;
   }
-
-  return selectResult[0];  // Return the inserted game
 }
 
 // Retrieve a game by ID

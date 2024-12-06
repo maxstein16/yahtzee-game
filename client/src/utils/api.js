@@ -34,17 +34,11 @@ export const updateGame = (gameId, status, round) =>
 
 export const deleteGame = (gameId) => apiRequest(`/game/${gameId}`, 'DELETE');
 
-export const startGame = (gameId, playerId) =>
-  apiRequest(`/game/${gameId}/start`, 'PUT', { player_id: playerId });
+export const startGame = (gameId) =>
+  apiRequest(`/game/${gameId}/start`, 'PUT');
 
 export const endGame = (gameId) =>
   apiRequest(`/game/${gameId}/end`, 'PUT');
-
-export const addPlayerToGame = (gameId, playerId) =>
-  apiRequest(`/game/${gameId}/player/${playerId}`, 'POST');
-
-export const getGameByPlayerId = (playerId) =>
-  apiRequest(`/player/${playerId}/game`);
 
 // Score Category Management
 export const initializePlayerCategories = async (playerId) => {
@@ -147,8 +141,7 @@ const API = {
   createTurn,
   getPlayersInGame,
   getPlayerById,
-  updateTurn,
-  getGameByPlayerId
+  updateTurn
 };
 
 export default API;
