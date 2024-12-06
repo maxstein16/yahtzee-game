@@ -17,39 +17,36 @@ const Scoreboard = ({
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
 
-  const fetchScores = async () => {
-    if (!currentPlayer?.player_id) {
-      setLoading(false);
-      setSavedScores({});
-      return;
-    }
-
-    try {
-      const categories = await API.getPlayerCategories(currentPlayer.player_id);
-      const scoreMap = {};
-      
-      categories.forEach(cat => {
-        if (cat.score !== null) {
-          scoreMap[cat.name] = cat.score;
-        }
-      });
-      
-      setSavedScores(scoreMap);
-    } catch (error) {
-      console.error('Error loading scores:', error);
-      message.error('Failed to load saved scores');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchScores();
+    const loadScores = async () => {
+      if (!currentPlayer?.player_id) {
+        setLoading(false);
+        setSavedScores({});
+        return;
+      }
+
+      try {
+        const categories = await API.getPlayerCategories(currentPlayer.player_id);
+        const scoreMap = {};
+        categories.forEach(cat => {
+          if (cat.score !== null) {
+            scoreMap[cat.name] = cat.score;
+          }
+        });
+        setSavedScores(scoreMap);
+      } catch (error) {
+        console.error('Error loading scores:', error);
+        message.error('Failed to load saved scores');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadScores();
   }, [currentPlayer?.player_id]);
 
   const getDisplayScore = (category) => {
-    const isScoreSaved = savedScores[category.name] !== undefined;
-    if (isScoreSaved) {
+    if (savedScores[category.name] !== undefined) {
       return savedScores[category.name];
     }
     
@@ -62,11 +59,21 @@ const Scoreboard = ({
   };
 
   const handleClick = async (category) => {
-    if (savedScores[category.name] !== undefined) return;
+    // Only allow clicking if score isn't already saved
+    if (savedScores[category.name] !== undefined) {
+      return;
+    }
 
     try {
       await handleScoreCategoryClick(category.name);
-      await fetchScores();
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+      const newScoreMap = {};
+      updatedCategories.forEach(cat => {
+        if (cat.score !== null) {
+          newScoreMap[cat.name] = cat.score;
+        }
+      });
+      setSavedScores(newScoreMap);
     } catch (error) {
       console.error('Error saving score:', error);
       message.error('Failed to save score');
@@ -90,24 +97,23 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const isUsed = savedScores[category.name] !== undefined;
-            const styles = {
-              cursor: isUsed ? 'default' : 'pointer',
-              backgroundColor: isUsed ? '#f0f0f0' : 'white',
-              color: isUsed ? '#666' : 'black',
-              pointerEvents: isUsed ? 'none' : 'auto',
-              transition: 'all 0.3s ease'
-            };
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
-                style={styles}
+                style={{
+                  cursor: isUsed ? 'default' : 'pointer',
+                  backgroundColor: isUsed ? '#f0f0f0' : 'white',
+                }}
               >
                 <td style={{ textTransform: 'capitalize' }}>
                   {category.name}
                 </td>
-                <td style={{ fontWeight: isUsed ? 'bold' : 'normal' }}>
+                <td style={{ 
+                  fontWeight: isUsed ? 'bold' : 'normal',
+                  color: isUsed ? '#666' : 'black'
+                }}>
                   {getDisplayScore(category)}
                 </td>
               </tr>
