@@ -18,8 +18,8 @@ function Lobby() {
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [isNewGame, setIsNewGame] = useState(false);
   const [mode, setMode] = useState('singleplayer');
+  const [isInitializing, setIsInitializing] = useState(false);
 
-  // Player State
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
   const [selectedDice, setSelectedDice] = useState([]);
   const [playerCategories, setPlayerCategories] = useState([]);
@@ -43,24 +43,29 @@ function Lobby() {
 
   useEffect(() => {
     const initializeGameSession = async () => {
-      if (!currentPlayer) return;
+      if (!currentPlayer || isInitializing) return;
 
       if (isNewGame || !gameId) {
-        const result = await initializeGame(currentPlayer, mode, setGameId, () => {});
-        
-        if (result.success) {
-          message.success(result.message);
+        setIsInitializing(true);
+        try {
+          const result = await initializeGame(currentPlayer, mode, setGameId, () => {});
           
-          if (result.existingGame) {
-            const categories = await API.getPlayerCategories(currentPlayer.player_id);
-            setPlayerCategories(categories);
-            const total = await API.getPlayerTotalScore(currentPlayer.player_id);
-            setPlayerTotal(total.totalScore);
+          if (result.success) {
+            message.success(result.message);
+            
+            if (result.existingGame) {
+              const categories = await API.getPlayerCategories(currentPlayer.player_id);
+              setPlayerCategories(categories);
+              const total = await API.getPlayerTotalScore(currentPlayer.player_id);
+              setPlayerTotal(total.totalScore);
+            }
+            
+            setIsNewGame(false);
+          } else {
+            message.error(result.message);
           }
-          
-          setIsNewGame(false);
-        } else {
-          message.error(result.message);
+        } finally {
+          setIsInitializing(false);
         }
       }
     };
@@ -98,7 +103,6 @@ function Lobby() {
     }
   };
 
-  // Rest of the component remains the same...
   const handleScoreCategoryClick = async (category) => {
     try {
       const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
