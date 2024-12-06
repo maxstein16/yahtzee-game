@@ -45,7 +45,7 @@ const Scoreboard = ({
     };
 
     loadScores();
-  }, [currentPlayer?.player_id, gameId, rollCount]); // Added rollCount dependency
+  }, [currentPlayer?.player_id, gameId]);
 
   const getDisplayScore = (category) => {
     if (savedScores[category.name] !== undefined) {
@@ -66,7 +66,6 @@ const Scoreboard = ({
     try {
       await handleScoreCategoryClick(category.name);
       
-      // Force reload scores after submitting
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const newScoreMap = {};
       updatedCategories.forEach(cat => {
