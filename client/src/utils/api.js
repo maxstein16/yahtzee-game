@@ -24,8 +24,8 @@ export const login = async (credentials) => apiRequest('/players/login', 'POST',
 export const register = async (userData) => apiRequest('/players/register', 'POST', userData);
 
 // Game Management
-export const createGame = (status = 'pending', round = 0) =>
-  apiRequest('/game', 'POST', { status, round });
+export const createGame = (status = 'pending', round = 0, playerId) =>
+  apiRequest('/game', 'POST', { status, round , playerId});
 
 export const getGameById = (gameId) => apiRequest(`/game/${gameId}`);
 
