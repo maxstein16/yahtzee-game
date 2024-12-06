@@ -15,65 +15,60 @@ const Scoreboard = ({
   gameId
 }) => {
   const [savedScores, setSavedScores] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  // Initial load of scores
   useEffect(() => {
-    const loadInitialScores = async () => {
-      if (!currentPlayer?.player_id || !gameId) return;
-
-      try {
-        const existingScores = await API.getPlayerCategories(currentPlayer.player_id);
-        const scoreMap = {};
-        existingScores.forEach(cat => {
-          if (cat.score !== null) {
-            scoreMap[cat.name] = cat.score;
-          }
-        });
-        setSavedScores(scoreMap);
-
-        if (Object.keys(scoreMap).length === existingScores.length) {
-          await API.endGame(gameId);
-          const total = await API.getPlayerTotalScore(currentPlayer.player_id);
-          message.success(`Game Complete! Final Score: ${total.totalScore}`);
-        }
-      } catch (error) {
-        console.error('Error loading initial scores:', error);
+    const loadScores = async () => {
+      if (!currentPlayer?.player_id) {
+        setLoading(false);
+        return;
       }
-    };
-
-    loadInitialScores();
-  }, [currentPlayer?.player_id, gameId]);
-
-  // Update scores during gameplay
-  useEffect(() => {
-    const fetchSavedScores = async () => {
-      if (!currentPlayer?.player_id || !gameId) return;
 
       try {
         const categories = await API.getPlayerCategories(currentPlayer.player_id);
         const scoreMap = {};
+        
         categories.forEach(cat => {
           if (cat.score !== null) {
             scoreMap[cat.name] = cat.score;
           }
         });
+        
         setSavedScores(scoreMap);
+      } catch (error) {
+        console.error('Error loading scores:', error);
+        message.error('Failed to load saved scores');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        if (Object.keys(scoreMap).length === categories.length) {
+    loadScores();
+  }, [currentPlayer?.player_id]);
+
+  useEffect(() => {
+    const checkGameCompletion = async () => {
+      if (!currentPlayer?.player_id || !gameId) return;
+
+      try {
+        const categories = await API.getPlayerCategories(currentPlayer.player_id);
+        const allCategoriesUsed = categories.every(cat => cat.score !== null);
+
+        if (allCategoriesUsed) {
           await API.endGame(gameId);
           const total = await API.getPlayerTotalScore(currentPlayer.player_id);
           message.success(`Game Complete! Final Score: ${total.totalScore}`);
         }
       } catch (error) {
-        console.error('Error fetching saved scores:', error);
+        console.error('Error checking game completion:', error);
       }
     };
 
-    fetchSavedScores();
-  }, [currentPlayer?.player_id, gameId, playerCategories]);
+    checkGameCompletion();
+  }, [currentPlayer?.player_id, gameId, savedScores]);
 
   const getDisplayScore = (category) => {
-    if (category.name in savedScores) {
+    if (savedScores[category.name] !== undefined) {
       return savedScores[category.name];
     }
     
@@ -86,11 +81,13 @@ const Scoreboard = ({
   };
 
   const isCategoryAvailable = (category) => {
-    return rollCount > 0 && !(category.name in savedScores);
+    return rollCount > 0 && savedScores[category.name] === undefined;
   };
 
-  const getRowStyles = (category, isAvailable) => {
-    const isUsed = category.name in savedScores;
+  const getRowStyles = (category) => {
+    const isUsed = savedScores[category.name] !== undefined;
+    const isAvailable = isCategoryAvailable(category);
+    
     return {
       cursor: isAvailable ? 'pointer' : 'default',
       backgroundColor: isUsed ? '#f0f0f0' : 'white',
@@ -104,30 +101,25 @@ const Scoreboard = ({
     if (!isCategoryAvailable(category)) return;
 
     try {
-      const calculatedScores = calculateScores(diceValues);
-      const scoreToSave = calculatedScores[category.name];
-
       await handleScoreCategoryClick(category.name);
-
-      setSavedScores(prev => ({
-        ...prev,
-        [category.name]: scoreToSave
-      }));
-
-      // Fetch updated scores after saving
+      
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
-      const updatedScoreMap = {};
+      const newScoreMap = {};
       updatedCategories.forEach(cat => {
         if (cat.score !== null) {
-          updatedScoreMap[cat.name] = cat.score;
+          newScoreMap[cat.name] = cat.score;
         }
       });
-      setSavedScores(updatedScoreMap);
+      setSavedScores(newScoreMap);
     } catch (error) {
       console.error('Error saving score:', error);
       message.error('Failed to save score');
     }
   };
+
+  if (loading) {
+    return <div>Loading scores...</div>;
+  }
 
   return (
     <div className="scoreboard">
@@ -142,8 +134,7 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const isAvailable = isCategoryAvailable(category);
-            const score = getDisplayScore(category);
-            const styles = getRowStyles(category, isAvailable);
+            const styles = getRowStyles(category);
             
             return (
               <tr
@@ -160,9 +151,9 @@ const Scoreboard = ({
                 </td>
                 <td style={{ 
                   color: styles.color,
-                  fontWeight: category.name in savedScores ? 'bold' : 'normal'
+                  fontWeight: savedScores[category.name] !== undefined ? 'bold' : 'normal'
                 }}>
-                  {score}
+                  {getDisplayScore(category)}
                 </td>
               </tr>
             );
