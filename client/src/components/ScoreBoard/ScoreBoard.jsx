@@ -16,6 +16,17 @@ const Scoreboard = ({
 }) => {
   const [savedScores, setSavedScores] = useState({});
   const [loading, setLoading] = useState(true);
+  const [potentialScores, setPotentialScores] = useState({});
+
+  // Update potential scores whenever dice values change
+  useEffect(() => {
+    if (rollCount > 0) {
+      const scores = calculateScores(diceValues);
+      setPotentialScores(scores);
+    } else {
+      setPotentialScores({});
+    }
+  }, [diceValues, rollCount, calculateScores]);
 
   useEffect(() => {
     const loadScores = async () => {
@@ -46,15 +57,12 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id]);
 
   const getDisplayScore = (category) => {
-    // Return saved score if exists
     if (savedScores[category.name] !== undefined) {
       return savedScores[category.name];
     }
     
-    // Calculate potential score if dice have been rolled
-    if (rollCount > 0) {
-      const potentialScores = calculateScores(diceValues);
-      return potentialScores[category.name] ?? '-';
+    if (rollCount > 0 && potentialScores[category.name] !== undefined) {
+      return potentialScores[category.name];
     }
     
     return '-';
@@ -62,13 +70,6 @@ const Scoreboard = ({
 
   const handleClick = async (category) => {
     if (savedScores[category.name] !== undefined || rollCount === 0) {
-      return;
-    }
-
-    const potentialScores = calculateScores(diceValues);
-    const scoreToSubmit = potentialScores[category.name];
-    
-    if (scoreToSubmit === undefined) {
       return;
     }
 
@@ -106,6 +107,7 @@ const Scoreboard = ({
           {playerCategories.map((category) => {
             const isUsed = savedScores[category.name] !== undefined;
             const canClick = !isUsed && rollCount > 0;
+            const currentScore = getDisplayScore(category);
             
             return (
               <tr
@@ -121,7 +123,7 @@ const Scoreboard = ({
                   {category.name}
                 </td>
                 <td>
-                  {getDisplayScore(category)}
+                  {currentScore}
                 </td>
               </tr>
             );
