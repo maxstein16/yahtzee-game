@@ -18,7 +18,6 @@ const Scoreboard = ({
   gameId
 }) => {
   const [dbScores, setDbScores] = useState({});
-  const [lastUpdate, setLastUpdate] = useState(0);
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -26,12 +25,10 @@ const Scoreboard = ({
 
       try {
         const categories = await API.getPlayerCategories(currentPlayer.player_id);
-        console.log('Fetched categories:', categories);
         const scoreMap = {};
         categories.forEach(cat => {
           scoreMap[cat.name] = cat.score;
         });
-        console.log('Score map:', scoreMap);
         setDbScores(scoreMap);
       } catch (error) {
         console.error('Error fetching scores:', error);
@@ -39,12 +36,14 @@ const Scoreboard = ({
     };
 
     fetchScores();
-  }, [currentPlayer?.player_id, gameId, rollCount, lastUpdate]);
+  }, [currentPlayer?.player_id, gameId]);
 
   const getDisplayScore = (category) => {
+    // First check if there's a saved score
     if (dbScores[category.name] !== null && dbScores[category.name] !== undefined) {
       return dbScores[category.name];
     }
+    // If we have dice rolled, show potential score
     if (rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
       return calculatedScores[category.name];
@@ -53,32 +52,41 @@ const Scoreboard = ({
   };
   
   const isCategoryAvailable = (category) => {
-    const isUsed = dbScores[category.name] !== null && dbScores[category.name] !== undefined;
-    console.log(`Category ${category.name}:`, {
-      isAITurn,
-      rollCount,
-      isUsed,
-      dbScore: dbScores[category.name]
-    });
-    return !isAITurn && rollCount > 0 && !isUsed;
+    return !isAITurn && 
+           rollCount > 0 && 
+           (dbScores[category.name] === null || dbScores[category.name] === undefined);
   };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) {
-      console.log('Category not available:', category.name);
       return;
     }
-    
-    console.log('Clicking category:', category.name);
-    await handleScoreCategoryClick(category.name);
-    setLastUpdate(Date.now());
-  };
 
-  console.log('Current state:', {
-    isAITurn,
-    rollCount,
-    dbScores
-  });
+    try {
+      // Get the calculated score before saving
+      const calculatedScores = calculateScores(diceValues);
+      const scoreToSave = calculatedScores[category.name];
+
+      // Call the parent handler to save the score
+      await handleScoreCategoryClick(category.name);
+
+      // Immediately update local state to show the saved score
+      setDbScores(prev => ({
+        ...prev,
+        [category.name]: scoreToSave
+      }));
+
+      // Fetch updated categories to ensure sync with database
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+      const updatedScoreMap = {};
+      updatedCategories.forEach(cat => {
+        updatedScoreMap[cat.name] = cat.score;
+      });
+      setDbScores(updatedScoreMap);
+    } catch (error) {
+      console.error('Error handling category click:', error);
+    }
+  };
 
   return (
     <div className="scoreboard">
@@ -100,8 +108,7 @@ const Scoreboard = ({
                 onClick={() => handleClick(category)}
                 className={isAvailable ? 'clickable' : ''}
                 style={{ 
-                  cursor: isAvailable ? 'pointer' : 'default',
-                  backgroundColor: isAvailable ? 'white' : '#f5f5f5'
+                  cursor: isAvailable ? 'pointer' : 'default'
                 }}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
