@@ -4,14 +4,22 @@ const { createGame, getGameById, updateGame, deleteGame } = require('../db/gameQ
 
 // POST route for creating a new game
 router.post('/game', async (req, res) => {
+  console.log('Game creation request received:', req.body);
+
+  const { status, round, playerId } = req.body;
+  if (!playerId) {
+    return res.status(400).json({ error: 'Player ID is required' });
+  }
+
   try {
-    const { status = 'pending', round = 0 } = req.body;
-    const newGame = await createGame(status, round);
-    res.json(newGame);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const newGame = await createGame(status, round, playerId);
+    res.status(201).json(newGame);
+  } catch (error) {
+    console.error('Error creating game:', error);
+    res.status(500).json({ error: error.message });
   }
 });
+
 
 // GET route for retrieving a game by ID
 router.get('/game/:id', async (req, res) => {
