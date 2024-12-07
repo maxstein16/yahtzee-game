@@ -70,18 +70,22 @@ export const resetPlayerCategories = (playerId) =>
   apiRequest(`/scorecategory/player/${playerId}/reset`, 'PUT');
 
 export const submitGameScore = (gameId, playerId, categoryName, score) => {
-  console.log('API submitGameScore payload:', {
+  const payload = {
     playerId,
     categoryName,
     score,
     is_submitted: true
-  });
-  return apiRequest(`/scorecategory/game/${gameId}/submit`, 'PUT', {
-    playerId,
-    categoryName,
-    score,
-    is_submitted: true
-  });
+  };
+  
+  console.log('API submitGameScore payload:', payload);
+  
+  // Validate the data before sending
+  if (!playerId || !categoryName || score === undefined) {
+    console.error('Invalid data in submitGameScore:', payload);
+    throw new Error('Missing required fields');
+  }
+
+  return apiRequest(`/scorecategory/game/${gameId}/submit`, 'PUT', payload);
 };
 
 export const getPlayerTotalScore = (playerId) => 

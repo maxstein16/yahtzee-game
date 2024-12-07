@@ -122,7 +122,6 @@ const Scoreboard = ({
       }));
 
       const currentScore = scores[key];
-      console.log('Submitting category name:', category.name); // Added this line
       await handleScoreCategoryClick(category.name);
 
       setScores(prev => ({

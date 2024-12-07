@@ -121,10 +121,25 @@ function Lobby() {
 
   const handleScoreCategoryClick = async (category) => {
     try {
+      console.log('Starting score submission for category:', category);
+      
       const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
       if (!categoryInfo) {
         message.error('Invalid category selected');
         return;
+      }
+  
+      // Get score and verify it exists
+      const score = currentScores[category];
+      console.log('Score check:', {
+        category,
+        score,
+        currentScores,
+        allKeys: Object.keys(currentScores)
+      });
+  
+      if (score === undefined) {
+        throw new Error(`No score found for category ${category}`);
       }
   
       const turnCreated = await API.createTurn(
@@ -132,7 +147,7 @@ function Lobby() {
         currentPlayer.player_id,
         diceValues,
         rollCount,
-        currentScores[category.toLowerCase()],
+        score, // Using verified score
         false
       );
   
@@ -140,19 +155,19 @@ function Lobby() {
         throw new Error('Failed to create turn');
       }
   
-      // Add console.log to see what we're sending
-      console.log('Submitting score with:', {
+      // Log the exact payload we're sending to submitGameScore
+      console.log('Submitting to API:', {
         gameId,
         playerId: currentPlayer.player_id,
-        categoryName: category,  // Make sure this matches exactly
-        score: currentScores[category.toLowerCase()]
+        categoryName: category,
+        score
       });
   
       const scoreResult = await API.submitGameScore(
         gameId, 
         currentPlayer.player_id, 
-        category, 
-        currentScores[category.toLowerCase()]
+        category,
+        score
       );
       
       if (!scoreResult) {
