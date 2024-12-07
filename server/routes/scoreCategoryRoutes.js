@@ -5,7 +5,8 @@ const {
   getPlayerCategories,
   updateScoreCategory,
   resetPlayerCategories,
-  getPlayerCategory
+  getPlayerCategory,
+  getPlayerTotalScore
 } = require('../db/scoreCategoryQueries');
 
 // POST route to initialize categories for a player
