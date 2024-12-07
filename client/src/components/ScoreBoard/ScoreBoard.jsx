@@ -12,89 +12,64 @@ const Scoreboard = ({
   diceValues,
   rollCount,
   handleScoreCategoryClick,
-  isCurrentTurn, // Add this prop to know when it's the player's turn
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
 
-  // Fetch scores from the API on mount and when the player changes
-  const fetchScores = async () => {
-    if (currentPlayer?.id) {
-      try {
-        const categories = await API.getPlayerCategories(currentPlayer.id);
-        const scoreMap = {};
-        const lockedMap = {};
-        
-        // Loop through playerCategories to set initial state
-        playerCategories.forEach((category) => {
-          const matchingCategory = categories.find(
-            (c) => c.name.toLowerCase() === category.name.toLowerCase()
-          );
-          const key = category.name.toLowerCase();
-          if (matchingCategory && matchingCategory.score !== null) {
-            scoreMap[key] = matchingCategory.score;
-            lockedMap[key] = true;
-          } else {
-            scoreMap[key] = null;
-            lockedMap[key] = false;
-          }
-        });
-        
-        setScores(scoreMap);
-        setLockedCategories(lockedMap);
-      } catch (error) {
-        console.error('Error fetching scores:', error);
+  // Load scores from the database
+  useEffect(() => {
+    const loadScores = async () => {
+      if (currentPlayer?.id) {
+        try {
+          // Get scores from the API
+          const categories = await API.getPlayerCategories(currentPlayer.id);
+          console.log('Loaded categories:', categories); // Debug log
+          
+          const scoreMap = {};
+          const lockedMap = {};
+          
+          // Map scores to their categories
+          categories.forEach((category) => {
+            const key = category.name.toLowerCase();
+            scoreMap[key] = category.score;
+            lockedMap[key] = category.score !== null && category.score !== 0;
+          });
+          
+          setScores(scoreMap);
+          setLockedCategories(lockedMap);
+        } catch (error) {
+          console.error('Error loading scores:', error);
+        }
       }
-    }
-  };
+    };
 
-  // Fetch scores on initial load and player change
-  useEffect(() => {
-    fetchScores();
-  }, [currentPlayer?.id, playerCategories]);
+    loadScores();
+  }, [currentPlayer?.id]);
 
-  // Reset unlocked categories when turn starts
+  // Update available scores when dice are rolled
   useEffect(() => {
-    if (isCurrentTurn) {
-      setScores((prevScores) => {
+    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+      const calculatedScores = calculateScores(diceValues);
+      setScores(prevScores => {
         const newScores = { ...prevScores };
-        Object.keys(newScores).forEach((key) => {
+        Object.keys(calculatedScores).forEach(key => {
           if (!lockedCategories[key]) {
-            newScores[key] = null;
+            newScores[key] = calculatedScores[key];
           }
         });
         return newScores;
       });
     }
-  }, [isCurrentTurn, lockedCategories]);
-
-  // Update calculated scores for unlocked categories when dice are rolled
-  useEffect(() => {
-    if (isCurrentTurn && diceValues && diceValues.length > 0 && rollCount > 0) {
-      const calculatedScores = calculateScores(diceValues);
-      setScores((prevScores) => {
-        const updatedScores = { ...prevScores };
-        Object.keys(calculatedScores).forEach((key) => {
-          if (!lockedCategories[key]) {
-            updatedScores[key] = calculatedScores[key];
-          }
-        });
-        return updatedScores;
-      });
-    }
-  }, [diceValues, rollCount, calculateScores, lockedCategories, isCurrentTurn]);
+  }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
   const getDisplayScore = (category) => {
     const key = category.name.toLowerCase();
-    if (lockedCategories[key]) {
-      return scores[key];
-    }
     return scores[key] !== null && scores[key] !== undefined ? scores[key] : '-';
   };
 
   const isCategoryAvailable = (category) => {
     const key = category.name.toLowerCase();
-    return isCurrentTurn && rollCount > 0 && !lockedCategories[key];
+    return rollCount > 0 && !lockedCategories[key];
   };
 
   const handleClick = async (category) => {
@@ -102,37 +77,34 @@ const Scoreboard = ({
     if (!isCategoryAvailable(category)) return;
 
     try {
-      // Immediately lock the category and update UI
+      // Lock the category immediately
       setLockedCategories(prev => ({
         ...prev,
         [key]: true
       }));
 
-      // Save current score before API call
-      const currentScore = scores[key];
-      setScores(prev => ({
-        ...prev,
-        [key]: currentScore
-      }));
-
-      // Call the handler
+      // Call the score submission handler
       await handleScoreCategoryClick(category.name);
+
+      // Refresh scores from the database
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
+      const scoreMap = {};
+      const lockedMap = {};
       
-      // Refresh scores from API after submission
-      await fetchScores();
-      
+      updatedCategories.forEach((cat) => {
+        const catKey = cat.name.toLowerCase();
+        scoreMap[catKey] = cat.score;
+        lockedMap[catKey] = cat.score !== null && cat.score !== 0;
+      });
+
+      setScores(scoreMap);
+      setLockedCategories(lockedMap);
     } catch (error) {
-      console.error('Error handling category click:', error);
-      // Revert the lock if the API call fails
+      console.error('Error submitting score:', error);
+      // Unlock the category if there was an error
       setLockedCategories(prev => ({
         ...prev,
         [key]: false
-      }));
-      
-      // Revert the score
-      setScores(prev => ({
-        ...prev,
-        [key]: null
       }));
     }
   };
