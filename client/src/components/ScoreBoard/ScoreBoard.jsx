@@ -16,6 +16,7 @@ const Scoreboard = ({
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
 
+  // Fetch scores from API and update states
   useEffect(() => {
     const fetchScores = async () => {
       if (currentPlayer?.id) {
@@ -26,7 +27,7 @@ const Scoreboard = ({
           categories.forEach(category => {
             const key = category.name.toLowerCase();
             scoreMap[key] = category.score;
-            lockedMap[key] = category.score !== null;
+            lockedMap[key] = category.score !== null; // Lock if score exists
           });
           setScores(scoreMap);
           setLockedCategories(lockedMap);
@@ -39,6 +40,7 @@ const Scoreboard = ({
     fetchScores();
   }, [currentPlayer?.id]);
 
+  // Update calculated scores dynamically for unlocked categories
   useEffect(() => {
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
@@ -54,6 +56,7 @@ const Scoreboard = ({
     }
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
+  // Display score for a category
   const getDisplayScore = (category) => {
     const key = category.name.toLowerCase();
     return scores[key] !== null && scores[key] !== undefined
@@ -61,25 +64,32 @@ const Scoreboard = ({
       : '-';
   };
 
+  // Check if a category is available for scoring
   const isCategoryAvailable = (category) => {
     const key = category.name.toLowerCase();
     return rollCount > 0 && !lockedCategories[key];
   };
 
+  // Handle category click and submission
   const handleClick = async (category) => {
     const key = category.name.toLowerCase();
     if (!isCategoryAvailable(category)) return;
 
     try {
+      // Submit the score
       await handleScoreCategoryClick(category.name);
+
+      // Fetch updated scores after submission
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
       const scoreMap = {};
       const lockedMap = {};
       updatedCategories.forEach(category => {
         const key = category.name.toLowerCase();
         scoreMap[key] = category.score;
-        lockedMap[key] = category.score !== null;
+        lockedMap[key] = category.score !== null; // Lock the category
       });
+
+      // Update scores and lock states
       setScores(scoreMap);
       setLockedCategories(lockedMap);
     } catch (error) {
@@ -87,6 +97,7 @@ const Scoreboard = ({
     }
   };
 
+  // Calculate the total score
   const calculateTotal = () => {
     return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
   };
