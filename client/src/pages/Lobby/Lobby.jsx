@@ -157,6 +157,7 @@ const LobbyView = ({
           aiCategories={aiCategories}
           shouldResetScores={shouldResetScores}
           gameId={gameId}
+          scores={scores}
         />
       </Content>
 

@@ -47,9 +47,14 @@ const Scoreboard = ({
       return dbScores[category.name];
     }
     
-    if (rollCount > 0 && diceValues) {
-      const scores = calculateScores([...diceValues]);
+    // Use the scores passed from props if available
+    if (scores && scores[category.name] !== undefined) {
       return scores[category.name];
+    }
+    
+    if (rollCount > 0 && diceValues) {
+      const calculatedScores = calculateScores([...diceValues]);
+      return calculatedScores[category.name];
     }
     
     return '-';

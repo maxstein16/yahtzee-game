@@ -206,17 +206,25 @@ function Lobby() {
     }
   };
 
-  const handleDiceRoll = () => handleRollDice({
-    rollCount,
-    gameId,
-    currentPlayer,
-    diceValues,
-    selectedDice,
-    setIsRolling,
-    setDiceValues,
-    setScores,
-    setRollCount
-  });
+  const handleDiceRoll = () => {
+    const result = handleRollDice({
+      rollCount,
+      gameId,
+      currentPlayer,
+      diceValues,
+      selectedDice,
+      setIsRolling,
+      setDiceValues,
+      setScores,
+      setRollCount
+    });
+    
+    // Update scores after rolling
+    if (diceValues && diceValues.length > 0) {
+      const newScores = calculateScores(diceValues);
+      setScores(newScores);
+    }
+  };
 
   const handleDiceSelection = (index) => toggleDiceSelection(
     index,
@@ -232,6 +240,7 @@ function Lobby() {
     currentPlayer,
     gameId,
     mode,
+    scores,
     
     // Player props
     diceValues,
