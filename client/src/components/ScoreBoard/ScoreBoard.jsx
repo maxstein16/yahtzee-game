@@ -12,7 +12,7 @@ const Scoreboard = ({
   diceValues,
   rollCount,
   handleScoreCategoryClick,
-  onTurnComplete // Add this prop to handle turn completion
+  onTurnComplete
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
@@ -29,7 +29,6 @@ const Scoreboard = ({
           
           categories.forEach((category) => {
             const key = category.name.toLowerCase();
-            // Keep the score value even if it's 0
             scoreMap[key] = category.score !== null ? category.score : '-';
             lockedMap[key] = category.score !== null;
           });
@@ -44,6 +43,21 @@ const Scoreboard = ({
 
     loadScores();
   }, [currentPlayer?.id]);
+
+  // Reset possible scores when turn starts
+  useEffect(() => {
+    if (rollCount === 0) {
+      setScores(prevScores => {
+        const newScores = { ...prevScores };
+        Object.keys(newScores).forEach(key => {
+          if (!lockedCategories[key]) {
+            newScores[key] = '-';
+          }
+        });
+        return newScores;
+      });
+    }
+  }, [rollCount, lockedCategories]);
 
   // Update available scores when dice are rolled
   useEffect(() => {
