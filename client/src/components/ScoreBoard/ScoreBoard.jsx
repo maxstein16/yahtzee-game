@@ -5,22 +5,6 @@ import '../../styles/ScoreBoard.css';
 
 const { Title } = Typography;
 
-const categoryNameMapping = {
-  'ones': 'ones',
-  'twos': 'twos',
-  'threes': 'threes',
-  'fours': 'fours',
-  'fives': 'fives',
-  'sixes': 'sixes',
-  'three of a kind': 'threeOfAKind',
-  'four of a kind': 'fourOfAKind',
-  'full house': 'fullHouse',
-  'small straight': 'smallStraight',
-  'large straight': 'largeStraight',
-  'yahtzee': 'yahtzee',
-  'chance': 'chance'
-};
-
 const Scoreboard = ({
   currentPlayer,
   playerCategories,
@@ -30,6 +14,7 @@ const Scoreboard = ({
   handleScoreCategoryClick,
 }) => {
   const [scores, setScores] = useState(() => {
+    // Initialize scores from playerCategories
     const initialScores = {};
     playerCategories.forEach(category => {
       initialScores[category.name.toLowerCase()] = category.score;
@@ -57,32 +42,20 @@ const Scoreboard = ({
   }, [currentPlayer?.id]);
 
   const getDisplayScore = (category) => {
-    const categoryKey = category.name.toLowerCase();
-    const mappedCategory = categoryNameMapping[categoryKey];
-    
-    // If category has a submitted score, show it
-    if (scores[categoryKey] !== null && scores[categoryKey] !== undefined) {
-      return scores[categoryKey];
+    if (scores[category.name.toLowerCase()] !== null) {
+      return scores[category.name.toLowerCase()] || '0';
     }
     
-    // If we have dice values and it's an available move, show possible score
-    if (diceValues && diceValues.length > 0 && rollCount > 0) {
-      const possibleScores = calculateScores(diceValues);
-      return possibleScores[mappedCategory] || '-';
+    if (diceValues && diceValues.length > 0 && isCategoryAvailable(category)) {
+      const currentScores = calculateScores(diceValues);
+      return currentScores[category.name.toLowerCase()] || '-';
     }
     
     return '-';
   };
 
   const isCategoryAvailable = (category) => {
-    const categoryKey = category.name.toLowerCase();
-    const hasNoScore = scores[categoryKey] === null || scores[categoryKey] === undefined;
-    return rollCount > 0 && hasNoScore;
-  };
-
-  const isScoreSubmitted = (category) => {
-    const categoryKey = category.name.toLowerCase();
-    return scores[categoryKey] !== null && scores[categoryKey] !== undefined;
+    return rollCount > 0 && scores[category.name.toLowerCase()] === null;
   };
 
   const handleClick = async (category) => {
@@ -101,27 +74,7 @@ const Scoreboard = ({
   };
 
   const calculateTotal = () => {
-    return Object.values(scores)
-      .filter(score => score !== null && score !== undefined)
-      .reduce((sum, score) => sum + (score || 0), 0);
-  };
-
-  const getCategoryStyle = (category, isAvailable, isTemporaryScore) => {
-    const submitted = isScoreSubmitted(category);
-    
-    return {
-      cursor: isAvailable ? 'pointer' : 'default',
-      backgroundColor: submitted ? '#f5f5f5' : 'inherit',
-      opacity: submitted ? 0.7 : 1,
-    };
-  };
-
-  const getScoreStyle = (isAvailable, isTemporaryScore, submitted) => {
-    return {
-      textAlign: 'center',
-      color: submitted ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
-      fontWeight: isTemporaryScore && !submitted ? 'bold' : 'normal',
-    };
+    return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
   };
 
   return (
@@ -137,20 +90,15 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const isAvailable = isCategoryAvailable(category);
-            const score = getDisplayScore(category);
-            const isTemporaryScore = isAvailable && diceValues && diceValues.length > 0;
-            const submitted = isScoreSubmitted(category);
-            
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
                 className={isAvailable ? 'clickable' : ''}
-                style={getCategoryStyle(category, isAvailable, isTemporaryScore)}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td style={getScoreStyle(isAvailable, isTemporaryScore, submitted)}>
-                  {score}
+                <td style={{ textAlign: 'center' }}>
+                  {getDisplayScore(category)}
                 </td>
               </tr>
             );
