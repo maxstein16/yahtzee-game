@@ -19,7 +19,6 @@ const Scoreboard = ({
   const [totalScore, setTotalScore] = useState(0);
 
   const formatCategoryName = (name) => {
-    console.log('Raw category name:', name); // Added this line
     const specialCases = {
       threeOfAKind: 'Three of a Kind',
       fourOfAKind: 'Four of a Kind',
