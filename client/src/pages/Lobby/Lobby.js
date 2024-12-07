@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { initializeGame } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { resetTurnState } from '../../services/gameStateService.js'
-import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
+import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api.js';
