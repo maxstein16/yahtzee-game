@@ -51,15 +51,21 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id, gameId]);
 
   const getDisplayScore = (category) => {
+    console.log('getDisplayScore for category:', category.name);
+    
     if (dbScores[category.name] !== undefined) {
+      console.log('Using DB score:', dbScores[category.name]);
       return dbScores[category.name];
     }
     
     if (diceValues && diceValues.length > 0) {
+      console.log('Current dice values:', diceValues);
       const currentPossibleScores = calculateScores(diceValues);
+      console.log('Possible score for', category.name, ':', currentPossibleScores[category.name]);
       return currentPossibleScores[category.name];
     }
     
+    console.log('No score available, returning -');
     return '-';
   };
   
@@ -86,6 +92,7 @@ const Scoreboard = ({
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
+      {console.log('playerCategories:', playerCategories)}
       <table>
         <thead>
           <tr>
