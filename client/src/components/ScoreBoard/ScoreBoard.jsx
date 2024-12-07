@@ -12,23 +12,25 @@ const Scoreboard = ({
   diceValues,
   rollCount,
   handleScoreCategoryClick,
+  onTurnComplete // Add this prop to handle turn completion
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
 
+  // Load initial scores
   useEffect(() => {
     const loadScores = async () => {
       if (currentPlayer?.id) {
         try {
           const categories = await API.getPlayerCategories(currentPlayer.id);
-          console.log('Loaded categories:', categories);
           
           const scoreMap = {};
           const lockedMap = {};
           
           categories.forEach((category) => {
             const key = category.name.toLowerCase();
-            scoreMap[key] = category.score;
+            // Keep the score value even if it's 0
+            scoreMap[key] = category.score !== null ? category.score : '-';
             lockedMap[key] = category.score !== null;
           });
           
@@ -43,6 +45,7 @@ const Scoreboard = ({
     loadScores();
   }, [currentPlayer?.id]);
 
+  // Update available scores when dice are rolled
   useEffect(() => {
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
@@ -58,42 +61,35 @@ const Scoreboard = ({
     }
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
-  const getDisplayScore = (category) => {
-    const key = category.name.toLowerCase();
-    return scores[key] !== null && scores[key] !== undefined ? scores[key] : '-';
-  };
-
-  const isCategoryAvailable = (category) => {
-    const key = category.name.toLowerCase();
-    return rollCount > 0 && !lockedCategories[key];
-  };
-
   const handleClick = async (category) => {
     const key = category.name.toLowerCase();
-    if (!isCategoryAvailable(category)) return;
+    if (lockedCategories[key] || rollCount === 0) return;
 
     try {
+      // Lock the category immediately
       setLockedCategories(prev => ({
         ...prev,
         [key]: true
       }));
 
+      // Store the current score before submission
+      const currentScore = scores[key];
+
+      // Submit the score
       await handleScoreCategoryClick(category.name);
 
-      const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
-      const scoreMap = { ...scores };
-      const lockedMap = { ...lockedCategories };
-      
-      updatedCategories.forEach((cat) => {
-        const catKey = cat.name.toLowerCase();
-        scoreMap[catKey] = cat.score !== null ? cat.score : scoreMap[catKey];
-        lockedMap[catKey] = cat.score !== null;
-      });
+      // Update the scores state to keep the submitted score visible
+      setScores(prev => ({
+        ...prev,
+        [key]: currentScore
+      }));
 
-      setScores(scoreMap);
-      setLockedCategories(lockedMap);
+      // Notify parent that turn is complete to reset dice and roll count
+      onTurnComplete();
+
     } catch (error) {
       console.error('Error submitting score:', error);
+      // Unlock the category if there was an error
       setLockedCategories(prev => ({
         ...prev,
         [key]: false
@@ -102,7 +98,9 @@ const Scoreboard = ({
   };
 
   const calculateTotal = () => {
-    return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
+    return Object.values(scores)
+      .filter(score => typeof score === 'number')
+      .reduce((sum, score) => sum + score, 0);
   };
 
   return (
@@ -119,14 +117,21 @@ const Scoreboard = ({
           {playerCategories.map((category) => {
             const key = category.name.toLowerCase();
             const isLocked = lockedCategories[key];
-            const isAvailable = isCategoryAvailable(category);
-            const score = getDisplayScore(category);
+            const score = scores[key];
+            const isAvailable = !isLocked && rollCount > 0;
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
-                className={`${isLocked ? 'locked' : ''} ${isAvailable ? 'clickable' : ''}`}
+                className={`
+                  ${isLocked ? 'locked' : ''} 
+                  ${isAvailable ? 'clickable' : ''}
+                `}
+                style={{
+                  opacity: isLocked ? 0.6 : 1,
+                  cursor: isAvailable ? 'pointer' : 'default'
+                }}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
                 <td style={{ textAlign: 'center' }}>

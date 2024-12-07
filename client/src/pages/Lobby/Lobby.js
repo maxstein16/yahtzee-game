@@ -220,6 +220,17 @@ function Lobby() {
 
   const handlePlayerLogout = () => handleLogout(navigate);
 
+  const handleTurnComplete = () => {
+    // Reset dice values to initial state
+    setDiceValues(INITIAL_DICE_VALUES);
+    // Clear selected dice
+    setSelectedDice([]);
+    // Reset roll count
+    setRollCount(0);
+    // Clear current scores
+    setCurrentScores({});
+  };
+
   const viewProps = {
     currentPlayer,
     gameId,
@@ -236,7 +247,8 @@ function Lobby() {
     handleRollDice: handleDiceRoll,
     toggleDiceSelection: handleDiceSelection,
     handleScoreCategoryClick,
-    calculateScores
+    calculateScores,
+    onTurnComplete: handleTurnComplete
   };
 
   return <LobbyView {...viewProps} />;

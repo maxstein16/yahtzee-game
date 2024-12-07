@@ -21,7 +21,8 @@ const LobbyView = ({
   handleRollDice,
   toggleDiceSelection,
   handleScoreCategoryClick,
-  calculateScores
+  calculateScores,
+  onTurnComplete
 }) => {
   return (
     <Layout style={{ height: '100vh' }}>
@@ -81,6 +82,7 @@ const LobbyView = ({
           diceValues={diceValues}
           rollCount={rollCount}
           handleScoreCategoryClick={handleScoreCategoryClick}
+          onTurnComplete={onTurnComplete}
         />
       </Content>
     </Layout>
