@@ -25,6 +25,13 @@ const Scoreboard = ({
   }, [shouldResetScores]);
 
   useEffect(() => {
+    if (diceValues && diceValues.length > 0) {
+      console.log('Dice values changed:', diceValues);
+      console.log('Calculated scores:', calculateScores(diceValues));
+    }
+  }, [diceValues]);
+
+  useEffect(() => {
     const fetchScores = async () => {
       if (!currentPlayer?.player_id || !gameId) return;
       try {
@@ -49,15 +56,10 @@ const Scoreboard = ({
       return dbScores[category.name];
     }
     
-    // If we have current scores from props, use those
-    if (scores && scores[category.name] !== undefined) {
-      return scores[category.name];
-    }
-    
-    // Fallback to calculating scores if we have dice values
+    // If we have dice values, always calculate the current possible score
     if (diceValues && diceValues.length > 0) {
-      const calculatedScores = calculateScores(diceValues);
-      return calculatedScores[category.name];
+      const currentPossibleScores = calculateScores(diceValues);
+      return currentPossibleScores[category.name];
     }
     
     return '-';
