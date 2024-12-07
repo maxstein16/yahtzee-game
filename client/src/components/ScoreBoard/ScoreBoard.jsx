@@ -49,9 +49,9 @@ const Scoreboard = ({
     const categoryKey = category.name.toLowerCase();
     const mappedCategory = categoryNameMapping[categoryKey];
     
-    // If category has been submitted (has a score in the database), show that score
-    if (scores[categoryKey] !== null) {
-      return scores[categoryKey];
+    // If category has a score in the database that isn't null
+    if (category.score !== null) {
+      return category.score;
     }
     
     // If we have dice values, show possible score
@@ -64,8 +64,7 @@ const Scoreboard = ({
   };
 
   const isCategorySubmitted = (category) => {
-    const categoryKey = category.name.toLowerCase();
-    return scores[categoryKey] !== null;
+    return category.score !== null;
   };
 
   const isCategoryAvailable = (category) => {
@@ -91,9 +90,9 @@ const Scoreboard = ({
   };
 
   const calculateTotal = () => {
-    return Object.values(scores)
-      .filter(score => score !== null)
-      .reduce((sum, score) => sum + (score || 0), 0);
+    return playerCategories
+      .filter(category => category.score !== null)
+      .reduce((sum, category) => sum + category.score, 0);
   };
 
   return (
