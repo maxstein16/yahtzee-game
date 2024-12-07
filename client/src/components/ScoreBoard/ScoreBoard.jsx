@@ -13,14 +13,19 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
 }) => {
-  const [scores, setScores] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [scores, setScores] = useState(() => {
+    // Initialize scores from playerCategories
+    const initialScores = {};
+    playerCategories.forEach(category => {
+      initialScores[category.name.toLowerCase()] = category.score;
+    });
+    return initialScores;
+  });
 
   useEffect(() => {
     const fetchScores = async () => {
       if (currentPlayer?.id) {
         try {
-          setLoading(true);
           const categories = await API.getPlayerCategories(currentPlayer.id);
           const scoreMap = {};
           categories.forEach(category => {
@@ -29,8 +34,6 @@ const Scoreboard = ({
           setScores(scoreMap);
         } catch (error) {
           console.error('Error fetching scores:', error);
-        } finally {
-          setLoading(false);
         }
       }
     };
@@ -73,10 +76,6 @@ const Scoreboard = ({
   const calculateTotal = () => {
     return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
   };
-
-  if (loading) {
-    return <div className="scoreboard">Loading scores...</div>;
-  }
 
   return (
     <div className="scoreboard">
