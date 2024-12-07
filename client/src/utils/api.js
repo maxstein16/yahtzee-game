@@ -67,6 +67,9 @@ export const submitGameScore = (gameId, playerId, categoryName, score) =>
     is_submitted: true
   });
 
+export const getPlayerTotalScore = (playerId) => 
+  apiRequest(`/scorecategory/player/${playerId}/total`);
+
 // Chat Management
 export const getChatMessages = (gameId) => apiRequest(`/game/${gameId}/chat`);
 
@@ -127,6 +130,7 @@ const API = {
   getPlayerCategory,
   updateScoreCategory,
   resetPlayerCategories,
+  getPlayerTotalScore,
   submitGameScore,
   getChatMessages,
   sendMessage,

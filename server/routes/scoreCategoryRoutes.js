@@ -125,4 +125,13 @@ router.put('/scorecategory/game/:gameId/submit', async (req, res) => {
   }
 });
 
+router.get('/scorecategory/player/:playerId/total', async (req, res) => {
+  try {
+    const totalScore = await getPlayerTotalScore(req.params.playerId);
+    res.json({ totalScore });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -106,11 +106,23 @@ async function getPlayerCategory(playerId, categoryName) {
   return results[0];
 }
 
+async function getPlayerTotalScore(playerId) {
+  const query = `
+    SELECT COALESCE(SUM(score), 0) as total 
+    FROM scorecategory 
+    WHERE player_id = ? 
+    AND is_submitted = true;
+  `;
+  const result = await runSQL(query, [playerId]);
+  return result[0].total;
+}
+
 module.exports = {
   createScoreCategory,
   getPlayerCategories,
   updateScoreCategory,
   initializePlayerCategories,
   resetPlayerCategories,
-  getPlayerCategory
+  getPlayerCategory,
+  getPlayerTotalScore
 };

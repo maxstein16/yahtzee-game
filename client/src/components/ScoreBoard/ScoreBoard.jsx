@@ -16,6 +16,7 @@ const Scoreboard = ({
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
+  const [totalScore, setTotalScore] = useState(0);
 
   const formatCategoryName = (name) => {
     const specialCases = {
@@ -34,6 +35,17 @@ const Scoreboard = ({
       chance: 'Chance'
     };
     return specialCases[name] || name;
+  };
+
+  const loadTotalScore = async () => {
+    if (currentPlayer?.player_id) {
+      try {
+        const { totalScore: newTotal } = await API.getPlayerTotalScore(currentPlayer.player_id);
+        setTotalScore(newTotal);
+      } catch (error) {
+        console.error('Error loading total score:', error);
+      }
+    }
   };
 
   useEffect(() => {
@@ -59,6 +71,7 @@ const Scoreboard = ({
           
           setScores(scoreMap);
           setLockedCategories(lockedMap);
+          await loadTotalScore();
         } catch (error) {
           console.error('Error loading scores:', error);
         }
@@ -132,6 +145,7 @@ const Scoreboard = ({
 
       setScores(scoreMap);
       setLockedCategories(lockedMap);
+      await loadTotalScore();
 
       onTurnComplete();
     } catch (error) {
@@ -141,12 +155,6 @@ const Scoreboard = ({
         [key]: false
       }));
     }
-  };
-
-  const calculateTotal = () => {
-    return Object.values(scores)
-      .filter(score => typeof score === 'number')
-      .reduce((sum, score) => sum + score, 0);
   };
 
   const getScoreStyle = (isLocked, isAvailable) => {
@@ -225,7 +233,7 @@ const Scoreboard = ({
           <tr className="total-row">
             <td>Total Score</td>
             <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
-              {calculateTotal()}
+              {totalScore}
             </td>
           </tr>
         </tbody>
