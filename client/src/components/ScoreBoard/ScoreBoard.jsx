@@ -13,21 +13,8 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
 }) => {
-  const [scores, setScores] = useState(() => {
-    const initialScores = {};
-    playerCategories.forEach(category => {
-      initialScores[category.name.toLowerCase()] = category.score;
-    });
-    return initialScores;
-  });
-
-  const [lockedCategories, setLockedCategories] = useState(() => {
-    const initialLocked = {};
-    playerCategories.forEach(category => {
-      initialLocked[category.name.toLowerCase()] = category.score !== null;
-    });
-    return initialLocked;
-  });
+  const [scores, setScores] = useState({});
+  const [lockedCategories, setLockedCategories] = useState({});
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -52,16 +39,26 @@ const Scoreboard = ({
     fetchScores();
   }, [currentPlayer?.id]);
 
+  useEffect(() => {
+    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+      const calculatedScores = calculateScores(diceValues);
+      setScores(prevScores => {
+        const updatedScores = { ...prevScores };
+        Object.keys(calculatedScores).forEach(key => {
+          if (!lockedCategories[key]) {
+            updatedScores[key] = calculatedScores[key];
+          }
+        });
+        return updatedScores;
+      });
+    }
+  }, [diceValues, rollCount, calculateScores, lockedCategories]);
+
   const getDisplayScore = (category) => {
     const key = category.name.toLowerCase();
-    if (scores[key] !== null) {
-      return scores[key] || '0';
-    }
-    if (diceValues && diceValues.length > 0 && isCategoryAvailable(category)) {
-      const currentScores = calculateScores(diceValues);
-      return currentScores[key] || '-';
-    }
-    return '-';
+    return scores[key] !== null && scores[key] !== undefined
+      ? scores[key]
+      : '-';
   };
 
   const isCategoryAvailable = (category) => {
@@ -72,6 +69,7 @@ const Scoreboard = ({
   const handleClick = async (category) => {
     const key = category.name.toLowerCase();
     if (!isCategoryAvailable(category)) return;
+
     try {
       await handleScoreCategoryClick(category.name);
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
