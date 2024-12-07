@@ -151,7 +151,7 @@ function Lobby() {
       const scoreResult = await API.submitGameScore(
         gameId, 
         currentPlayer.player_id, 
-        category,  // This needs to exactly match what the API expects
+        category, 
         currentScores[category.toLowerCase()]
       );
       
