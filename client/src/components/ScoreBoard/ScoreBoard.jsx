@@ -38,7 +38,7 @@ const Scoreboard = ({
         const categories = await API.getPlayerCategories(currentPlayer.player_id, gameId);
         const scoreMap = {};
         categories.forEach(cat => {
-          if (cat.score !== null) {
+          if (cat.score !== null) {  // Only include categories that have been scored
             scoreMap[cat.name] = cat.score;
           }
         });
@@ -51,21 +51,17 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id, gameId]);
 
   const getDisplayScore = (category) => {
-    console.log('getDisplayScore for category:', category.name);
-    
-    if (dbScores[category.name] !== undefined) {
-      console.log('Using DB score:', dbScores[category.name]);
-      return dbScores[category.name];
-    }
-    
-    if (diceValues && diceValues.length > 0) {
-      console.log('Current dice values:', diceValues);
+    // If we have current dice values AND category isn't scored yet, show possible score
+    if (diceValues && diceValues.length > 0 && dbScores[category.name] === undefined) {
       const currentPossibleScores = calculateScores(diceValues);
-      console.log('Possible score for', category.name, ':', currentPossibleScores[category.name]);
       return currentPossibleScores[category.name];
     }
     
-    console.log('No score available, returning -');
+    // If category is already scored, show the saved score
+    if (dbScores[category.name] !== undefined) {
+      return dbScores[category.name];
+    }
+    
     return '-';
   };
   
