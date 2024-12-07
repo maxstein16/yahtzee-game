@@ -13,7 +13,8 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
   gameId,
-  shouldResetScores
+  shouldResetScores,
+  scores
 }) => {
   const [dbScores, setDbScores] = useState({});
 
