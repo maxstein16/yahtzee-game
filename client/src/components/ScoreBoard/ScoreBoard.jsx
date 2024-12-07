@@ -30,7 +30,6 @@ const Scoreboard = ({
   handleScoreCategoryClick,
 }) => {
   const [submittedCategories, setSubmittedCategories] = useState(() => {
-    // Initialize with categories that already have scores
     const submitted = new Set();
     playerCategories.forEach(category => {
       if (category.score !== null) {
@@ -48,7 +47,6 @@ const Scoreboard = ({
     return initialScores;
   });
 
-  // Update state when playerCategories changes
   useEffect(() => {
     const newScores = {};
     const newSubmitted = new Set();
@@ -75,7 +73,7 @@ const Scoreboard = ({
     }
     
     // If we have dice values and it's an available move, show possible score
-    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+    if (diceValues && diceValues.length > 0) {
       const possibleScores = calculateScores(diceValues);
       return possibleScores[mappedCategory] || '-';
     }
@@ -85,25 +83,22 @@ const Scoreboard = ({
 
   const isCategoryAvailable = (category) => {
     const categoryKey = category.name.toLowerCase();
-    return rollCount > 0 && !submittedCategories.has(categoryKey);
+    return !submittedCategories.has(categoryKey);
   };
 
   const handleClick = async (category) => {
-    if (!isCategoryAvailable(category)) return;
+    if (submittedCategories.has(category.name.toLowerCase())) return;
+    if (rollCount === 0) return;
     
     const categoryKey = category.name.toLowerCase();
     
     try {
-      // Mark as submitted immediately for UI feedback
       setSubmittedCategories(prev => new Set([...prev, categoryKey]));
       
-      // Submit score
       await handleScoreCategoryClick(category.name);
       
-      // Fetch the updated category to get the actual saved score
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
       
-      // Update scores with all the latest values
       const newScores = {};
       updatedCategories.forEach(cat => {
         newScores[cat.name.toLowerCase()] = cat.score;
@@ -112,7 +107,6 @@ const Scoreboard = ({
       
     } catch (error) {
       console.error('Error handling category click:', error);
-      // If there was an error, remove from submitted categories
       setSubmittedCategories(prev => {
         const newSet = new Set(prev);
         newSet.delete(categoryKey);
@@ -140,10 +134,10 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const categoryKey = category.name.toLowerCase();
-            const isAvailable = isCategoryAvailable(category);
-            const score = getDisplayScore(category);
             const isSubmitted = submittedCategories.has(categoryKey);
-            const isTemporaryScore = isAvailable && diceValues && diceValues.length > 0;
+            const isAvailable = !isSubmitted && rollCount > 0;
+            const score = getDisplayScore(category);
+            const isTemporaryScore = !isSubmitted && diceValues && diceValues.length > 0;
             
             return (
               <tr
