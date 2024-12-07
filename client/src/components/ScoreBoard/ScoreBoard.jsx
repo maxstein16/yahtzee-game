@@ -16,7 +16,7 @@ const Scoreboard = ({
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
 
-  // Fetch scores from API and update states
+  // Fetch scores from the API on mount and when the player changes
   useEffect(() => {
     const fetchScores = async () => {
       if (currentPlayer?.id) {
@@ -24,10 +24,10 @@ const Scoreboard = ({
           const categories = await API.getPlayerCategories(currentPlayer.id);
           const scoreMap = {};
           const lockedMap = {};
-          categories.forEach(category => {
+          categories.forEach((category) => {
             const key = category.name.toLowerCase();
             scoreMap[key] = category.score;
-            lockedMap[key] = category.score !== null; // Lock if score exists
+            lockedMap[key] = category.score !== null; // Gray out if score exists
           });
           setScores(scoreMap);
           setLockedCategories(lockedMap);
@@ -40,13 +40,13 @@ const Scoreboard = ({
     fetchScores();
   }, [currentPlayer?.id]);
 
-  // Update calculated scores dynamically for unlocked categories
+  // Update calculated scores for unlocked categories dynamically
   useEffect(() => {
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
-      setScores(prevScores => {
+      setScores((prevScores) => {
         const updatedScores = { ...prevScores };
-        Object.keys(calculatedScores).forEach(key => {
+        Object.keys(calculatedScores).forEach((key) => {
           if (!lockedCategories[key]) {
             updatedScores[key] = calculatedScores[key];
           }
@@ -56,7 +56,6 @@ const Scoreboard = ({
     }
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
-  // Display score for a category
   const getDisplayScore = (category) => {
     const key = category.name.toLowerCase();
     return scores[key] !== null && scores[key] !== undefined
@@ -64,32 +63,29 @@ const Scoreboard = ({
       : '-';
   };
 
-  // Check if a category is available for scoring
   const isCategoryAvailable = (category) => {
     const key = category.name.toLowerCase();
     return rollCount > 0 && !lockedCategories[key];
   };
 
-  // Handle category click and submission
   const handleClick = async (category) => {
     const key = category.name.toLowerCase();
     if (!isCategoryAvailable(category)) return;
 
     try {
-      // Submit the score
+      // Submit the score using the provided handler
       await handleScoreCategoryClick(category.name);
 
-      // Fetch updated scores after submission
+      // Update the API and UI states after submission
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
       const scoreMap = {};
       const lockedMap = {};
-      updatedCategories.forEach(category => {
-        const key = category.name.toLowerCase();
-        scoreMap[key] = category.score;
-        lockedMap[key] = category.score !== null; // Lock the category
+      updatedCategories.forEach((cat) => {
+        const catKey = cat.name.toLowerCase();
+        scoreMap[catKey] = cat.score;
+        lockedMap[catKey] = cat.score !== null;
       });
 
-      // Update scores and lock states
       setScores(scoreMap);
       setLockedCategories(lockedMap);
     } catch (error) {
@@ -97,7 +93,6 @@ const Scoreboard = ({
     }
   };
 
-  // Calculate the total score
   const calculateTotal = () => {
     return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
   };
@@ -132,7 +127,9 @@ const Scoreboard = ({
           })}
           <tr className="total-row">
             <td style={{ fontWeight: 'bold' }}>Total</td>
-            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{calculateTotal()}</td>
+            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+              {calculateTotal()}
+            </td>
           </tr>
         </tbody>
       </table>
