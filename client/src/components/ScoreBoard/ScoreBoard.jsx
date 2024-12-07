@@ -26,17 +26,13 @@ const Scoreboard = ({
       largeStraight: 'Large Straight',
     };
 
-    if (specialCases[name]) {
-      return specialCases[name];
-    }
-
-    return name.charAt(0).toUpperCase() + name.slice(1);
+    return specialCases[name] || name.charAt(0).toUpperCase() + name.slice(1);
   };
 
   // Load initial scores
   useEffect(() => {
     const loadScores = async () => {
-      if (currentPlayer?.player_id) { // Changed from id to player_id
+      if (currentPlayer?.player_id) {
         try {
           const categories = await API.getPlayerCategories(currentPlayer.player_id);
           console.log('Loaded categories:', categories);
@@ -46,18 +42,15 @@ const Scoreboard = ({
           
           categories.forEach((category) => {
             const key = category.name;
-            // Keep the actual score value, including 0
             if (category.score !== null) {
               scoreMap[key] = category.score;
+              // Only lock categories that have been submitted (have a non-null score)
               lockedMap[key] = true;
             } else {
               scoreMap[key] = '-';
               lockedMap[key] = false;
             }
           });
-          
-          console.log('Setting scores:', scoreMap);
-          console.log('Setting locked categories:', lockedMap);
           
           setScores(scoreMap);
           setLockedCategories(lockedMap);
@@ -68,7 +61,7 @@ const Scoreboard = ({
     };
 
     loadScores();
-  }, [currentPlayer?.player_id]); // Changed from id to player_id
+  }, [currentPlayer?.player_id]);
 
   // Reset possible scores when turn starts
   useEffect(() => {
@@ -119,27 +112,6 @@ const Scoreboard = ({
         [key]: currentScore
       }));
 
-      // Refresh scores from the API after submission
-      if (currentPlayer?.player_id) {
-        const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
-        const updatedScores = {};
-        const updatedLocked = {};
-        
-        updatedCategories.forEach((cat) => {
-          const catKey = cat.name;
-          if (cat.score !== null) {
-            updatedScores[catKey] = cat.score;
-            updatedLocked[catKey] = true;
-          } else {
-            updatedScores[catKey] = '-';
-            updatedLocked[catKey] = false;
-          }
-        });
-        
-        setScores(updatedScores);
-        setLockedCategories(updatedLocked);
-      }
-
       onTurnComplete();
 
     } catch (error) {
@@ -184,7 +156,7 @@ const Scoreboard = ({
                 `}
                 style={{
                   opacity: isLocked ? 0.6 : 1,
-                  cursor: isAvailable ? 'pointer' : 'default'
+                  cursor: isAvailable ? 'pointer' : 'default',
                 }}
               >
                 <td>{formatCategoryName(category.name)}</td>
