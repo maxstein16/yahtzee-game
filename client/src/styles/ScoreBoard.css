@@ -40,3 +40,16 @@
 .scoreboard .clickable:hover {
   background-color: #e6f7ff !important;
 }
+
+/* New styles for submitted scores */
+.scoreboard tr[style*="background-color: #f5f5f5"] {
+  cursor: not-allowed !important;
+}
+
+.scoreboard tr[style*="background-color: #f5f5f5"]:hover {
+  background-color: #f5f5f5 !important;
+}
+
+.scoreboard tr[style*="background-color: #f5f5f5"] td {
+  color: #666;
+}

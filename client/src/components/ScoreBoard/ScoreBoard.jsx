@@ -37,14 +37,6 @@ const Scoreboard = ({
     return initialScores;
   });
 
-  // Calculate possible scores whenever dice values change
-  useEffect(() => {
-    if (diceValues && diceValues.length > 0 && rollCount > 0) {
-      const possibleScores = calculateScores(diceValues);
-      console.log('Calculated possible scores:', possibleScores); // Debug log
-    }
-  }, [diceValues, rollCount, calculateScores]);
-
   useEffect(() => {
     const fetchScores = async () => {
       if (currentPlayer?.id) {
@@ -68,15 +60,14 @@ const Scoreboard = ({
     const categoryKey = category.name.toLowerCase();
     const mappedCategory = categoryNameMapping[categoryKey];
     
-    // If category is already scored, show saved score
+    // If category has a submitted score, show it
     if (scores[categoryKey] !== null && scores[categoryKey] !== undefined) {
       return scores[categoryKey];
     }
     
-    // If we have dice values and it's an active turn, show possible score
+    // If we have dice values and it's an available move, show possible score
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const possibleScores = calculateScores(diceValues);
-      console.log(`Trying to get score for ${mappedCategory}:`, possibleScores[mappedCategory]); // Debug log
       return possibleScores[mappedCategory] || '-';
     }
     
@@ -85,8 +76,13 @@ const Scoreboard = ({
 
   const isCategoryAvailable = (category) => {
     const categoryKey = category.name.toLowerCase();
-    const isNotScored = scores[categoryKey] === null || scores[categoryKey] === undefined;
-    return rollCount > 0 && isNotScored;
+    const hasNoScore = scores[categoryKey] === null || scores[categoryKey] === undefined;
+    return rollCount > 0 && hasNoScore;
+  };
+
+  const isScoreSubmitted = (category) => {
+    const categoryKey = category.name.toLowerCase();
+    return scores[categoryKey] !== null && scores[categoryKey] !== undefined;
   };
 
   const handleClick = async (category) => {
@@ -110,6 +106,24 @@ const Scoreboard = ({
       .reduce((sum, score) => sum + (score || 0), 0);
   };
 
+  const getCategoryStyle = (category, isAvailable, isTemporaryScore) => {
+    const submitted = isScoreSubmitted(category);
+    
+    return {
+      cursor: isAvailable ? 'pointer' : 'default',
+      backgroundColor: submitted ? '#f5f5f5' : 'inherit',
+      opacity: submitted ? 0.7 : 1,
+    };
+  };
+
+  const getScoreStyle = (isAvailable, isTemporaryScore, submitted) => {
+    return {
+      textAlign: 'center',
+      color: submitted ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
+      fontWeight: isTemporaryScore && !submitted ? 'bold' : 'normal',
+    };
+  };
+
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
@@ -125,21 +139,17 @@ const Scoreboard = ({
             const isAvailable = isCategoryAvailable(category);
             const score = getDisplayScore(category);
             const isTemporaryScore = isAvailable && diceValues && diceValues.length > 0;
+            const submitted = isScoreSubmitted(category);
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
                 className={isAvailable ? 'clickable' : ''}
+                style={getCategoryStyle(category, isAvailable, isTemporaryScore)}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td 
-                  style={{ 
-                    textAlign: 'center',
-                    color: isTemporaryScore ? '#1890ff' : 'inherit',
-                    fontWeight: isTemporaryScore ? 'bold' : 'normal'
-                  }}
-                >
+                <td style={getScoreStyle(isAvailable, isTemporaryScore, submitted)}>
                   {score}
                 </td>
               </tr>
