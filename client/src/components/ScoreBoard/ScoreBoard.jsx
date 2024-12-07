@@ -17,28 +17,39 @@ const Scoreboard = ({
   const [lockedCategories, setLockedCategories] = useState({});
 
   // Fetch scores from the API on mount and when the player changes
-  useEffect(() => {
-    const fetchScores = async () => {
-      if (currentPlayer?.id) {
-        try {
-          const categories = await API.getPlayerCategories(currentPlayer.id);
-          const scoreMap = {};
-          const lockedMap = {};
-          categories.forEach((category) => {
-            const key = category.name.toLowerCase();
-            scoreMap[key] = category.score;
-            lockedMap[key] = category.score !== null; // Mark as locked if score exists
-          });
-          setScores(scoreMap);
-          setLockedCategories(lockedMap);
-        } catch (error) {
-          console.error('Error fetching scores:', error);
-        }
+  const fetchScores = async () => {
+    if (currentPlayer?.id) {
+      try {
+        const categories = await API.getPlayerCategories(currentPlayer.id);
+        const scoreMap = {};
+        const lockedMap = {};
+        
+        // Loop through playerCategories instead of API response
+        playerCategories.forEach((category) => {
+          const matchingCategory = categories.find(
+            (c) => c.name.toLowerCase() === category.name.toLowerCase()
+          );
+          const key = category.name.toLowerCase();
+          if (matchingCategory && matchingCategory.score !== null) {
+            scoreMap[key] = matchingCategory.score;
+            lockedMap[key] = true;
+          } else {
+            scoreMap[key] = null;
+            lockedMap[key] = false;
+          }
+        });
+        
+        setScores(scoreMap);
+        setLockedCategories(lockedMap);
+      } catch (error) {
+        console.error('Error fetching scores:', error);
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     fetchScores();
-  }, [currentPlayer?.id]);
+  }, [currentPlayer?.id, playerCategories]); // Add playerCategories as dependency
 
   // Update calculated scores for unlocked categories dynamically
   useEffect(() => {
@@ -73,26 +84,25 @@ const Scoreboard = ({
     if (!isCategoryAvailable(category)) return;
 
     try {
-      await handleScoreCategoryClick(category.name);
-      
-      // Immediately lock the category and update the UI
+      // Immediately lock the category and update UI
       setLockedCategories(prev => ({
         ...prev,
         [key]: true
       }));
 
-      // Fetch updated scores from the API
-      const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
-      const scoreMap = {};
-      const lockedMap = {};
-      updatedCategories.forEach((cat) => {
-        const catKey = cat.name.toLowerCase();
-        scoreMap[catKey] = cat.score;
-        lockedMap[catKey] = cat.score !== null;
-      });
+      // Save current score before API call
+      const currentScore = scores[key];
+      setScores(prev => ({
+        ...prev,
+        [key]: currentScore
+      }));
 
-      setScores(scoreMap);
-      setLockedCategories(lockedMap);
+      // Call the handler
+      await handleScoreCategoryClick(category.name);
+      
+      // Refresh scores from API after submission
+      await fetchScores();
+      
     } catch (error) {
       console.error('Error handling category click:', error);
       // Revert the lock if the API call fails
@@ -100,18 +110,17 @@ const Scoreboard = ({
         ...prev,
         [key]: false
       }));
+      
+      // Revert the score
+      setScores(prev => ({
+        ...prev,
+        [key]: null
+      }));
     }
   };
 
   const calculateTotal = () => {
     return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
-  };
-
-  const getCategoryClassName = (category) => {
-    const key = category.name.toLowerCase();
-    if (lockedCategories[key]) return 'locked';
-    if (isCategoryAvailable(category)) return 'clickable';
-    return '';
   };
 
   return (
@@ -125,18 +134,24 @@ const Scoreboard = ({
           </tr>
         </thead>
         <tbody>
-          {playerCategories.map((category) => (
-            <tr
-              key={category.category_id}
-              onClick={() => handleClick(category)}
-              className={getCategoryClassName(category)}
-            >
-              <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-              <td style={{ textAlign: 'center' }}>
-                {getDisplayScore(category)}
-              </td>
-            </tr>
-          ))}
+          {playerCategories.map((category) => {
+            const key = category.name.toLowerCase();
+            const isLocked = lockedCategories[key];
+            const isAvailable = isCategoryAvailable(category);
+            
+            return (
+              <tr
+                key={category.category_id}
+                onClick={() => handleClick(category)}
+                className={isLocked ? 'locked' : isAvailable ? 'clickable' : ''}
+              >
+                <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+                <td style={{ textAlign: 'center' }}>
+                  {getDisplayScore(category)}
+                </td>
+              </tr>
+            );
+          })}
           <tr className="total-row">
             <td style={{ fontWeight: 'bold' }}>Total</td>
             <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
