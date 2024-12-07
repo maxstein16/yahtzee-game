@@ -17,6 +17,25 @@ const Scoreboard = ({
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
 
+  // Function to format category name for display
+  const formatCategoryName = (name) => {
+    // Handle special cases first
+    const specialCases = {
+      threeOfAKind: 'Three of a Kind',
+      fourOfAKind: 'Four of a Kind',
+      fullHouse: 'Full House',
+      smallStraight: 'Small Straight',
+      largeStraight: 'Large Straight',
+    };
+
+    if (specialCases[name]) {
+      return specialCases[name];
+    }
+
+    // For other categories, just capitalize first letter
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  };
+
   // Load initial scores
   useEffect(() => {
     const loadScores = async () => {
@@ -28,7 +47,8 @@ const Scoreboard = ({
           const lockedMap = {};
           
           categories.forEach((category) => {
-            const key = category.name.toLowerCase();
+            // Don't convert to lowercase, keep original camelCase
+            const key = category.name;
             scoreMap[key] = category.score !== null ? category.score : '-';
             lockedMap[key] = category.score !== null;
           });
@@ -76,34 +96,27 @@ const Scoreboard = ({
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
   const handleClick = async (category) => {
-    const key = category.name.toLowerCase();
+    const key = category.name; // Use original category name
     if (lockedCategories[key] || rollCount === 0) return;
 
     try {
-      // Lock the category immediately
       setLockedCategories(prev => ({
         ...prev,
         [key]: true
       }));
 
-      // Store the current score before submission
       const currentScore = scores[key];
-
-      // Submit the score
       await handleScoreCategoryClick(category.name);
 
-      // Update the scores state to keep the submitted score visible
       setScores(prev => ({
         ...prev,
         [key]: currentScore
       }));
 
-      // Notify parent that turn is complete to reset dice and roll count
       onTurnComplete();
 
     } catch (error) {
       console.error('Error submitting score:', error);
-      // Unlock the category if there was an error
       setLockedCategories(prev => ({
         ...prev,
         [key]: false
@@ -129,7 +142,7 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const key = category.name.toLowerCase();
+            const key = category.name; // Use original category name
             const isLocked = lockedCategories[key];
             const score = scores[key];
             const isAvailable = !isLocked && rollCount > 0;
@@ -147,7 +160,7 @@ const Scoreboard = ({
                   cursor: isAvailable ? 'pointer' : 'default'
                 }}
               >
-                <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+                <td>{formatCategoryName(category.name)}</td>
                 <td style={{ textAlign: 'center' }}>
                   {score}
                 </td>
