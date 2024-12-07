@@ -17,9 +17,7 @@ const Scoreboard = ({
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
 
-  // Function to format category name for display
   const formatCategoryName = (name) => {
-    // Handle special cases first
     const specialCases = {
       threeOfAKind: 'Three of a Kind',
       fourOfAKind: 'Four of a Kind',
@@ -32,26 +30,34 @@ const Scoreboard = ({
       return specialCases[name];
     }
 
-    // For other categories, just capitalize first letter
     return name.charAt(0).toUpperCase() + name.slice(1);
   };
 
   // Load initial scores
   useEffect(() => {
     const loadScores = async () => {
-      if (currentPlayer?.id) {
+      if (currentPlayer?.player_id) { // Changed from id to player_id
         try {
-          const categories = await API.getPlayerCategories(currentPlayer.id);
+          const categories = await API.getPlayerCategories(currentPlayer.player_id);
+          console.log('Loaded categories:', categories);
           
           const scoreMap = {};
           const lockedMap = {};
           
           categories.forEach((category) => {
-            // Don't convert to lowercase, keep original camelCase
             const key = category.name;
-            scoreMap[key] = category.score !== null ? category.score : '-';
-            lockedMap[key] = category.score !== null;
+            // Keep the actual score value, including 0
+            if (category.score !== null) {
+              scoreMap[key] = category.score;
+              lockedMap[key] = true;
+            } else {
+              scoreMap[key] = '-';
+              lockedMap[key] = false;
+            }
           });
+          
+          console.log('Setting scores:', scoreMap);
+          console.log('Setting locked categories:', lockedMap);
           
           setScores(scoreMap);
           setLockedCategories(lockedMap);
@@ -62,7 +68,7 @@ const Scoreboard = ({
     };
 
     loadScores();
-  }, [currentPlayer?.id]);
+  }, [currentPlayer?.player_id]); // Changed from id to player_id
 
   // Reset possible scores when turn starts
   useEffect(() => {
@@ -96,7 +102,7 @@ const Scoreboard = ({
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
   const handleClick = async (category) => {
-    const key = category.name; // Use original category name
+    const key = category.name;
     if (lockedCategories[key] || rollCount === 0) return;
 
     try {
@@ -112,6 +118,27 @@ const Scoreboard = ({
         ...prev,
         [key]: currentScore
       }));
+
+      // Refresh scores from the API after submission
+      if (currentPlayer?.player_id) {
+        const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+        const updatedScores = {};
+        const updatedLocked = {};
+        
+        updatedCategories.forEach((cat) => {
+          const catKey = cat.name;
+          if (cat.score !== null) {
+            updatedScores[catKey] = cat.score;
+            updatedLocked[catKey] = true;
+          } else {
+            updatedScores[catKey] = '-';
+            updatedLocked[catKey] = false;
+          }
+        });
+        
+        setScores(updatedScores);
+        setLockedCategories(updatedLocked);
+      }
 
       onTurnComplete();
 
@@ -142,7 +169,7 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const key = category.name; // Use original category name
+            const key = category.name;
             const isLocked = lockedCategories[key];
             const score = scores[key];
             const isAvailable = !isLocked && rollCount > 0;
