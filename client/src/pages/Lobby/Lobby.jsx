@@ -14,7 +14,6 @@ const LobbyView = ({
   mode,
   currentPlayer,
   gameId,
-  scores,
   
   // Player props
   diceValues,
@@ -28,13 +27,11 @@ const LobbyView = ({
   aiDiceValues,
   aiRollCount,
   isAITurn,
-  aiTotal,
-  aiCategories,
-  
+  aiTotal,  
+
   // UI props
   isChatVisible,
-  shouldResetScores,
-  
+
   // Action handlers
   handleNewGame,
   handleLogout,
@@ -148,17 +145,11 @@ const LobbyView = ({
 
         <Scoreboard
           currentPlayer={currentPlayer}
-          mode={mode}
           playerCategories={playerCategories}
           calculateScores={calculateScores}
           diceValues={diceValues}
-          isAITurn={isAITurn}
           rollCount={rollCount}
           handleScoreCategoryClick={handleScoreCategoryClick}
-          aiCategories={aiCategories}
-          shouldResetScores={shouldResetScores}
-          gameId={gameId}
-          scores={scores}
         />
       </Content>
 
