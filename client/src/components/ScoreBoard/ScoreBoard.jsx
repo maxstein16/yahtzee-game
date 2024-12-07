@@ -38,24 +38,35 @@ const Scoreboard = ({
   });
 
   useEffect(() => {
-    const newScores = {};
-    playerCategories.forEach(category => {
-      newScores[category.name.toLowerCase()] = category.score;
-    });
-    setScores(newScores);
-  }, [playerCategories]);
+    const fetchScores = async () => {
+      if (currentPlayer?.id) {
+        try {
+          const categories = await API.getPlayerCategories(currentPlayer.id);
+          const scoreMap = {};
+          categories.forEach(category => {
+            scoreMap[category.name.toLowerCase()] = category.score;
+          });
+          setScores(scoreMap);
+        } catch (error) {
+          console.error('Error fetching scores:', error);
+        }
+      }
+    };
+
+    fetchScores();
+  }, [currentPlayer?.id]);
 
   const getDisplayScore = (category) => {
     const categoryKey = category.name.toLowerCase();
     const mappedCategory = categoryNameMapping[categoryKey];
     
-    // If category has a score in the database that isn't null
-    if (category.score !== null) {
-      return category.score;
+    // If category has a submitted score, show it
+    if (scores[categoryKey] !== null && scores[categoryKey] !== undefined) {
+      return scores[categoryKey];
     }
     
-    // If we have dice values, show possible score
-    if (diceValues && diceValues.length > 0) {
+    // If we have dice values and it's an available move, show possible score
+    if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const possibleScores = calculateScores(diceValues);
       return possibleScores[mappedCategory] || '-';
     }
@@ -63,36 +74,54 @@ const Scoreboard = ({
     return '-';
   };
 
-  const isCategorySubmitted = (category) => {
-    return category.score == null;
+  const isCategoryAvailable = (category) => {
+    const categoryKey = category.name.toLowerCase();
+    const hasNoScore = scores[categoryKey] === null || scores[categoryKey] === undefined;
+    return rollCount > 0 && hasNoScore;
   };
 
-  const isCategoryAvailable = (category) => {
-    return isCategorySubmitted(category) && rollCount > 0;
+  const isScoreSubmitted = (category) => {
+    const categoryKey = category.name.toLowerCase();
+    return scores[categoryKey] !== null && scores[categoryKey] !== undefined;
   };
 
   const handleClick = async (category) => {
-    if (isCategorySubmitted(category) || rollCount === 0) return;
-    
+    if (!isCategoryAvailable(category)) return;
     try {
       await handleScoreCategoryClick(category.name);
-      
-      // Fetch updated categories to get the new scores
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
-      const newScores = {};
-      updatedCategories.forEach(cat => {
-        newScores[cat.name.toLowerCase()] = cat.score;
+      const scoreMap = {};
+      updatedCategories.forEach(category => {
+        scoreMap[category.name.toLowerCase()] = category.score;
       });
-      setScores(newScores);
+      setScores(scoreMap);
     } catch (error) {
       console.error('Error handling category click:', error);
     }
   };
 
   const calculateTotal = () => {
-    return playerCategories
-      .filter(category => category.score !== null)
-      .reduce((sum, category) => sum + category.score, 0);
+    return Object.values(scores)
+      .filter(score => score !== null && score !== undefined)
+      .reduce((sum, score) => sum + (score || 0), 0);
+  };
+
+  const getCategoryStyle = (category, isAvailable, isTemporaryScore) => {
+    const submitted = isScoreSubmitted(category);
+    
+    return {
+      cursor: isAvailable ? 'pointer' : 'default',
+      backgroundColor: submitted ? '#f5f5f5' : 'inherit',
+      opacity: submitted ? 0.7 : 1,
+    };
+  };
+
+  const getScoreStyle = (isAvailable, isTemporaryScore, submitted) => {
+    return {
+      textAlign: 'center',
+      color: submitted ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
+      fontWeight: isTemporaryScore && !submitted ? 'bold' : 'normal',
+    };
   };
 
   return (
@@ -107,30 +136,20 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const isSubmitted = isCategorySubmitted(category);
             const isAvailable = isCategoryAvailable(category);
             const score = getDisplayScore(category);
-            const isTemporaryScore = !isSubmitted && diceValues && diceValues.length > 0;
+            const isTemporaryScore = isAvailable && diceValues && diceValues.length > 0;
+            const submitted = isScoreSubmitted(category);
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
                 className={isAvailable ? 'clickable' : ''}
-                style={{
-                  backgroundColor: isSubmitted ? '#f5f5f5' : 'inherit',
-                  opacity: isSubmitted ? 0.7 : 1,
-                  cursor: isAvailable ? 'pointer' : 'default'
-                }}
+                style={getCategoryStyle(category, isAvailable, isTemporaryScore)}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td 
-                  style={{ 
-                    textAlign: 'center',
-                    color: isSubmitted ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
-                    fontWeight: (isTemporaryScore && !isSubmitted) ? 'bold' : 'normal'
-                  }}
-                >
+                <td style={getScoreStyle(isAvailable, isTemporaryScore, submitted)}>
                   {score}
                 </td>
               </tr>
