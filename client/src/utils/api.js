@@ -57,8 +57,32 @@ export const initializePlayerCategories = async (playerId) => {
 export const getPlayerCategories = (playerId) => 
   apiRequest(`/scorecategory/player/${playerId}`);
 
-export const getPlayerCategory = (playerId, categoryName) => 
-  apiRequest(`/scorecategory/player/${playerId}/category/${categoryName}`);
+const normalizeCategoryName = (name) => {
+  const categoryMap = {
+    'Three of a Kind': 'threeOfAKind',
+    'Four of a Kind': 'fourOfAKind',
+    'Full House': 'fullHouse',
+    'Small Straight': 'smallStraight',
+    'Large Straight': 'largeStraight',
+  };
+
+  return categoryMap[name] || name;
+};
+
+export const getPlayerCategory = (playerId, categoryName) => {
+  const normalizedName = normalizeCategoryName(categoryName);
+  return apiRequest(`/scorecategory/player/${playerId}/category/${normalizedName}`);
+};
+
+export const submitGameScore = (gameId, playerId, categoryName, score) => {
+  const normalizedName = normalizeCategoryName(categoryName);
+  return apiRequest(`/scorecategory/game/${gameId}/submit`, 'PUT', {
+    playerId,
+    categoryName: normalizedName,
+    score,
+    is_submitted: true
+  });
+};
 
 export const updateScoreCategory = (categoryId, score) => 
   apiRequest(`/scorecategory/${categoryId}`, 'PUT', { 
@@ -68,14 +92,6 @@ export const updateScoreCategory = (categoryId, score) =>
 
 export const resetPlayerCategories = (playerId) => 
   apiRequest(`/scorecategory/player/${playerId}/reset`, 'PUT');
-
-export const submitGameScore = (gameId, playerId, categoryName, score) => 
-  apiRequest(`/scorecategory/game/${gameId}/submit`, 'PUT', {
-    playerId,
-    categoryName,
-    score,
-    is_submitted: true
-  });
 
 export const getPlayerTotalScore = (playerId) => 
   apiRequest(`/scorecategory/player/${playerId}/total`);

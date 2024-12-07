@@ -74,7 +74,7 @@ async function initializePlayerCategories(playerId) {
     for (const [name, maxScore] of categories) {
       const query = `
         INSERT INTO scorecategory (name, max_score, player_id, score, is_submitted) 
-        VALUES (?, ?, ?, NULL, false);
+        VALUES (?, ?, ?, 0, false);
       `;
       await runSQL(query, [name, maxScore, playerId]);
     }

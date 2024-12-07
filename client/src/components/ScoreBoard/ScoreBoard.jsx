@@ -113,28 +113,30 @@ const Scoreboard = ({
   const handleClick = async (category) => {
     const key = category.name;
     if (lockedCategories[key] || rollCount === 0) return;
-
+  
     try {
       setLockedCategories(prev => ({
         ...prev,
         [key]: true
       }));
-
+  
       const currentScore = scores[key];
-      await handleScoreCategoryClick(category.name);
-
+      
+      // Use the raw database name for submission
+      await handleScoreCategoryClick(key);
+  
       setScores(prev => ({
         ...prev,
         [key]: currentScore
       }));
-
+  
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const scoreMap = {};
       const lockedMap = {};
       
       updatedCategories.forEach((cat) => {
         const catKey = cat.name;
-        if (cat.is_submitted) {
+        if (cat.score !== null) {
           scoreMap[catKey] = cat.score;
           lockedMap[catKey] = true;
         } else {
@@ -142,11 +144,11 @@ const Scoreboard = ({
           lockedMap[catKey] = false;
         }
       });
-
+  
       setScores(scoreMap);
       setLockedCategories(lockedMap);
       await loadTotalScore();
-
+  
       onTurnComplete();
     } catch (error) {
       console.error('Error submitting score:', error);
