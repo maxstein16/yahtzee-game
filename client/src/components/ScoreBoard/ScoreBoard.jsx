@@ -8,13 +8,12 @@ const { Title } = Typography;
 const Scoreboard = ({
   currentPlayer,
   playerCategories,
-  calculateScores,
+  calculateScores,  // Using this prop only
   diceValues,
   rollCount,
   handleScoreCategoryClick,
   gameId,
-  shouldResetScores,
-  scores
+  shouldResetScores
 }) => {
   const [dbScores, setDbScores] = useState({});
 
@@ -27,9 +26,10 @@ const Scoreboard = ({
   useEffect(() => {
     if (diceValues && diceValues.length > 0) {
       console.log('Dice values changed:', diceValues);
-      console.log('Calculated scores:', calculateScores(diceValues));
+      const scores = calculateScores(diceValues);
+      console.log('Calculated scores:', scores);
     }
-  }, [diceValues]);
+  }, [diceValues, calculateScores]);
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -51,12 +51,10 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id, gameId]);
 
   const getDisplayScore = (category) => {
-    // First check if category is already scored
     if (dbScores[category.name] !== undefined) {
       return dbScores[category.name];
     }
     
-    // If we have dice values, always calculate the current possible score
     if (diceValues && diceValues.length > 0) {
       const currentPossibleScores = calculateScores(diceValues);
       return currentPossibleScores[category.name];
@@ -66,15 +64,15 @@ const Scoreboard = ({
   };
   
   const isCategoryAvailable = (category) => {
-    return diceValues && diceValues.length > 0 && dbScores[category.name] === undefined;
+    return rollCount > 0 && dbScores[category.name] === undefined;
   };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
 
     try {
-      const scores = calculateScores([...diceValues]);
-      const scoreToSave = scores[category.name];
+      const currentScores = calculateScores([...diceValues]);
+      const scoreToSave = currentScores[category.name];
       await handleScoreCategoryClick(category.name);
       setDbScores(prev => ({
         ...prev,
