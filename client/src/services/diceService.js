@@ -53,13 +53,20 @@ export const handleRollDice = async ({
     const result = await rollDice(gameId, currentPlayer, diceValues, selectedDice);
     if (result.success) {
       setDiceValues(result.dice);
-      setScores(calculateScores(result.dice));
+      // Calculate and set scores with the new dice values
+      const newScores = calculateScores(result.dice);
+      setScores(newScores); // Make sure this is getting set
       const newRollCount = rollCount + 1;
       setRollCount(newRollCount);
+      
+      // Debug log to verify scores are being calculated
+      console.log('New dice values:', result.dice);
+      console.log('Calculated scores:', newScores);
     } else {
       message.error(result.message);
     }
   } catch (error) {
+    console.error('Roll dice error:', error);
     message.error('Failed to roll dice');
   } finally {
     setIsRolling(false);

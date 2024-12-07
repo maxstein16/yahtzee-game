@@ -206,8 +206,8 @@ function Lobby() {
     }
   };
 
-  const handleDiceRoll = () => {
-    const result = handleRollDice({
+  const handleDiceRoll = async () => {
+    const result = await handleRollDice({
       rollCount,
       gameId,
       currentPlayer,
@@ -219,11 +219,13 @@ function Lobby() {
       setRollCount
     });
     
-    // Update scores after rolling
-    if (diceValues && diceValues.length > 0) {
-      const newScores = calculateScores(diceValues);
-      setScores(newScores);
-    }
+    // Calculate and update scores based on the new dice values
+    const updatedDiceValues = [...diceValues].map((die, index) => 
+      selectedDice.includes(index) ? die : Math.floor(Math.random() * 6) + 1
+    );
+    
+    const newScores = calculateScores(updatedDiceValues);
+    setScores(newScores);
   };
 
   const handleDiceSelection = (index) => toggleDiceSelection(

@@ -44,25 +44,27 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id, gameId]);
 
   const getDisplayScore = (category) => {
+    // First check if category is already scored
     if (dbScores[category.name] !== undefined) {
       return dbScores[category.name];
     }
     
-    // Use the scores passed from props if available
+    // If we have current scores from props, use those
     if (scores && scores[category.name] !== undefined) {
       return scores[category.name];
     }
     
-    if (rollCount > 0 && diceValues) {
-      const calculatedScores = calculateScores([...diceValues]);
+    // Fallback to calculating scores if we have dice values
+    if (diceValues && diceValues.length > 0) {
+      const calculatedScores = calculateScores(diceValues);
       return calculatedScores[category.name];
     }
     
     return '-';
   };
-
+  
   const isCategoryAvailable = (category) => {
-    return rollCount > 0 && dbScores[category.name] === undefined;
+    return diceValues && diceValues.length > 0 && dbScores[category.name] === undefined;
   };
 
   const handleClick = async (category) => {
