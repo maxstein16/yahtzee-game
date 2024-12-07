@@ -17,32 +17,22 @@ function Lobby() {
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [isNewGame, setIsNewGame] = useState(false);
-  const [mode, setMode] = useState('singleplayer');
   const [isInitializing, setIsInitializing] = useState(false);
   const [shouldResetScores, setShouldResetScores] = useState(false);
-  const [isChatVisible, setIsChatVisible] = useState(false);
 
-  // Dice and Score States
+  // Game States
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
   const [selectedDice, setSelectedDice] = useState([]);
   const [playerCategories, setPlayerCategories] = useState([]);
   const [playerTotal, setPlayerTotal] = useState(0);
-  const [currentScores, setCurrentScores] = useState({}); // New state for current possible scores
+  const [currentScores, setCurrentScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
 
-  // AI States
-  const [aiDiceValues, setAiDiceValues] = useState(INITIAL_DICE_VALUES);
-  const [aiRollCount, setAiRollCount] = useState(0);
-  const [isAITurn, setIsAITurn] = useState(false);
-  const [aiTotal, setAiTotal] = useState(0);
-  const [aiCategories, setAiCategories] = useState([]);
-
-  // Calculate scores whenever dice values change
   useEffect(() => {
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const newScores = calculateScores(diceValues);
-      console.log('New calculated scores:', newScores); // Debug log
+      console.log('New calculated scores:', newScores);
       setCurrentScores(newScores);
     }
   }, [diceValues, rollCount]);
@@ -67,7 +57,7 @@ function Lobby() {
       if (isNewGame || !gameId) {
         setIsInitializing(true);
         try {
-          const result = await initializeGame(currentPlayer, mode, setGameId, () => {});
+          const result = await initializeGame(currentPlayer, 'singleplayer', setGameId, () => {});
           
           if (result.success) {
             message.success(result.message);
@@ -77,13 +67,6 @@ function Lobby() {
               setPlayerCategories(categories);
               const total = await API.getPlayerTotalScore(currentPlayer.player_id);
               setPlayerTotal(total.totalScore);
-
-              if (mode === 'singleplayer') {
-                const aiCategories = await API.getPlayerCategories('ai-opponent');
-                setAiCategories(aiCategories);
-                const aiTotal = await API.getPlayerTotalScore('ai-opponent');
-                setAiTotal(aiTotal.totalScore);
-              }
             }
             
             setIsNewGame(false);
@@ -97,20 +80,18 @@ function Lobby() {
     };
 
     initializeGameSession();
-  }, [currentPlayer, isNewGame, gameId, mode]);
+  }, [currentPlayer, isNewGame, gameId]);
 
-  const handleNewGame = async (selectedMode = 'singleplayer') => {
+  const handleNewGame = async () => {
     try {
       if (gameId) {
         await API.endGame(gameId);
       }
       
-      setMode(selectedMode);
       setIsNewGame(true);
       setGameId(null);
       setShouldResetScores(true);
       
-      // Reset game states
       resetTurnState({
         setDiceValues: (values) => {
           setDiceValues(values);
@@ -120,13 +101,6 @@ function Lobby() {
         setRollCount,
         setScores: setCurrentScores
       });
-      
-      // Reset AI states
-      setAiDiceValues(INITIAL_DICE_VALUES);
-      setAiRollCount(0);
-      setIsAITurn(false);
-      setAiTotal(0);
-      setAiCategories([]);
       
       if (currentPlayer) {
         await resetPlayerCategories({
@@ -158,7 +132,7 @@ function Lobby() {
         currentPlayer.player_id,
         diceValues,
         rollCount,
-        currentScores[category.toLowerCase()], // Use current calculated scores
+        currentScores[category.toLowerCase()],
         false
       );
   
@@ -170,7 +144,7 @@ function Lobby() {
         gameId, 
         currentPlayer.player_id, 
         category, 
-        currentScores[category.toLowerCase()] // Use current calculated scores
+        currentScores[category.toLowerCase()]
       );
       
       if (!scoreResult) {
@@ -181,7 +155,7 @@ function Lobby() {
         gameId,
         currentPlayer.player_id,
         categoryInfo.category_id,
-        currentScores[category.toLowerCase()], // Use current calculated scores
+        currentScores[category.toLowerCase()],
         diceValues,
         rollCount
       );
@@ -190,7 +164,6 @@ function Lobby() {
         throw new Error('Failed to complete turn');
       }
   
-      // Reset turn state
       resetTurnState({
         setDiceValues: (values) => {
           setDiceValues(values);
@@ -201,16 +174,8 @@ function Lobby() {
         setScores: setCurrentScores
       });
       
-      // Update categories and total
       setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
       setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
-      
-      if (mode === 'singleplayer') {
-        setIsAITurn(true);
-        setTimeout(() => {
-          setIsAITurn(false);
-        }, 2000);
-      }
       
       message.success(`${category} score saved!`);
   
@@ -232,7 +197,7 @@ function Lobby() {
       if (result.success) {
         setDiceValues(result.dice);
         const newScores = calculateScores(result.dice);
-        console.log('Calculated scores after roll:', newScores); // Debug log
+        console.log('Calculated scores after roll:', newScores);
         setCurrentScores(newScores);
         setRollCount(prevCount => prevCount + 1);
       } else {
@@ -256,38 +221,21 @@ function Lobby() {
   const handlePlayerLogout = () => handleLogout(navigate);
 
   const viewProps = {
-    // Game props
     currentPlayer,
     gameId,
-    mode,
-    scores: currentScores, // Pass the current calculated scores
-    
-    // Player props
+    scores: currentScores,
     diceValues,
     selectedDice,
     isRolling,
     rollCount,
     playerTotal,
     playerCategories,
-    
-    // AI props
-    aiDiceValues,
-    aiRollCount,
-    isAITurn,
-    aiTotal,
-    aiCategories,
-    
-    // UI props
-    isChatVisible,
     shouldResetScores,
-    
-    // Action handlers
     handleNewGame,
     handleLogout: handlePlayerLogout,
     handleRollDice: handleDiceRoll,
     toggleDiceSelection: handleDiceSelection,
     handleScoreCategoryClick,
-    setIsChatVisible,
     calculateScores
   };
 
