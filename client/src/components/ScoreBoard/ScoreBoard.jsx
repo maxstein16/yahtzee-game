@@ -47,16 +47,18 @@ const Scoreboard = ({
       return dbScores[category.name];
     }
     
-    if (rollCount > 0 && diceValues) {
-      const scores = calculateScores([...diceValues]);
-      return scores[category.name];
+    if (diceValues && diceValues.length > 0) {
+      const potentialScores = calculateScores(diceValues);
+      if (potentialScores && potentialScores[category.name] !== undefined) {
+        return potentialScores[category.name];
+      }
     }
     
     return '-';
   };
 
   const isCategoryAvailable = (category) => {
-    return rollCount > 0 && dbScores[category.name] === undefined;
+    return diceValues && diceValues.length > 0 && dbScores[category.name] === undefined;
   };
 
   const handleClick = async (category) => {
