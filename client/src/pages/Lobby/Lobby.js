@@ -19,6 +19,8 @@ function Lobby() {
   const [isNewGame, setIsNewGame] = useState(false);
   const [mode, setMode] = useState('singleplayer');
   const [isInitializing, setIsInitializing] = useState(false);
+  const [shouldResetScores, setShouldResetScores] = useState(false);
+  const [isChatVisible, setIsChatVisible] = useState(false);
 
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
   const [selectedDice, setSelectedDice] = useState([]);
@@ -27,6 +29,13 @@ function Lobby() {
   const [scores, setScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
+
+  // AI related states
+  const [aiDiceValues, setAiDiceValues] = useState(INITIAL_DICE_VALUES);
+  const [aiRollCount, setAiRollCount] = useState(0);
+  const [isAITurn, setIsAITurn] = useState(false);
+  const [aiTotal, setAiTotal] = useState(0);
+  const [aiCategories, setAiCategories] = useState([]);
 
   useEffect(() => {
     const initializePlayer = async () => {
@@ -58,6 +67,14 @@ function Lobby() {
               setPlayerCategories(categories);
               const total = await API.getPlayerTotalScore(currentPlayer.player_id);
               setPlayerTotal(total.totalScore);
+
+              // Get AI categories and total if it's a single player game
+              if (mode === 'singleplayer') {
+                const aiCategories = await API.getPlayerCategories('ai-opponent');
+                setAiCategories(aiCategories);
+                const aiTotal = await API.getPlayerTotalScore('ai-opponent');
+                setAiTotal(aiTotal.totalScore);
+              }
             }
             
             setIsNewGame(false);
@@ -82,13 +99,22 @@ function Lobby() {
       setMode(selectedMode);
       setIsNewGame(true);
       setGameId(null);
+      setShouldResetScores(true);
       
+      // Reset all game states
       resetTurnState({
         setDiceValues,
         setSelectedDice,
         setRollCount,
         setScores
       });
+      
+      // Reset AI states
+      setAiDiceValues(INITIAL_DICE_VALUES);
+      setAiRollCount(0);
+      setIsAITurn(false);
+      setAiTotal(0);
+      setAiCategories([]);
       
       if (currentPlayer) {
         await resetPlayerCategories({
@@ -97,6 +123,10 @@ function Lobby() {
           setPlayerTotal
         });
       }
+
+      setTimeout(() => {
+        setShouldResetScores(false);
+      }, 100);
     } catch (error) {
       console.error('Error starting new game:', error);
       message.error('Failed to start new game');
@@ -158,6 +188,16 @@ function Lobby() {
       setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
       setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
       
+      // If it's a single player game, trigger AI turn
+      if (mode === 'singleplayer') {
+        setIsAITurn(true);
+        // Here you would typically have your AI logic
+        // For now we'll just reset it after a delay
+        setTimeout(() => {
+          setIsAITurn(false);
+        }, 2000);
+      }
+      
       message.success(`${category} score saved!`);
   
     } catch (error) {
@@ -188,20 +228,37 @@ function Lobby() {
   const handlePlayerLogout = () => handleLogout(navigate);
 
   const viewProps = {
+    // Game props
     currentPlayer,
     gameId,
     mode,
+    
+    // Player props
     diceValues,
     selectedDice,
     isRolling,
     rollCount,
     playerTotal,
     playerCategories,
+    
+    // AI props
+    aiDiceValues,
+    aiRollCount,
+    isAITurn,
+    aiTotal,
+    aiCategories,
+    
+    // UI props
+    isChatVisible,
+    shouldResetScores,
+    
+    // Action handlers
     handleNewGame,
     handleLogout: handlePlayerLogout,
     handleRollDice: handleDiceRoll,
     toggleDiceSelection: handleDiceSelection,
     handleScoreCategoryClick,
+    setIsChatVisible,
     calculateScores
   };
 

@@ -12,9 +12,16 @@ const Scoreboard = ({
   diceValues,
   rollCount,
   handleScoreCategoryClick,
-  gameId
+  gameId,
+  shouldResetScores
 }) => {
   const [dbScores, setDbScores] = useState({});
+
+  useEffect(() => {
+    if (shouldResetScores) {
+      setDbScores({});
+    }
+  }, [shouldResetScores]);
 
   useEffect(() => {
     const fetchScores = async () => {

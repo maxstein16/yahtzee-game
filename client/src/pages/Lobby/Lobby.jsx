@@ -1,4 +1,3 @@
-// src/pages/Lobby/Lobby.jsx
 import React from 'react';
 import { Layout, Typography, Button, Space, Menu, Dropdown } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
@@ -33,6 +32,7 @@ const LobbyView = ({
   
   // UI props
   isChatVisible,
+  shouldResetScores,
   
   // Action handlers
   handleNewGame,
@@ -146,15 +146,17 @@ const LobbyView = ({
         </div>
 
         <Scoreboard
-            currentPlayer={currentPlayer}
-            mode={mode}
-            playerCategories={playerCategories}
-            calculateScores={calculateScores}
-            diceValues={diceValues}
-            isAITurn={isAITurn}
-            rollCount={rollCount}
-            handleScoreCategoryClick={handleScoreCategoryClick}
-            aiCategories={aiCategories}
+          currentPlayer={currentPlayer}
+          mode={mode}
+          playerCategories={playerCategories}
+          calculateScores={calculateScores}
+          diceValues={diceValues}
+          isAITurn={isAITurn}
+          rollCount={rollCount}
+          handleScoreCategoryClick={handleScoreCategoryClick}
+          aiCategories={aiCategories}
+          shouldResetScores={shouldResetScores}
+          gameId={gameId}
         />
       </Content>
 
