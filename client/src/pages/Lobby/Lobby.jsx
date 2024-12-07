@@ -14,6 +14,7 @@ const LobbyView = ({
   mode,
   currentPlayer,
   gameId,
+  scores,
   
   // Player props
   diceValues,
