@@ -90,17 +90,17 @@ router.post('/game/:id/turn', async (req, res) => {
 router.put('/game/:id/turn', async (req, res) => {
   try {
     const gameId = req.params.id;
-    const { playerId, categoryId, score, dice, rerolls } = req.body;
+    const { playerId, score, dice, rerolls } = req.body;
 
-    if (!gameId || !playerId || !categoryId || score === undefined) {
+    if (!gameId || !playerId || score === undefined) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
     // First update the turn with final values
     await updateTurn(gameId, playerId, dice, rerolls, score, true);
 
-    // Then submit the score
-    const turn = await submitTurn(gameId, playerId, categoryId, score);
+    // Then submit the score with all parameters
+    const turn = await submitTurn(gameId, playerId, score, dice, rerolls);
     res.json(turn);
   } catch (error) {
     console.error('Submit turn error:', error);
