@@ -12,6 +12,7 @@ const Scoreboard = ({
   diceValues,
   rollCount,
   handleScoreCategoryClick,
+  isCurrentTurn, // Add this prop to know when it's the player's turn
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
@@ -24,7 +25,7 @@ const Scoreboard = ({
         const scoreMap = {};
         const lockedMap = {};
         
-        // Loop through playerCategories instead of API response
+        // Loop through playerCategories to set initial state
         playerCategories.forEach((category) => {
           const matchingCategory = categories.find(
             (c) => c.name.toLowerCase() === category.name.toLowerCase()
@@ -47,13 +48,29 @@ const Scoreboard = ({
     }
   };
 
+  // Fetch scores on initial load and player change
   useEffect(() => {
     fetchScores();
-  }, [currentPlayer?.id, playerCategories]); // Add playerCategories as dependency
+  }, [currentPlayer?.id, playerCategories]);
 
-  // Update calculated scores for unlocked categories dynamically
+  // Reset unlocked categories when turn starts
   useEffect(() => {
-    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+    if (isCurrentTurn) {
+      setScores((prevScores) => {
+        const newScores = { ...prevScores };
+        Object.keys(newScores).forEach((key) => {
+          if (!lockedCategories[key]) {
+            newScores[key] = null;
+          }
+        });
+        return newScores;
+      });
+    }
+  }, [isCurrentTurn, lockedCategories]);
+
+  // Update calculated scores for unlocked categories when dice are rolled
+  useEffect(() => {
+    if (isCurrentTurn && diceValues && diceValues.length > 0 && rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
       setScores((prevScores) => {
         const updatedScores = { ...prevScores };
@@ -65,18 +82,19 @@ const Scoreboard = ({
         return updatedScores;
       });
     }
-  }, [diceValues, rollCount, calculateScores, lockedCategories]);
+  }, [diceValues, rollCount, calculateScores, lockedCategories, isCurrentTurn]);
 
   const getDisplayScore = (category) => {
     const key = category.name.toLowerCase();
-    return scores[key] !== null && scores[key] !== undefined
-      ? scores[key]
-      : '-';
+    if (lockedCategories[key]) {
+      return scores[key];
+    }
+    return scores[key] !== null && scores[key] !== undefined ? scores[key] : '-';
   };
 
   const isCategoryAvailable = (category) => {
     const key = category.name.toLowerCase();
-    return rollCount > 0 && !lockedCategories[key];
+    return isCurrentTurn && rollCount > 0 && !lockedCategories[key];
   };
 
   const handleClick = async (category) => {
