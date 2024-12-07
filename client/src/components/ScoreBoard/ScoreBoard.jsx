@@ -112,62 +112,29 @@ const Scoreboard = ({
 
   const handleClick = async (category) => {
     const key = category.name;
-    console.log('Attempting to submit category:', {
-      categoryName: key,
-      categoryObject: category,
-      currentScore: scores[key],
-      isLocked: lockedCategories[key],
-      rollCount
-    });
-  
-    if (lockedCategories[key] || rollCount === 0) {
-      console.log('Submission blocked:', {
-        reason: lockedCategories[key] ? 'Category is locked' : 'No rolls made',
-        isLocked: lockedCategories[key],
-        rollCount
-      });
-      return;
-    }
-  
+    if (lockedCategories[key] || rollCount === 0) return;
+
     try {
-      console.log('Setting category as locked:', key);
       setLockedCategories(prev => ({
         ...prev,
         [key]: true
       }));
-  
+
       const currentScore = scores[key];
-      console.log('Current score to submit:', {
-        category: key,
-        score: currentScore
-      });
-  
-      console.log('Calling handleScoreCategoryClick with:', {
-        categoryName: key,
-        currentScore
-      });
-      
-      // Call the score submission handler
-      await handleScoreCategoryClick(key);
-  
-      console.log('Score submitted successfully, updating local state');
-  
-      // Update local score state
+      await handleScoreCategoryClick(category.name);
+
       setScores(prev => ({
         ...prev,
         [key]: currentScore
       }));
-  
-      console.log('Fetching updated categories');
+
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
-      console.log('Received updated categories:', updatedCategories);
-  
       const scoreMap = {};
       const lockedMap = {};
       
       updatedCategories.forEach((cat) => {
         const catKey = cat.name;
-        if (cat.score !== null) {
+        if (cat.is_submitted) {
           scoreMap[catKey] = cat.score;
           lockedMap[catKey] = true;
         } else {
@@ -175,32 +142,14 @@ const Scoreboard = ({
           lockedMap[catKey] = false;
         }
       });
-  
-      console.log('Setting new states:', {
-        scores: scoreMap,
-        lockedCategories: lockedMap
-      });
-  
+
       setScores(scoreMap);
       setLockedCategories(lockedMap);
-  
-      console.log('Loading total score');
       await loadTotalScore();
-  
-      console.log('Completing turn');
+
       onTurnComplete();
-  
     } catch (error) {
-      console.error('Error in handleClick:', {
-        error,
-        errorMessage: error.message,
-        errorStack: error.stack,
-        category: key,
-        score: scores[key],
-        playerId: currentPlayer?.player_id
-      });
-  
-      // Reset locked state on error
+      console.error('Error submitting score:', error);
       setLockedCategories(prev => ({
         ...prev,
         [key]: false
