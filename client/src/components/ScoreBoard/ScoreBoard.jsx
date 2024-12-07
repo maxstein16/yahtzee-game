@@ -29,6 +29,7 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
 }) => {
+  const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [scores, setScores] = useState(() => {
     const initialScores = {};
     playerCategories.forEach(category => {
@@ -43,10 +44,15 @@ const Scoreboard = ({
         try {
           const categories = await API.getPlayerCategories(currentPlayer.id);
           const scoreMap = {};
+          const selected = new Set();
           categories.forEach(category => {
             scoreMap[category.name.toLowerCase()] = category.score;
+            if (category.score !== null) {
+              selected.add(category.name.toLowerCase());
+            }
           });
           setScores(scoreMap);
+          setSelectedCategories(selected);
         } catch (error) {
           console.error('Error fetching scores:', error);
         }
@@ -60,12 +66,10 @@ const Scoreboard = ({
     const categoryKey = category.name.toLowerCase();
     const mappedCategory = categoryNameMapping[categoryKey];
     
-    // If category has a submitted score, show it
-    if (scores[categoryKey] !== null && scores[categoryKey] !== undefined) {
-      return scores[categoryKey];
+    if (selectedCategories.has(categoryKey)) {
+      return scores[categoryKey] || '0';
     }
     
-    // If we have dice values and it's an available move, show possible score
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const possibleScores = calculateScores(diceValues);
       return possibleScores[mappedCategory] || '-';
@@ -76,19 +80,15 @@ const Scoreboard = ({
 
   const isCategoryAvailable = (category) => {
     const categoryKey = category.name.toLowerCase();
-    const hasNoScore = scores[categoryKey] === null || scores[categoryKey] === undefined;
-    return rollCount > 0 && hasNoScore;
-  };
-
-  const isScoreSubmitted = (category) => {
-    const categoryKey = category.name.toLowerCase();
-    return scores[categoryKey] !== null && scores[categoryKey] !== undefined;
+    return rollCount > 0 && !selectedCategories.has(categoryKey);
   };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
     try {
       await handleScoreCategoryClick(category.name);
+      setSelectedCategories(prev => new Set([...prev, category.name.toLowerCase()]));
+      
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
       const scoreMap = {};
       updatedCategories.forEach(category => {
@@ -106,24 +106,6 @@ const Scoreboard = ({
       .reduce((sum, score) => sum + (score || 0), 0);
   };
 
-  const getCategoryStyle = (category, isAvailable, isTemporaryScore) => {
-    const submitted = isScoreSubmitted(category);
-    
-    return {
-      cursor: isAvailable ? 'pointer' : 'default',
-      backgroundColor: submitted ? '#f5f5f5' : 'inherit',
-      opacity: submitted ? 0.7 : 1,
-    };
-  };
-
-  const getScoreStyle = (isAvailable, isTemporaryScore, submitted) => {
-    return {
-      textAlign: 'center',
-      color: submitted ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
-      fontWeight: isTemporaryScore && !submitted ? 'bold' : 'normal',
-    };
-  };
-
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
@@ -136,20 +118,31 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
+            const categoryKey = category.name.toLowerCase();
             const isAvailable = isCategoryAvailable(category);
             const score = getDisplayScore(category);
+            const isSelected = selectedCategories.has(categoryKey);
             const isTemporaryScore = isAvailable && diceValues && diceValues.length > 0;
-            const submitted = isScoreSubmitted(category);
             
             return (
               <tr
                 key={category.category_id}
                 onClick={() => handleClick(category)}
                 className={isAvailable ? 'clickable' : ''}
-                style={getCategoryStyle(category, isAvailable, isTemporaryScore)}
+                style={{
+                  backgroundColor: isSelected ? '#f5f5f5' : 'inherit',
+                  opacity: isSelected ? 0.7 : 1,
+                  cursor: isAvailable ? 'pointer' : 'default'
+                }}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td style={getScoreStyle(isAvailable, isTemporaryScore, submitted)}>
+                <td 
+                  style={{ 
+                    textAlign: 'center',
+                    color: isSelected ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
+                    fontWeight: (isTemporaryScore && !isSelected) ? 'bold' : 'normal'
+                  }}
+                >
                   {score}
                 </td>
               </tr>
