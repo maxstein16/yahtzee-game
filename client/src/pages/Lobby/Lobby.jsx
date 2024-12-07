@@ -14,7 +14,6 @@ const LobbyView = ({
   selectedDice,
   isRolling,
   rollCount,
-  playerTotal,
   playerCategories,
   handleNewGame,
   handleLogout,
@@ -43,7 +42,7 @@ const LobbyView = ({
       <Content className="game-container">
         <div className="game-board">
           <div className="player-section">
-            <Title level={4}>{currentPlayer?.name || 'Player'} (Total: {playerTotal})</Title>
+            <Title level={4}>{currentPlayer?.name || 'Player'}</Title>
             <div className="game-dice-container">
               {diceValues.map((value, index) => (
                 <Dice
