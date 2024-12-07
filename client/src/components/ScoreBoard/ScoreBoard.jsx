@@ -5,6 +5,22 @@ import '../../styles/ScoreBoard.css';
 
 const { Title } = Typography;
 
+const categoryNameMapping = {
+  'ones': 'ones',
+  'twos': 'twos',
+  'threes': 'threes',
+  'fours': 'fours',
+  'fives': 'fives',
+  'sixes': 'sixes',
+  'three of a kind': 'threeOfAKind',
+  'four of a kind': 'fourOfAKind',
+  'full house': 'fullHouse',
+  'small straight': 'smallStraight',
+  'large straight': 'largeStraight',
+  'yahtzee': 'yahtzee',
+  'chance': 'chance'
+};
+
 const Scoreboard = ({
   currentPlayer,
   playerCategories,
@@ -41,18 +57,19 @@ const Scoreboard = ({
   }, [currentPlayer?.id]);
 
   const getDisplayScore = (category) => {
-    const categoryName = category.name.toLowerCase();
+    const categoryKey = category.name.toLowerCase();
+    const mappedCategory = categoryNameMapping[categoryKey];
     
     // If the category is already scored, show the saved score
-    if (scores[categoryName] !== null) {
-      return scores[categoryName] || '0';
+    if (scores[categoryKey] !== null) {
+      return scores[categoryKey] || '0';
     }
     
-    // If we have dice values and it's an available move, calculate and show possible score
+    // If we have dice values and it's an available move, show the possible score
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const possibleScores = calculateScores(diceValues);
-      if (possibleScores.hasOwnProperty(categoryName)) {
-        return possibleScores[categoryName];
+      if (mappedCategory && possibleScores.hasOwnProperty(mappedCategory)) {
+        return possibleScores[mappedCategory];
       }
     }
     
@@ -60,16 +77,12 @@ const Scoreboard = ({
   };
 
   const isCategoryAvailable = (category) => {
-    const categoryName = category.name.toLowerCase();
-    return rollCount > 0 && scores[categoryName] === null;
+    const categoryKey = category.name.toLowerCase();
+    return rollCount > 0 && scores[categoryKey] === null;
   };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
-    
-    // Get the possible score before submitting
-    const possibleScore = getDisplayScore(category);
-    
     try {
       await handleScoreCategoryClick(category.name);
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
