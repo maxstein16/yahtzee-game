@@ -19,6 +19,7 @@ const Scoreboard = ({
   const [totalScore, setTotalScore] = useState(0);
 
   const formatCategoryName = (name) => {
+    console.log('Raw category name:', name); // Added this line
     const specialCases = {
       threeOfAKind: 'Three of a Kind',
       fourOfAKind: 'Four of a Kind',
@@ -121,6 +122,7 @@ const Scoreboard = ({
       }));
 
       const currentScore = scores[key];
+      console.log('Submitting category name:', category.name); // Added this line
       await handleScoreCategoryClick(category.name);
 
       setScores(prev => ({
