@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography } from 'antd';
-import API from '../../api';
+import API from '../../utils/api';
 import '../../styles/ScoreBoard.css';
 
 const { Title } = Typography;
