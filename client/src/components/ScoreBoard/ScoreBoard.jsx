@@ -27,7 +27,7 @@ const Scoreboard = ({
           categories.forEach((category) => {
             const key = category.name.toLowerCase();
             scoreMap[key] = category.score;
-            lockedMap[key] = category.score !== null; // Gray out if score exists
+            lockedMap[key] = category.score !== null; // Mark as locked if score exists
           });
           setScores(scoreMap);
           setLockedCategories(lockedMap);
@@ -73,10 +73,15 @@ const Scoreboard = ({
     if (!isCategoryAvailable(category)) return;
 
     try {
-      // Submit the score using the provided handler
       await handleScoreCategoryClick(category.name);
+      
+      // Immediately lock the category and update the UI
+      setLockedCategories(prev => ({
+        ...prev,
+        [key]: true
+      }));
 
-      // Update the API and UI states after submission
+      // Fetch updated scores from the API
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
       const scoreMap = {};
       const lockedMap = {};
@@ -90,11 +95,23 @@ const Scoreboard = ({
       setLockedCategories(lockedMap);
     } catch (error) {
       console.error('Error handling category click:', error);
+      // Revert the lock if the API call fails
+      setLockedCategories(prev => ({
+        ...prev,
+        [key]: false
+      }));
     }
   };
 
   const calculateTotal = () => {
     return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
+  };
+
+  const getCategoryClassName = (category) => {
+    const key = category.name.toLowerCase();
+    if (lockedCategories[key]) return 'locked';
+    if (isCategoryAvailable(category)) return 'clickable';
+    return '';
   };
 
   return (
@@ -108,23 +125,18 @@ const Scoreboard = ({
           </tr>
         </thead>
         <tbody>
-          {playerCategories.map((category) => {
-            const key = category.name.toLowerCase();
-            const isAvailable = isCategoryAvailable(category);
-            const isLocked = lockedCategories[key];
-            return (
-              <tr
-                key={category.category_id}
-                onClick={() => handleClick(category)}
-                className={isAvailable ? 'clickable' : isLocked ? 'locked' : ''}
-              >
-                <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td style={{ textAlign: 'center' }}>
-                  {getDisplayScore(category)}
-                </td>
-              </tr>
-            );
-          })}
+          {playerCategories.map((category) => (
+            <tr
+              key={category.category_id}
+              onClick={() => handleClick(category)}
+              className={getCategoryClassName(category)}
+            >
+              <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
+              <td style={{ textAlign: 'center' }}>
+                {getDisplayScore(category)}
+              </td>
+            </tr>
+          ))}
           <tr className="total-row">
             <td style={{ fontWeight: 'bold' }}>Total</td>
             <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
