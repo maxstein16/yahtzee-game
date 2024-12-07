@@ -24,12 +24,18 @@ const Scoreboard = ({
       fullHouse: 'Full House',
       smallStraight: 'Small Straight',
       largeStraight: 'Large Straight',
+      yahtzee: 'Yahtzee',
+      ones: 'Ones',
+      twos: 'Twos',
+      threes: 'Threes',
+      fours: 'Fours',
+      fives: 'Fives',
+      sixes: 'Sixes',
+      chance: 'Chance'
     };
-
-    return specialCases[name] || name.charAt(0).toUpperCase() + name.slice(1);
+    return specialCases[name] || name;
   };
 
-  // Load initial scores
   useEffect(() => {
     const loadScores = async () => {
       if (currentPlayer?.player_id) {
@@ -42,9 +48,8 @@ const Scoreboard = ({
           
           categories.forEach((category) => {
             const key = category.name;
-            if (category.score !== null) {
+            if (category.is_submitted) {
               scoreMap[key] = category.score;
-              // Only lock categories that have been submitted (have a non-null score)
               lockedMap[key] = true;
             } else {
               scoreMap[key] = '-';
@@ -63,7 +68,6 @@ const Scoreboard = ({
     loadScores();
   }, [currentPlayer?.player_id]);
 
-  // Reset possible scores when turn starts
   useEffect(() => {
     if (rollCount === 0) {
       setScores(prevScores => {
@@ -78,7 +82,6 @@ const Scoreboard = ({
     }
   }, [rollCount, lockedCategories]);
 
-  // Update available scores when dice are rolled
   useEffect(() => {
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
@@ -112,8 +115,25 @@ const Scoreboard = ({
         [key]: currentScore
       }));
 
-      onTurnComplete();
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+      const scoreMap = {};
+      const lockedMap = {};
+      
+      updatedCategories.forEach((cat) => {
+        const catKey = cat.name;
+        if (cat.is_submitted) {
+          scoreMap[catKey] = cat.score;
+          lockedMap[catKey] = true;
+        } else {
+          scoreMap[catKey] = '-';
+          lockedMap[catKey] = false;
+        }
+      });
 
+      setScores(scoreMap);
+      setLockedCategories(lockedMap);
+
+      onTurnComplete();
     } catch (error) {
       console.error('Error submitting score:', error);
       setLockedCategories(prev => ({
@@ -129,10 +149,26 @@ const Scoreboard = ({
       .reduce((sum, score) => sum + score, 0);
   };
 
+  const getScoreStyle = (isLocked, isAvailable) => {
+    return {
+      textAlign: 'center',
+      fontWeight: isAvailable ? 'bold' : 'normal',
+      color: isLocked ? '#666' : isAvailable ? '#1890ff' : '#000'
+    };
+  };
+
+  const getRowStyle = (isLocked, isAvailable) => {
+    return {
+      cursor: isAvailable ? 'pointer' : 'default',
+      backgroundColor: isAvailable ? '#f5f5f5' : 'transparent',
+      opacity: isLocked ? 0.6 : 1
+    };
+  };
+
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
-      <table>
+      <table className="score-table">
         <thead>
           <tr>
             <th>Category</th>
@@ -140,34 +176,54 @@ const Scoreboard = ({
           </tr>
         </thead>
         <tbody>
-          {playerCategories.map((category) => {
-            const key = category.name;
-            const isLocked = lockedCategories[key];
-            const score = scores[key];
-            const isAvailable = !isLocked && rollCount > 0;
-            
-            return (
-              <tr
-                key={category.category_id}
-                onClick={() => handleClick(category)}
-                className={`
-                  ${isLocked ? 'locked' : ''} 
-                  ${isAvailable ? 'clickable' : ''}
-                `}
-                style={{
-                  opacity: isLocked ? 0.6 : 1,
-                  cursor: isAvailable ? 'pointer' : 'default',
-                }}
-              >
-                <td>{formatCategoryName(category.name)}</td>
-                <td style={{ textAlign: 'center' }}>
-                  {score}
-                </td>
-              </tr>
-            );
-          })}
+          <tr className="section-header">
+            <td colSpan="2">Upper Section</td>
+          </tr>
+          {playerCategories
+            .filter(cat => ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].includes(cat.name))
+            .map((category) => {
+              const key = category.name;
+              const isLocked = lockedCategories[key];
+              const score = scores[key];
+              const isAvailable = !isLocked && rollCount > 0;
+              
+              return (
+                <tr
+                  key={category.category_id}
+                  onClick={() => handleClick(category)}
+                  style={getRowStyle(isLocked, isAvailable)}
+                >
+                  <td>{formatCategoryName(category.name)}</td>
+                  <td style={getScoreStyle(isLocked, isAvailable)}>{score}</td>
+                </tr>
+              );
+            })}
+
+          <tr className="section-header">
+            <td colSpan="2">Lower Section</td>
+          </tr>
+          {playerCategories
+            .filter(cat => !['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].includes(cat.name))
+            .map((category) => {
+              const key = category.name;
+              const isLocked = lockedCategories[key];
+              const score = scores[key];
+              const isAvailable = !isLocked && rollCount > 0;
+              
+              return (
+                <tr
+                  key={category.category_id}
+                  onClick={() => handleClick(category)}
+                  style={getRowStyle(isLocked, isAvailable)}
+                >
+                  <td>{formatCategoryName(category.name)}</td>
+                  <td style={getScoreStyle(isLocked, isAvailable)}>{score}</td>
+                </tr>
+              );
+            })}
+
           <tr className="total-row">
-            <td style={{ fontWeight: 'bold' }}>Total</td>
+            <td>Total Score</td>
             <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
               {calculateTotal()}
             </td>

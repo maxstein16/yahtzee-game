@@ -16,32 +16,23 @@ const runSQL = async (sql, data) => {
     database: process.env.DB_NAME,
   });
 
-  // Execute the query
-  const [result] = await pool.execute(sql, data); // Corrected to use execute()
+  const [result] = await pool.execute(sql, data);
   return result;
 }
 
 async function createScoreCategory(name, maxScore, playerId) {
   const query = `
-    INSERT INTO scorecategory (name, max_score, player_id, score) 
-    VALUES (?, ?, ?, 0);
+    INSERT INTO scorecategory (name, max_score, player_id, score, is_submitted) 
+    VALUES (?, ?, ?, NULL, false);
   `;
   const result = await runSQL(query, [name, maxScore, playerId]);
   return result.insertId;
 }
 
-async function getScoreCategoryById(categoryId) {
-  const query = `
-    SELECT * FROM scorecategory 
-    WHERE category_id = ?;
-  `;
-  const results = await runSQL(query, [categoryId]);
-  return results[0];
-}
-
 async function getPlayerCategories(playerId) {
   const query = `
-    SELECT * FROM scorecategory 
+    SELECT category_id, name, max_score, score, is_submitted 
+    FROM scorecategory 
     WHERE player_id = ?;
   `;
   return await runSQL(query, [playerId]);
@@ -50,7 +41,7 @@ async function getPlayerCategories(playerId) {
 async function updateScoreCategory(categoryId, score) {
   const query = `
     UPDATE scorecategory 
-    SET score = ? 
+    SET score = ?, is_submitted = true 
     WHERE category_id = ?;
   `;
   const result = await runSQL(query, [score, categoryId]);
@@ -58,10 +49,9 @@ async function updateScoreCategory(categoryId, score) {
 }
 
 async function initializePlayerCategories(playerId) {
-  // First check if player already has categories
   const existingCategories = await getPlayerCategories(playerId);
   if (existingCategories && existingCategories.length > 0) {
-    return true; // Categories already exist, no need to initialize
+    return true;
   }
 
   const categories = [
@@ -81,11 +71,10 @@ async function initializePlayerCategories(playerId) {
   ];
 
   try {
-    // Using multiple single inserts since runSQL doesn't support multiple value sets
     for (const [name, maxScore] of categories) {
       const query = `
-        INSERT INTO scorecategory (name, max_score, player_id, score) 
-        VALUES (?, ?, ?, 0);
+        INSERT INTO scorecategory (name, max_score, player_id, score, is_submitted) 
+        VALUES (?, ?, ?, NULL, false);
       `;
       await runSQL(query, [name, maxScore, playerId]);
     }
@@ -96,20 +85,10 @@ async function initializePlayerCategories(playerId) {
   }
 }
 
-async function getPlayerTotalScore(playerId) {
-  const query = `
-    SELECT SUM(score) as total 
-    FROM scorecategory 
-    WHERE player_id = ?;
-  `;
-  const results = await runSQL(query, [playerId]);
-  return results[0].total || 0;
-}
-
 async function resetPlayerCategories(playerId) {
   const query = `
     UPDATE scorecategory 
-    SET score = 0 
+    SET score = NULL, is_submitted = false 
     WHERE player_id = ?;
   `;
   const result = await runSQL(query, [playerId]);
@@ -129,11 +108,9 @@ async function getPlayerCategory(playerId, categoryName) {
 
 module.exports = {
   createScoreCategory,
-  getScoreCategoryById,
   getPlayerCategories,
   updateScoreCategory,
   initializePlayerCategories,
-  getPlayerTotalScore,
   resetPlayerCategories,
   getPlayerCategory
 };

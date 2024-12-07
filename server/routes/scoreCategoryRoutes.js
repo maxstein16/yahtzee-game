@@ -4,7 +4,6 @@ const {
   initializePlayerCategories,
   getPlayerCategories,
   updateScoreCategory,
-  getPlayerTotalScore,
   resetPlayerCategories,
   getPlayerCategory
 } = require('../db/scoreCategoryQueries');
@@ -12,7 +11,6 @@ const {
 // POST route to initialize categories for a player
 router.post('/scorecategory/init/:playerId', async (req, res) => {
   try {
-    // First check if player already has categories
     const existingCategories = await getPlayerCategories(req.params.playerId);
     if (existingCategories && existingCategories.length > 0) {
       return res.json({ 
@@ -21,7 +19,6 @@ router.post('/scorecategory/init/:playerId', async (req, res) => {
       });
     }
 
-    // If no categories exist, initialize them
     await initializePlayerCategories(req.params.playerId);
     const newCategories = await getPlayerCategories(req.params.playerId);
     res.json({ 
@@ -37,7 +34,12 @@ router.post('/scorecategory/init/:playerId', async (req, res) => {
 router.get('/scorecategory/player/:playerId', async (req, res) => {
   try {
     const categories = await getPlayerCategories(req.params.playerId);
-    res.json(categories);
+    // Ensure we send the is_submitted field
+    const formattedCategories = categories.map(category => ({
+      ...category,
+      is_submitted: Boolean(category.is_submitted)
+    }));
+    res.json(formattedCategories);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -53,6 +55,8 @@ router.get('/scorecategory/player/:playerId/category/:categoryName', async (req,
     if (!category) {
       return res.status(404).json({ message: 'Category not found' });
     }
+    // Ensure we send the is_submitted field
+    category.is_submitted = Boolean(category.is_submitted);
     res.json(category);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -76,16 +80,6 @@ router.put('/scorecategory/:categoryId', async (req, res) => {
   }
 });
 
-// GET route to get total score for a player
-router.get('/scorecategory/player/:playerId/total', async (req, res) => {
-  try {
-    const totalScore = await getPlayerTotalScore(req.params.playerId);
-    res.json({ totalScore });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // PUT route to reset all categories for a player (new game)
 router.put('/scorecategory/player/:playerId/reset', async (req, res) => {
   try {
@@ -94,26 +88,6 @@ router.put('/scorecategory/player/:playerId/reset', async (req, res) => {
       return res.status(404).json({ message: 'Player categories not found' });
     }
     res.json({ message: 'Categories reset successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE route to delete all categories for a player (cleanup)
-router.delete('/scorecategory/player/:playerId', async (req, res) => {
-  try {
-    await deletePlayerCategories(req.params.playerId);
-    res.json({ message: 'Player categories deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET route to get all categories for a game
-router.get('/scorecategory/game/:gameId', async (req, res) => {
-  try {
-    const categories = await getGameCategories(req.params.gameId);
-    res.json(categories);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -137,11 +111,13 @@ router.put('/scorecategory/game/:gameId/submit', async (req, res) => {
       throw new Error('Failed to update score');
     }
     
+    // Return the updated category with is_submitted field
     res.json({ 
       message: 'Score submitted successfully',
       category: {
         ...category,
-        score
+        score,
+        is_submitted: true
       }
     });
   } catch (err) {
