@@ -29,16 +29,6 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
 }) => {
-  const [submittedCategories, setSubmittedCategories] = useState(() => {
-    const submitted = new Set();
-    playerCategories.forEach(category => {
-      if (category.score !== null) {
-        submitted.add(category.name.toLowerCase());
-      }
-    });
-    return submitted;
-  });
-
   const [scores, setScores] = useState(() => {
     const initialScores = {};
     playerCategories.forEach(category => {
@@ -49,30 +39,22 @@ const Scoreboard = ({
 
   useEffect(() => {
     const newScores = {};
-    const newSubmitted = new Set();
-    
     playerCategories.forEach(category => {
-      const categoryKey = category.name.toLowerCase();
-      newScores[categoryKey] = category.score;
-      if (category.score !== null) {
-        newSubmitted.add(categoryKey);
-      }
+      newScores[category.name.toLowerCase()] = category.score;
     });
-    
     setScores(newScores);
-    setSubmittedCategories(newSubmitted);
   }, [playerCategories]);
 
   const getDisplayScore = (category) => {
     const categoryKey = category.name.toLowerCase();
     const mappedCategory = categoryNameMapping[categoryKey];
     
-    // If category has been submitted, show the saved score
-    if (submittedCategories.has(categoryKey)) {
+    // If category has been submitted (has a score in the database), show that score
+    if (scores[categoryKey] !== null) {
       return scores[categoryKey];
     }
     
-    // If we have dice values and it's an available move, show possible score
+    // If we have dice values, show possible score
     if (diceValues && diceValues.length > 0) {
       const possibleScores = calculateScores(diceValues);
       return possibleScores[mappedCategory] || '-';
@@ -81,43 +63,36 @@ const Scoreboard = ({
     return '-';
   };
 
-  const isCategoryAvailable = (category) => {
+  const isCategorySubmitted = (category) => {
     const categoryKey = category.name.toLowerCase();
-    return !submittedCategories.has(categoryKey);
+    return scores[categoryKey] !== null;
+  };
+
+  const isCategoryAvailable = (category) => {
+    return !isCategorySubmitted(category) && rollCount > 0;
   };
 
   const handleClick = async (category) => {
-    if (submittedCategories.has(category.name.toLowerCase())) return;
-    if (rollCount === 0) return;
-    
-    const categoryKey = category.name.toLowerCase();
+    if (isCategorySubmitted(category) || rollCount === 0) return;
     
     try {
-      setSubmittedCategories(prev => new Set([...prev, categoryKey]));
-      
       await handleScoreCategoryClick(category.name);
       
+      // Fetch updated categories to get the new scores
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
-      
       const newScores = {};
       updatedCategories.forEach(cat => {
         newScores[cat.name.toLowerCase()] = cat.score;
       });
       setScores(newScores);
-      
     } catch (error) {
       console.error('Error handling category click:', error);
-      setSubmittedCategories(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(categoryKey);
-        return newSet;
-      });
     }
   };
 
   const calculateTotal = () => {
     return Object.values(scores)
-      .filter(score => score !== null && score !== undefined)
+      .filter(score => score !== null)
       .reduce((sum, score) => sum + (score || 0), 0);
   };
 
@@ -133,9 +108,8 @@ const Scoreboard = ({
         </thead>
         <tbody>
           {playerCategories.map((category) => {
-            const categoryKey = category.name.toLowerCase();
-            const isSubmitted = submittedCategories.has(categoryKey);
-            const isAvailable = !isSubmitted && rollCount > 0;
+            const isSubmitted = isCategorySubmitted(category);
+            const isAvailable = isCategoryAvailable(category);
             const score = getDisplayScore(category);
             const isTemporaryScore = !isSubmitted && diceValues && diceValues.length > 0;
             
