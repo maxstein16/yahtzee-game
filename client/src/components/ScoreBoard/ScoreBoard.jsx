@@ -38,6 +38,7 @@ const Scoreboard = ({
     return initialScores;
   });
 
+  // Fetch initial scores and selected categories
   useEffect(() => {
     const fetchScores = async () => {
       if (currentPlayer?.id) {
@@ -67,7 +68,7 @@ const Scoreboard = ({
     const mappedCategory = categoryNameMapping[categoryKey];
     
     if (selectedCategories.has(categoryKey)) {
-      return scores[categoryKey] || '0';
+      return scores[categoryKey];
     }
     
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
@@ -85,16 +86,31 @@ const Scoreboard = ({
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
+    
     try {
+      // First submit the score
       await handleScoreCategoryClick(category.name);
-      setSelectedCategories(prev => new Set([...prev, category.name.toLowerCase()]));
       
+      // Then fetch the updated category to get the actual saved score
+      const updatedCategory = await API.getPlayerCategory(currentPlayer.id, category.name);
+      
+      // Only update UI after we have the confirmed score from the database
+      if (updatedCategory) {
+        setSelectedCategories(prev => new Set([...prev, category.name.toLowerCase()]));
+        setScores(prev => ({
+          ...prev,
+          [category.name.toLowerCase()]: updatedCategory.score
+        }));
+      }
+      
+      // Refresh all categories to ensure everything is in sync
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
       const scoreMap = {};
       updatedCategories.forEach(category => {
         scoreMap[category.name.toLowerCase()] = category.score;
       });
       setScores(scoreMap);
+      
     } catch (error) {
       console.error('Error handling category click:', error);
     }
