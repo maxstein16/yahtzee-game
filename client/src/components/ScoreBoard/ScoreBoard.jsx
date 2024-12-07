@@ -51,23 +51,26 @@ const Scoreboard = ({
   }, [currentPlayer?.player_id, gameId]);
 
   const getDisplayScore = (category) => {
-    // If we have current dice values AND category isn't scored yet, show possible score
-    if (diceValues && diceValues.length > 0 && dbScores[category.name] === undefined) {
-      const currentPossibleScores = calculateScores(diceValues);
-      return currentPossibleScores[category.name];
-    }
-    
-    // If category is already scored, show the saved score
-    if (dbScores[category.name] !== undefined) {
-      return dbScores[category.name];
-    }
-    
-    return '-';
+      // If category is already scored in the database, show that score
+      if (dbScores[category.name] !== undefined && dbScores[category.name] !== null) {
+          return dbScores[category.name];
+      }
+      
+      // If we have dice values, calculate and show the potential score
+      if (diceValues && diceValues.length > 0) {
+          const currentPossibleScores = calculateScores(diceValues);
+          // Convert category name to match the scoring object format
+          const categoryKey = category.name.replace(/\s+/g, '').toLowerCase();
+          return currentPossibleScores[categoryKey] ?? '-';
+      }
+      
+      return '-';
   };
-  
-  const isCategoryAvailable = (category) => {
-    return rollCount > 0 && dbScores[category.name] === undefined;
-  };
+
+    const isCategoryAvailable = (category) => {
+        return rollCount > 0 && 
+              (dbScores[category.name] === undefined || dbScores[category.name] === null);
+    };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
