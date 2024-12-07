@@ -64,11 +64,11 @@ const Scoreboard = ({
   };
 
   const isCategorySubmitted = (category) => {
-    return category.score !== null;
+    return category.score == null;
   };
 
   const isCategoryAvailable = (category) => {
-    return !isCategorySubmitted(category) && rollCount > 0;
+    return isCategorySubmitted(category) && rollCount > 0;
   };
 
   const handleClick = async (category) => {
