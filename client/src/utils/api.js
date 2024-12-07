@@ -44,6 +44,16 @@ export const getActiveGameForPlayer = (playerId) =>
   apiRequest(`/game/active/${playerId}`);
 
 // Score Category Management
+export const initializePlayerCategories = async (playerId) => {
+  try {
+    const response = await apiRequest(`/scorecategory/init/${playerId}`, 'POST');
+    return response.categories;
+  } catch (error) {
+    console.error('Error initializing categories:', error);
+    throw error;
+  }
+};
+
 export const getPlayerCategories = (playerId) => 
   apiRequest(`/scorecategory/player/${playerId}`);
 
@@ -130,6 +140,7 @@ const API = {
   getPlayerCategory,
   updateScoreCategory,
   resetPlayerCategories,
+  initializePlayerCategories,
   getPlayerTotalScore,
   submitGameScore,
   getChatMessages,
