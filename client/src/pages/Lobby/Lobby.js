@@ -147,7 +147,7 @@ function Lobby() {
         currentPlayer.player_id,
         diceValues,
         rollCount,
-        score, // Using verified score
+        score,
         false
       );
   
@@ -174,11 +174,12 @@ function Lobby() {
         throw new Error('Failed to submit score');
       }
   
+      // Updated to include score in the submitTurn call
       const turnResult = await API.submitTurn(
         gameId,
         currentPlayer.player_id,
         categoryInfo.category_id,
-        currentScores[category.toLowerCase()],
+        score, // Added missing score parameter
         diceValues,
         rollCount
       );
