@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Typography } from 'antd';
-import API from '../../utils/api';
 import '../../styles/ScoreBoard.css';
 
 const { Title } = Typography;
@@ -8,81 +7,27 @@ const { Title } = Typography;
 const Scoreboard = ({
   currentPlayer,
   playerCategories,
-  calculateScores,  // Using this prop only
+  calculateScores,
   diceValues,
   rollCount,
   handleScoreCategoryClick,
-  gameId,
-  shouldResetScores
 }) => {
-  const [dbScores, setDbScores] = useState({});
-
-  useEffect(() => {
-    if (shouldResetScores) {
-      setDbScores({});
-    }
-  }, [shouldResetScores]);
-
-  useEffect(() => {
-    if (diceValues && diceValues.length > 0) {
-      console.log('Dice values changed:', diceValues);
-      const scores = calculateScores(diceValues);
-      console.log('Calculated scores:', scores);
-    }
-  }, [diceValues, calculateScores]);
-
-  useEffect(() => {
-    const fetchScores = async () => {
-      if (!currentPlayer?.player_id || !gameId) return;
-      try {
-        const categories = await API.getPlayerCategories(currentPlayer.player_id, gameId);
-        const scoreMap = {};
-        categories.forEach(cat => {
-          if (cat.score !== null) {  // Only include categories that have been scored
-            scoreMap[cat.name] = cat.score;
-          }
-        });
-        setDbScores(scoreMap);
-      } catch (error) {
-        console.error('Error fetching scores:', error);
-      }
-    };
-    fetchScores();
-  }, [currentPlayer?.player_id, gameId]);
-
   const getDisplayScore = (category) => {
-      // If category is already scored in the database, show that score
-      if (dbScores[category.name] !== undefined && dbScores[category.name] !== null) {
-          return dbScores[category.name];
-      }
-      
-      // If we have dice values, calculate and show the potential score
-      if (diceValues && diceValues.length > 0) {
-          const currentPossibleScores = calculateScores(diceValues);
-          // Convert category name to match the scoring object format
-          const categoryKey = category.name.replace(/\s+/g, '').toLowerCase();
-          return currentPossibleScores[categoryKey] ?? '-';
-      }
-      
-      return '-';
+    if (diceValues && diceValues.length > 0) {
+      const currentScores = calculateScores(diceValues);
+      return currentScores[category.name.toLowerCase()] || '-';
+    }
+    return '-';
   };
 
-    const isCategoryAvailable = (category) => {
-        return rollCount > 0 && 
-              (dbScores[category.name] === undefined || dbScores[category.name] === null);
-    };
+  const isCategoryAvailable = (category) => {
+    return rollCount > 0;
+  };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
-
     try {
-      const currentScores = calculateScores([...diceValues]);
-      const scoreToSave = currentScores[category.name];
       await handleScoreCategoryClick(category.name);
-      setDbScores(prev => ({
-        ...prev,
-        [category.name]: scoreToSave
-      }));
     } catch (error) {
       console.error('Error handling category click:', error);
     }
@@ -91,7 +36,6 @@ const Scoreboard = ({
   return (
     <div className="scoreboard">
       <Title level={4}>Scoreboard</Title>
-      {console.log('playerCategories:', playerCategories)}
       <table>
         <thead>
           <tr>
