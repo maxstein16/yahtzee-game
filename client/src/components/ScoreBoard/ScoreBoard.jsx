@@ -29,7 +29,17 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
 }) => {
-  const [selectedCategories, setSelectedCategories] = useState(new Set());
+  const [submittedCategories, setSubmittedCategories] = useState(() => {
+    // Initialize with categories that already have scores
+    const submitted = new Set();
+    playerCategories.forEach(category => {
+      if (category.score !== null) {
+        submitted.add(category.name.toLowerCase());
+      }
+    });
+    return submitted;
+  });
+
   const [scores, setScores] = useState(() => {
     const initialScores = {};
     playerCategories.forEach(category => {
@@ -38,39 +48,33 @@ const Scoreboard = ({
     return initialScores;
   });
 
-  // Fetch initial scores and selected categories
+  // Update state when playerCategories changes
   useEffect(() => {
-    const fetchScores = async () => {
-      if (currentPlayer?.id) {
-        try {
-          const categories = await API.getPlayerCategories(currentPlayer.id);
-          const scoreMap = {};
-          const selected = new Set();
-          categories.forEach(category => {
-            scoreMap[category.name.toLowerCase()] = category.score;
-            if (category.score !== null) {
-              selected.add(category.name.toLowerCase());
-            }
-          });
-          setScores(scoreMap);
-          setSelectedCategories(selected);
-        } catch (error) {
-          console.error('Error fetching scores:', error);
-        }
+    const newScores = {};
+    const newSubmitted = new Set();
+    
+    playerCategories.forEach(category => {
+      const categoryKey = category.name.toLowerCase();
+      newScores[categoryKey] = category.score;
+      if (category.score !== null) {
+        newSubmitted.add(categoryKey);
       }
-    };
-
-    fetchScores();
-  }, [currentPlayer?.id]);
+    });
+    
+    setScores(newScores);
+    setSubmittedCategories(newSubmitted);
+  }, [playerCategories]);
 
   const getDisplayScore = (category) => {
     const categoryKey = category.name.toLowerCase();
     const mappedCategory = categoryNameMapping[categoryKey];
     
-    if (selectedCategories.has(categoryKey)) {
+    // If category has been submitted, show the saved score
+    if (submittedCategories.has(categoryKey)) {
       return scores[categoryKey];
     }
     
+    // If we have dice values and it's an available move, show possible score
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const possibleScores = calculateScores(diceValues);
       return possibleScores[mappedCategory] || '-';
@@ -81,38 +85,39 @@ const Scoreboard = ({
 
   const isCategoryAvailable = (category) => {
     const categoryKey = category.name.toLowerCase();
-    return rollCount > 0 && !selectedCategories.has(categoryKey);
+    return rollCount > 0 && !submittedCategories.has(categoryKey);
   };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
     
+    const categoryKey = category.name.toLowerCase();
+    
     try {
-      // First submit the score
+      // Mark as submitted immediately for UI feedback
+      setSubmittedCategories(prev => new Set([...prev, categoryKey]));
+      
+      // Submit score
       await handleScoreCategoryClick(category.name);
       
-      // Then fetch the updated category to get the actual saved score
-      const updatedCategory = await API.getPlayerCategory(currentPlayer.id, category.name);
-      
-      // Only update UI after we have the confirmed score from the database
-      if (updatedCategory) {
-        setSelectedCategories(prev => new Set([...prev, category.name.toLowerCase()]));
-        setScores(prev => ({
-          ...prev,
-          [category.name.toLowerCase()]: updatedCategory.score
-        }));
-      }
-      
-      // Refresh all categories to ensure everything is in sync
+      // Fetch the updated category to get the actual saved score
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
-      const scoreMap = {};
-      updatedCategories.forEach(category => {
-        scoreMap[category.name.toLowerCase()] = category.score;
+      
+      // Update scores with all the latest values
+      const newScores = {};
+      updatedCategories.forEach(cat => {
+        newScores[cat.name.toLowerCase()] = cat.score;
       });
-      setScores(scoreMap);
+      setScores(newScores);
       
     } catch (error) {
       console.error('Error handling category click:', error);
+      // If there was an error, remove from submitted categories
+      setSubmittedCategories(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(categoryKey);
+        return newSet;
+      });
     }
   };
 
@@ -137,7 +142,7 @@ const Scoreboard = ({
             const categoryKey = category.name.toLowerCase();
             const isAvailable = isCategoryAvailable(category);
             const score = getDisplayScore(category);
-            const isSelected = selectedCategories.has(categoryKey);
+            const isSubmitted = submittedCategories.has(categoryKey);
             const isTemporaryScore = isAvailable && diceValues && diceValues.length > 0;
             
             return (
@@ -146,8 +151,8 @@ const Scoreboard = ({
                 onClick={() => handleClick(category)}
                 className={isAvailable ? 'clickable' : ''}
                 style={{
-                  backgroundColor: isSelected ? '#f5f5f5' : 'inherit',
-                  opacity: isSelected ? 0.7 : 1,
+                  backgroundColor: isSubmitted ? '#f5f5f5' : 'inherit',
+                  opacity: isSubmitted ? 0.7 : 1,
                   cursor: isAvailable ? 'pointer' : 'default'
                 }}
               >
@@ -155,8 +160,8 @@ const Scoreboard = ({
                 <td 
                   style={{ 
                     textAlign: 'center',
-                    color: isSelected ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
-                    fontWeight: (isTemporaryScore && !isSelected) ? 'bold' : 'normal'
+                    color: isSubmitted ? '#666' : (isTemporaryScore ? '#1890ff' : 'inherit'),
+                    fontWeight: (isTemporaryScore && !isSubmitted) ? 'bold' : 'normal'
                   }}
                 >
                   {score}
