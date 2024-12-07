@@ -140,10 +140,18 @@ function Lobby() {
         throw new Error('Failed to create turn');
       }
   
+      // Add console.log to see what we're sending
+      console.log('Submitting score with:', {
+        gameId,
+        playerId: currentPlayer.player_id,
+        categoryName: category,  // Make sure this matches exactly
+        score: currentScores[category.toLowerCase()]
+      });
+  
       const scoreResult = await API.submitGameScore(
         gameId, 
         currentPlayer.player_id, 
-        category, 
+        category,  // This needs to exactly match what the API expects
         currentScores[category.toLowerCase()]
       );
       

@@ -69,13 +69,20 @@ export const updateScoreCategory = (categoryId, score) =>
 export const resetPlayerCategories = (playerId) => 
   apiRequest(`/scorecategory/player/${playerId}/reset`, 'PUT');
 
-export const submitGameScore = (gameId, playerId, categoryName, score) => 
-  apiRequest(`/scorecategory/game/${gameId}/submit`, 'PUT', {
+export const submitGameScore = (gameId, playerId, categoryName, score) => {
+  console.log('API submitGameScore payload:', {
     playerId,
     categoryName,
     score,
     is_submitted: true
   });
+  return apiRequest(`/scorecategory/game/${gameId}/submit`, 'PUT', {
+    playerId,
+    categoryName,
+    score,
+    is_submitted: true
+  });
+};
 
 export const getPlayerTotalScore = (playerId) => 
   apiRequest(`/scorecategory/player/${playerId}/total`);
