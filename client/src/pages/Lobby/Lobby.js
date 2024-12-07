@@ -22,20 +22,30 @@ function Lobby() {
   const [shouldResetScores, setShouldResetScores] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(false);
 
+  // Dice and Score States
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
   const [selectedDice, setSelectedDice] = useState([]);
   const [playerCategories, setPlayerCategories] = useState([]);
   const [playerTotal, setPlayerTotal] = useState(0);
-  const [scores, setScores] = useState({});
+  const [currentScores, setCurrentScores] = useState({}); // New state for current possible scores
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
 
-  // AI related states
+  // AI States
   const [aiDiceValues, setAiDiceValues] = useState(INITIAL_DICE_VALUES);
   const [aiRollCount, setAiRollCount] = useState(0);
   const [isAITurn, setIsAITurn] = useState(false);
   const [aiTotal, setAiTotal] = useState(0);
   const [aiCategories, setAiCategories] = useState([]);
+
+  // Calculate scores whenever dice values change
+  useEffect(() => {
+    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+      const newScores = calculateScores(diceValues);
+      console.log('New calculated scores:', newScores); // Debug log
+      setCurrentScores(newScores);
+    }
+  }, [diceValues, rollCount]);
 
   useEffect(() => {
     const initializePlayer = async () => {
@@ -68,7 +78,6 @@ function Lobby() {
               const total = await API.getPlayerTotalScore(currentPlayer.player_id);
               setPlayerTotal(total.totalScore);
 
-              // Get AI categories and total if it's a single player game
               if (mode === 'singleplayer') {
                 const aiCategories = await API.getPlayerCategories('ai-opponent');
                 setAiCategories(aiCategories);
@@ -101,12 +110,15 @@ function Lobby() {
       setGameId(null);
       setShouldResetScores(true);
       
-      // Reset all game states
+      // Reset game states
       resetTurnState({
-        setDiceValues,
+        setDiceValues: (values) => {
+          setDiceValues(values);
+          setCurrentScores(calculateScores(values));
+        },
         setSelectedDice,
         setRollCount,
-        setScores
+        setScores: setCurrentScores
       });
       
       // Reset AI states
@@ -146,7 +158,7 @@ function Lobby() {
         currentPlayer.player_id,
         diceValues,
         rollCount,
-        scores[category],
+        currentScores[category.toLowerCase()], // Use current calculated scores
         false
       );
   
@@ -158,7 +170,7 @@ function Lobby() {
         gameId, 
         currentPlayer.player_id, 
         category, 
-        scores[category]
+        currentScores[category.toLowerCase()] // Use current calculated scores
       );
       
       if (!scoreResult) {
@@ -169,7 +181,7 @@ function Lobby() {
         gameId,
         currentPlayer.player_id,
         categoryInfo.category_id,
-        scores[category],
+        currentScores[category.toLowerCase()], // Use current calculated scores
         diceValues,
         rollCount
       );
@@ -178,21 +190,23 @@ function Lobby() {
         throw new Error('Failed to complete turn');
       }
   
+      // Reset turn state
       resetTurnState({
-        setDiceValues,
+        setDiceValues: (values) => {
+          setDiceValues(values);
+          setCurrentScores(calculateScores(values));
+        },
         setSelectedDice,
         setRollCount,
-        setScores
+        setScores: setCurrentScores
       });
       
+      // Update categories and total
       setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
       setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
       
-      // If it's a single player game, trigger AI turn
       if (mode === 'singleplayer') {
         setIsAITurn(true);
-        // Here you would typically have your AI logic
-        // For now we'll just reset it after a delay
         setTimeout(() => {
           setIsAITurn(false);
         }, 2000);
@@ -207,25 +221,29 @@ function Lobby() {
   };
 
   const handleDiceRoll = async () => {
-    const result = await handleRollDice({
-      rollCount,
-      gameId,
-      currentPlayer,
-      diceValues,
-      selectedDice,
-      setIsRolling,
-      setDiceValues,
-      setScores,
-      setRollCount
-    });
-    
-    // Calculate and update scores based on the new dice values
-    const updatedDiceValues = [...diceValues].map((die, index) => 
-      selectedDice.includes(index) ? die : Math.floor(Math.random() * 6) + 1
-    );
-    
-    const newScores = calculateScores(updatedDiceValues);
-    setScores(newScores);
+    if (rollCount >= 3) {
+      message.warning('Maximum rolls reached for this turn.');
+      return;
+    }
+
+    setIsRolling(true);
+    try {
+      const result = await rollDice(gameId, currentPlayer, diceValues, selectedDice);
+      if (result.success) {
+        setDiceValues(result.dice);
+        const newScores = calculateScores(result.dice);
+        console.log('Calculated scores after roll:', newScores); // Debug log
+        setCurrentScores(newScores);
+        setRollCount(prevCount => prevCount + 1);
+      } else {
+        message.error(result.message);
+      }
+    } catch (error) {
+      console.error('Roll dice error:', error);
+      message.error('Failed to roll dice');
+    } finally {
+      setIsRolling(false);
+    }
   };
 
   const handleDiceSelection = (index) => toggleDiceSelection(
@@ -242,7 +260,7 @@ function Lobby() {
     currentPlayer,
     gameId,
     mode,
-    scores,
+    scores: currentScores, // Pass the current calculated scores
     
     // Player props
     diceValues,

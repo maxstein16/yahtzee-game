@@ -37,6 +37,14 @@ const Scoreboard = ({
     return initialScores;
   });
 
+  // Calculate possible scores whenever dice values change
+  useEffect(() => {
+    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+      const possibleScores = calculateScores(diceValues);
+      console.log('Calculated possible scores:', possibleScores); // Debug log
+    }
+  }, [diceValues, rollCount, calculateScores]);
+
   useEffect(() => {
     const fetchScores = async () => {
       if (currentPlayer?.id) {
@@ -60,17 +68,16 @@ const Scoreboard = ({
     const categoryKey = category.name.toLowerCase();
     const mappedCategory = categoryNameMapping[categoryKey];
     
-    // If the category is already scored, show the saved score
-    if (scores[categoryKey] !== null) {
-      return scores[categoryKey] || '0';
+    // If category is already scored, show saved score
+    if (scores[categoryKey] !== null && scores[categoryKey] !== undefined) {
+      return scores[categoryKey];
     }
     
-    // If we have dice values and it's an available move, show the possible score
+    // If we have dice values and it's an active turn, show possible score
     if (diceValues && diceValues.length > 0 && rollCount > 0) {
       const possibleScores = calculateScores(diceValues);
-      if (mappedCategory && possibleScores.hasOwnProperty(mappedCategory)) {
-        return possibleScores[mappedCategory];
-      }
+      console.log(`Trying to get score for ${mappedCategory}:`, possibleScores[mappedCategory]); // Debug log
+      return possibleScores[mappedCategory] || '-';
     }
     
     return '-';
@@ -78,7 +85,8 @@ const Scoreboard = ({
 
   const isCategoryAvailable = (category) => {
     const categoryKey = category.name.toLowerCase();
-    return rollCount > 0 && scores[categoryKey] === null;
+    const isNotScored = scores[categoryKey] === null || scores[categoryKey] === undefined;
+    return rollCount > 0 && isNotScored;
   };
 
   const handleClick = async (category) => {
@@ -97,7 +105,9 @@ const Scoreboard = ({
   };
 
   const calculateTotal = () => {
-    return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
+    return Object.values(scores)
+      .filter(score => score !== null && score !== undefined)
+      .reduce((sum, score) => sum + (score || 0), 0);
   };
 
   return (
