@@ -14,7 +14,6 @@ const Scoreboard = ({
   handleScoreCategoryClick,
 }) => {
   const [scores, setScores] = useState(() => {
-    // Initialize scores from playerCategories
     const initialScores = {};
     playerCategories.forEach(category => {
       initialScores[category.name.toLowerCase()] = category.score;
@@ -42,24 +41,35 @@ const Scoreboard = ({
   }, [currentPlayer?.id]);
 
   const getDisplayScore = (category) => {
-    if (scores[category.name.toLowerCase()] !== null) {
-      return scores[category.name.toLowerCase()] || '0';
+    const categoryName = category.name.toLowerCase();
+    
+    // If the category is already scored, show the saved score
+    if (scores[categoryName] !== null) {
+      return scores[categoryName] || '0';
     }
     
-    if (diceValues && diceValues.length > 0 && isCategoryAvailable(category)) {
-      const currentScores = calculateScores(diceValues);
-      return currentScores[category.name.toLowerCase()] || '-';
+    // If we have dice values and it's an available move, calculate and show possible score
+    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+      const possibleScores = calculateScores(diceValues);
+      if (possibleScores.hasOwnProperty(categoryName)) {
+        return possibleScores[categoryName];
+      }
     }
     
     return '-';
   };
 
   const isCategoryAvailable = (category) => {
-    return rollCount > 0 && scores[category.name.toLowerCase()] === null;
+    const categoryName = category.name.toLowerCase();
+    return rollCount > 0 && scores[categoryName] === null;
   };
 
   const handleClick = async (category) => {
     if (!isCategoryAvailable(category)) return;
+    
+    // Get the possible score before submitting
+    const possibleScore = getDisplayScore(category);
+    
     try {
       await handleScoreCategoryClick(category.name);
       const updatedCategories = await API.getPlayerCategories(currentPlayer.id);
@@ -90,6 +100,9 @@ const Scoreboard = ({
         <tbody>
           {playerCategories.map((category) => {
             const isAvailable = isCategoryAvailable(category);
+            const score = getDisplayScore(category);
+            const isTemporaryScore = isAvailable && diceValues && diceValues.length > 0;
+            
             return (
               <tr
                 key={category.category_id}
@@ -97,8 +110,14 @@ const Scoreboard = ({
                 className={isAvailable ? 'clickable' : ''}
               >
                 <td style={{ textTransform: 'capitalize' }}>{category.name}</td>
-                <td style={{ textAlign: 'center' }}>
-                  {getDisplayScore(category)}
+                <td 
+                  style={{ 
+                    textAlign: 'center',
+                    color: isTemporaryScore ? '#1890ff' : 'inherit',
+                    fontWeight: isTemporaryScore ? 'bold' : 'normal'
+                  }}
+                >
+                  {score}
                 </td>
               </tr>
             );
