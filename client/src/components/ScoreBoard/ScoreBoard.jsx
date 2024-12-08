@@ -20,6 +20,8 @@ const Scoreboard = ({
   const [totalScore, setTotalScore] = useState(0);
   const [upperSectionScore, setUpperSectionScore] = useState(0);
   const [lowerSectionScore, setLowerSectionScore] = useState(0);
+  const [upperSectionBaseScore, setUpperSectionBaseScore] = useState(0);
+  const [lowerSectionBaseScore, setLowerSectionBaseScore] = useState(0);
   const [yahtzeeBonus, setYahtzeeBonus] = useState(0);
   const [hasYahtzee, setHasYahtzee] = useState(false);
 
@@ -44,28 +46,28 @@ const Scoreboard = ({
 
   const calculateSectionScores = (categories, scoreValues) => {
     const upperCategories = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'];
-    let upperTotal = 0;
-    let lowerTotal = 0;
+    let upperBase = 0;
+    let lowerBase = 0;
 
     categories.forEach(category => {
       const score = scoreValues[category.name];
       if (score !== '-') {
         if (upperCategories.includes(category.name)) {
-          upperTotal += Number(score);
-        } else {
-          lowerTotal += Number(score);
+          upperBase += Number(score);
+        } else if (category.name !== 'yahtzeeBonus') {
+          lowerBase += Number(score);
         }
       }
     });
 
-    // Add upper section bonus if applicable
-    const upperBonus = upperTotal >= 63 ? 35 : 0;
-    upperTotal += upperBonus;
-
-    // Add Yahtzee bonus to lower section
-    lowerTotal += yahtzeeBonus;
+    // Calculate bonuses
+    const upperBonus = upperBase >= 63 ? 35 : 0;
+    const upperTotal = upperBase + upperBonus;
+    const lowerTotal = lowerBase + yahtzeeBonus;
 
     return {
+      upperBase,
+      lowerBase,
       upperTotal,
       lowerTotal,
       upperBonus
@@ -93,7 +95,6 @@ const Scoreboard = ({
       if (currentPlayer?.player_id) {
         try {
           const categories = await API.getPlayerCategories(currentPlayer.player_id);
-          console.log('Loaded categories:', categories);
           
           const scoreMap = {};
           const lockedMap = {};
@@ -111,8 +112,10 @@ const Scoreboard = ({
           setScores(scoreMap);
           setLockedCategories(lockedMap);
           
-          // Calculate initial section totals
+          // Calculate all scores including base scores
           const sectionTotals = calculateSectionScores(categories, scoreMap);
+          setUpperSectionBaseScore(sectionTotals.upperBase);
+          setLowerSectionBaseScore(sectionTotals.lowerBase);
           setUpperSectionScore(sectionTotals.upperTotal);
           setLowerSectionScore(sectionTotals.lowerTotal);
           setTotalScore(sectionTotals.upperTotal + sectionTotals.lowerTotal);
@@ -226,6 +229,8 @@ const Scoreboard = ({
 
       // Recalculate section totals
       const sectionTotals = calculateSectionScores(updatedCategories, scoreMap);
+      setUpperSectionBaseScore(sectionTotals.upperBase);
+      setLowerSectionBaseScore(sectionTotals.lowerBase);
       setUpperSectionScore(sectionTotals.upperTotal);
       setLowerSectionScore(sectionTotals.lowerTotal);
       setTotalScore(sectionTotals.upperTotal + sectionTotals.lowerTotal);
@@ -309,10 +314,15 @@ const Scoreboard = ({
               );
             })}
 
+          <tr className="subtotal-row">
+            <td>Score Before Bonus</td>
+            <td style={getSectionTotalStyle()}>{upperSectionBaseScore}</td>
+          </tr>
+
           <tr className="bonus-row">
             <td>Upper Section Bonus (≥63)</td>
-            <td style={getBonusStyle(upperSectionScore >= 63)}>
-              {upperSectionScore >= 63 ? '35' : '0'}
+            <td style={getBonusStyle(upperSectionBaseScore >= 63)}>
+              {upperSectionBaseScore >= 63 ? '35' : '0'}
             </td>
           </tr>
 
@@ -343,6 +353,11 @@ const Scoreboard = ({
                 </tr>
               );
             })}
+
+          <tr className="subtotal-row">
+            <td>Score Before Bonus</td>
+            <td style={getSectionTotalStyle()}>{lowerSectionBaseScore}</td>
+          </tr>
 
           {yahtzeeBonus > 0 && (
             <tr className="bonus-row">
