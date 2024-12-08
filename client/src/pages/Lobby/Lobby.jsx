@@ -20,6 +20,7 @@ const LobbyView = ({
   handleLogout,
   handleRollDice,
   toggleDiceSelection,
+  shouldResetScores,
   handleScoreCategoryClick,
   calculateScores,
   onTurnComplete,
@@ -101,6 +102,7 @@ const LobbyView = ({
             handleScoreCategoryClick={handleScoreCategoryClick}
             onTurnComplete={onTurnComplete}
             handleNewGame={handleNewGame}
+            shouldResetScores={shouldResetScores}
           />
         ) : (
           <div style={{ textAlign: 'center', padding: '20px' }}>

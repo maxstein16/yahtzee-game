@@ -13,7 +13,7 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
   onTurnComplete,
-  handleNewGame
+  shouldResetScores
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
@@ -80,7 +80,7 @@ const Scoreboard = ({
     };
 
     loadScores();
-  }, [currentPlayer?.player_id]);
+  }, [currentPlayer?.player_id, shouldResetScores]);
 
   useEffect(() => {
     if (rollCount === 0) {
