@@ -326,11 +326,6 @@ const Scoreboard = ({
             </td>
           </tr>
 
-          <tr className="section-total">
-            <td>Upper Section Total</td>
-            <td style={getSectionTotalStyle()}>{upperSectionScore}</td>
-          </tr>
-
           <tr className="section-header">
             <td colSpan="2">Lower Section</td>
           </tr>
@@ -362,8 +357,13 @@ const Scoreboard = ({
           )}
 
           <tr className="section-total">
-            <td>Lower Section Total</td>
-            <td style={getSectionTotalStyle()}>{lowerSectionScore}</td>
+                      <td>Lower Section Total</td>
+                      <td style={getSectionTotalStyle()}>{lowerSectionScore}</td>
+          </tr>
+          
+          <tr className="section-total">
+                      <td>Upper Section Total</td>
+                      <td style={getSectionTotalStyle()}>{upperSectionScore}</td>
           </tr>
 
           <tr className="grand-total">
