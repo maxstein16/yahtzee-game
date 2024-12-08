@@ -100,45 +100,65 @@ async function updateTurn(gameId, playerId, dice, rerolls, turnScore, turnComple
     AND turn_completed = FALSE
     ORDER BY turn_id DESC LIMIT 1;
   `;
+  
   const values = [
     JSON.stringify(dice), 
-    rerolls, 
-    turnScore,
-    turnCompleted,
-    gameId, 
-    playerId
+    Number(rerolls), 
+    Number(turnScore),
+    Boolean(turnCompleted),
+    Number(gameId), 
+    Number(playerId)
   ];
+  
   return await runSQL(query, values);
 }
 
-// Submit a turn
 async function submitTurn(gameId, playerId, categoryId, score) {
-  const query = `
-    UPDATE turn
-    SET turn_score = ?, turn_completed = TRUE
-    WHERE game_id = ? AND player_id = ? 
-    AND turn_completed = FALSE
-    ORDER BY turn_id DESC
-    LIMIT 1;
-  `;
-  const values = [score, gameId, playerId];
-  await runSQL(query, values);
+  // Begin transaction
+  const connection = await getConnection();
+  try {
+    await connection.beginTransaction();
 
-  // Update the score category
-  const updateCategoryQuery = `
-    UPDATE scorecategory
-    SET score = ?
-    WHERE category_id = ? AND player_id = ?;
-  `;
-  await runSQL(updateCategoryQuery, [score, categoryId, playerId]);
+    // Update the turn
+    const turnQuery = `
+      UPDATE turn
+      SET 
+        turn_score = ?,
+        turn_completed = TRUE
+      WHERE game_id = ? 
+      AND player_id = ? 
+      AND turn_completed = FALSE
+      ORDER BY turn_id DESC
+      LIMIT 1;
+    `;
+    await connection.execute(turnQuery, [Number(score), Number(gameId), Number(playerId)]);
 
-  return {
-    gameId,
-    playerId,
-    categoryId,
-    score,
-    completed: true
-  };
+    // Update the score category
+    const categoryQuery = `
+      UPDATE scorecategory
+      SET 
+        score = ?,
+        is_submitted = TRUE
+      WHERE category_id = ? 
+      AND player_id = ?;
+    `;
+    await connection.execute(categoryQuery, [Number(score), Number(categoryId), Number(playerId)]);
+
+    await connection.commit();
+
+    return {
+      gameId: Number(gameId),
+      playerId: Number(playerId),
+      categoryId: Number(categoryId),
+      score: Number(score),
+      completed: true
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 module.exports = {

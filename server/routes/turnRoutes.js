@@ -26,22 +26,39 @@ router.post('/game/:id/roll', async (req, res) => {
     }
   });
 
-router.put('/game/:id/roll', async (req, res) => {
-  try {
-    const gameId = req.params.id;
-    const { playerId, dice, rerolls, turnScore, turnCompleted } = req.body;
-
-    if (!gameId || !playerId || !dice) {
-      return res.status(400).json({ error: 'Missing parameters' });
+  router.put('/game/:id/turn', async (req, res) => {
+    try {
+      const gameId = req.params.id;
+      const { playerId, categoryId, score, dice, rerolls } = req.body;
+  
+      if (!gameId || !playerId || !categoryId || score === undefined) {
+        return res.status(400).json({ error: 'Missing required parameters' });
+      }
+  
+      // First update the turn with final values
+      await updateTurn(
+        gameId, 
+        playerId, 
+        Array.isArray(dice) ? dice : [1,1,1,1,1],
+        Number(rerolls) || 0,
+        Number(score),
+        true
+      );
+  
+      // Then submit the turn and update category
+      const result = await submitTurn(
+        gameId,
+        playerId,
+        categoryId,
+        Number(score)
+      );
+  
+      res.json(result);
+    } catch (error) {
+      console.error('Submit turn error:', error);
+      res.status(500).json({ error: error.message });
     }
-
-    const turn = await updateTurn(gameId, playerId, dice, rerolls, turnScore, turnCompleted);
-    res.json(turn);
-  } catch (error) {
-    console.error('Update turn error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+  });
 
 router.get('/game/:id/turn', async (req, res) => {
   try {
