@@ -1,7 +1,7 @@
 import React from 'react';
 import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
-import Dice from '../../components/Dice';
+import Dice from '../Dice';
 import '../../styles/Lobby.css';
 
 const { Header, Content } = Layout;
