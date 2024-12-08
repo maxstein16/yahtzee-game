@@ -74,7 +74,7 @@ const LobbyView = ({
     const initializeOpponent = async () => {
       if (gameId) {
         try {
-          const categories = await API.getPlayerCategories('opponent-1');
+          const categories = await API.getPlayerCategories('9');
           setOpponentCategories(categories);
           setOpponentScore(0);
           setOpponentDice([1, 1, 1, 1, 1]);
