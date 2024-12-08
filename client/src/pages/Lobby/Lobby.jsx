@@ -25,7 +25,17 @@ const LobbyView = ({
   calculateScores,
   onTurnComplete,
   isLoading,
-  API
+  API,
+  opponentCategories,
+  opponentDice,
+  opponentScore,
+  opponentRollCount,
+  isOpponentTurn,
+  setOpponentCategories,
+  setOpponentDice,
+  setOpponentScore,
+  setOpponentRollCount,
+  setIsOpponentTurn,
 }) => {
   const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
   const [isOpponentTurn, setIsOpponentTurn] = useState(false);

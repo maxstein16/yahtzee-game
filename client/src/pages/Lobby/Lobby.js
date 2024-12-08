@@ -174,6 +174,10 @@ function Lobby() {
     return dice.every(value => value === dice[0]);
   };
 
+  const onTurnComplete = () => {
+    console.log("Player turn completed!");
+  };  
+
   // Modified game initialization effect in Lobby.jsx
   useEffect(() => {
     const initializeGameSession = async () => {
