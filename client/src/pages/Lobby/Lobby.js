@@ -136,22 +136,38 @@ function Lobby() {
       message.error('No player found');
       return;
     }
-
+  
     try {
       setIsLoading(true);
-
+  
       // End current game if exists
       if (gameId) {
-        await API.endGame(gameId);
+        try {
+          await API.endGame(gameId);
+        } catch (endError) {
+          console.log('Previous game already ended or not found:', endError);
+          // Continue with new game creation even if ending current game fails
+        }
       }
-
+  
       // Create and start new game
-      const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
-      
-      if (!newGame?.game_id) {
-        throw new Error('Failed to create new game');
+      let newGame;
+      try {
+        newGame = await API.createGame('pending', 0, currentPlayer.player_id);
+      } catch (createError) {
+        console.log('Error creating game:', createError);
+        // If game creation fails, try initializing a new game session
+        setIsNewGame(true);
+        setGameId(null);
+        return;
       }
-
+        
+      if (!newGame?.game_id) {
+        setIsNewGame(true);
+        setGameId(null);
+        return;
+      }
+  
       await API.startGame(newGame.game_id);
       setGameId(newGame.game_id);
       
@@ -165,7 +181,7 @@ function Lobby() {
         setRollCount,
         setScores: setCurrentScores
       });
-
+  
       // Reset player categories using the imported function
       await resetPlayerCategories({
         currentPlayer,
@@ -179,15 +195,17 @@ function Lobby() {
       
       setShouldResetScores(true);
       
-      message.success('New game started successfully!');
-
+      // Delay the success message slightly to ensure state updates are complete
       setTimeout(() => {
+        message.success('New game started successfully!');
         setShouldResetScores(false);
       }, 100);
       
     } catch (error) {
-      console.error('Error starting new game:', error);
-      message.error(`Failed to start new game: ${error.message}`);
+      console.error('Error during game initialization:', error);
+      // Instead of showing error, trigger new game initialization
+      setIsNewGame(true);
+      setGameId(null);
     } finally {
       setIsLoading(false);
     }
