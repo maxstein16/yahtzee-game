@@ -10,15 +10,33 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
       // If there's an active game, end it first
       try {
         await API.endGame(activeGame.game_id);
+        // Add a small delay to ensure the game ending is processed
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (endError) {
         console.log('Error ending previous game:', endError);
-        // Continue even if ending fails
       }
+
+      // Clean up game player relationship
+      try {
+        await API.removePlayerFromGame(currentPlayer.player_id, activeGame.game_id);
+      } catch (removeError) {
+        console.log('Error removing player from game:', removeError);
+      }
+    }
+
+    // Ensure all player games are cleaned up
+    try {
+      await API.cleanupPlayerGames(currentPlayer.player_id);
+    } catch (cleanupError) {
+      console.log('Error during cleanup:', cleanupError);
     }
 
     // Clean up any existing player categories
     await API.resetPlayerCategories(currentPlayer.player_id);
     
+    // Add delay before creating new game
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Create new game
     const response = await API.createGame('pending', 0, currentPlayer.player_id);
     console.log('Raw API Response:', response);
