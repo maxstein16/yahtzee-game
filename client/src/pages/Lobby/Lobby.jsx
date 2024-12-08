@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../../pages/Dice';
@@ -37,12 +37,6 @@ const LobbyView = ({
   setOpponentRollCount,
   setIsOpponentTurn,
 }) => {
-  const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
-  const [isOpponentTurn, setIsOpponentTurn] = useState(false);
-  const [opponentRollCount, setOpponentRollCount] = useState(0);
-  const [opponentScore, setOpponentScore] = useState(0);
-  const [opponentCategories, setOpponentCategories] = useState([]);
-
   // Handle opponent's turn after player completes theirs
   useEffect(() => {
     const playOpponentTurn = async () => {
@@ -74,7 +68,6 @@ const LobbyView = ({
   
     playOpponentTurn();
   }, [isOpponentTurn, gameId, opponentCategories, opponentDice, API]);
-  
 
   // Initialize opponent when game starts
   useEffect(() => {
