@@ -6,7 +6,7 @@ import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { resetTurnState } from '../../services/gameStateService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
-import LobbyView from './LobbyView';
+import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
 
 const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
