@@ -46,8 +46,7 @@ const LobbyView = ({
             gameId,
             '9',
             opponentCategories,
-            opponentDice,
-            API
+            opponentDice
           );
           setOpponentDice(result.finalDice);
           setOpponentRollCount(result.rollCount);
