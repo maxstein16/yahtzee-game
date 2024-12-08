@@ -4,7 +4,7 @@ import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../../pages/Dice';
 import '../../styles/Lobby.css';
 import { executeOpponentTurn } from '../../services/opponentService';
-import { initializeDefaultCategories } from '../../services/categoryService';
+import { initializeDefaultCategories } from '../Lobby/Lobby';
 
 const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 
