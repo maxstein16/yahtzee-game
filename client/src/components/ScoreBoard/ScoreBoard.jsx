@@ -61,26 +61,21 @@ const Scoreboard = ({
           
           categories.forEach((category) => {
             const key = category.name;
-            if (category.is_submitted) {
-              scoreMap[key] = category.score;
-              lockedMap[key] = true;
-            } else {
-              scoreMap[key] = '-';
-              lockedMap[key] = false;
-            }
+            scoreMap[key] = '-';
+            lockedMap[key] = false;
           });
           
           setScores(scoreMap);
           setLockedCategories(lockedMap);
-          await loadTotalScore();
+          setTotalScore(0);
         } catch (error) {
           console.error('Error loading scores:', error);
         }
       }
     };
-
+  
     loadScores();
-  }, [currentPlayer?.player_id, shouldResetScores]);
+  }, [currentPlayer?.player_id, gameId]);
 
   useEffect(() => {
     if (rollCount === 0) {

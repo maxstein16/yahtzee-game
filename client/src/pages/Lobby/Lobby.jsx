@@ -94,6 +94,7 @@ const LobbyView = ({
 
         {playerCategories && playerCategories.length > 0 ? (
           <Scoreboard
+            key={gameId}
             currentPlayer={currentPlayer}
             playerCategories={playerCategories}
             calculateScores={calculateScores}
@@ -101,7 +102,6 @@ const LobbyView = ({
             rollCount={rollCount}
             handleScoreCategoryClick={handleScoreCategoryClick}
             onTurnComplete={onTurnComplete}
-            handleNewGame={handleNewGame}
             shouldResetScores={shouldResetScores}
           />
         ) : (
