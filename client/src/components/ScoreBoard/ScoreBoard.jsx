@@ -126,10 +126,7 @@ const Scoreboard = ({
           Modal.success({
             title: 'Game Complete!',
             content: `Congratulations! You've completed the game with a total score of ${totalScore} points!`,
-            okText: 'New Game',
-            onOk: handleNewGame,
-            maskClosable: false,
-            closable: false
+            okText: 'OK'
           });
         }
       } catch (error) {
