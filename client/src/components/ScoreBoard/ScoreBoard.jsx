@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography } from 'antd';
+import { Typography, message, Modal } from 'antd';
 import API from '../../utils/api';
 import '../../styles/ScoreBoard.css';
 
@@ -110,15 +110,42 @@ const Scoreboard = ({
     }
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
+  const checkGameCompletion = async (updatedLockedCategories) => {
+    const allCategoriesSubmitted = Object.values(updatedLockedCategories).every(isLocked => isLocked);
+    
+    if (allCategoriesSubmitted) {
+      try {
+        // Get the active game
+        const activeGame = await API.getActiveGameForPlayer(currentPlayer.player_id);
+        if (activeGame && activeGame.game_id) {
+          // End the game
+          await API.endGame(activeGame.game_id);
+          
+          // Show completion modal
+          Modal.success({
+            title: 'Game Complete!',
+            content: `Congratulations! You've completed the game with a total score of ${totalScore} points!`,
+            okText: 'Play Again',
+            onOk: () => window.location.reload()
+          });
+        }
+      } catch (error) {
+        console.error('Error ending game:', error);
+        message.error('Failed to end game properly');
+      }
+    }
+  };
+
   const handleClick = async (category) => {
     const key = category.name;
     if (lockedCategories[key] || rollCount === 0) return;
 
     try {
-      setLockedCategories(prev => ({
-        ...prev,
+      const updatedLockedCategories = {
+        ...lockedCategories,
         [key]: true
-      }));
+      };
+      setLockedCategories(updatedLockedCategories);
 
       const currentScore = scores[key];
       await handleScoreCategoryClick(category.name);
@@ -146,6 +173,9 @@ const Scoreboard = ({
       setScores(scoreMap);
       setLockedCategories(lockedMap);
       await loadTotalScore();
+
+      // Check if this was the last category
+      await checkGameCompletion(lockedMap);
 
       onTurnComplete();
     } catch (error) {
