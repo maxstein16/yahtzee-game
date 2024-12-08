@@ -111,25 +111,48 @@ const Scoreboard = ({
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
   const startNewGame = async () => {
+    if (!currentPlayer?.player_id) {
+      message.error('No player found');
+      return;
+    }
+  
     try {
-      // Reset categories for the player
-      await API.resetPlayerCategories(currentPlayer.player_id);
-      
-      // Create a new game with explicit initial values
+      // Step 1: Create a new game first
       const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
       
-      if (newGame?.game_id) {  // Add null check for game_id
-        // Start the game
-        await API.startGame(newGame.game_id);
-        
-        // Initialize categories
-        await API.initializePlayerCategories(currentPlayer.player_id);
-        
-        // Reload the page to reset all states
-        window.location.reload();
-      } else {
+      if (!newGame?.game_id) {
         throw new Error('Failed to create new game: Invalid game response');
       }
+  
+      // Step 2: Start the game
+      await API.startGame(newGame.game_id);
+      
+      // Step 3: Reset categories
+      await API.resetPlayerCategories(currentPlayer.player_id);
+      
+      // Step 4: Initialize categories
+      await API.initializePlayerCategories(currentPlayer.player_id);
+  
+      // Step 5: Reset local state
+      setScores({});
+      setLockedCategories({});
+      setTotalScore(0);
+  
+      // Step 6: Load the fresh scores
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      const scoreMap = {};
+      const lockedMap = {};
+      
+      categories.forEach((category) => {
+        const key = category.name;
+        scoreMap[key] = '-';
+        lockedMap[key] = false;
+      });
+      
+      setScores(scoreMap);
+      setLockedCategories(lockedMap);
+      
+      message.success('New game started successfully!');
     } catch (error) {
       console.error('Error starting new game:', error);
       message.error(`Failed to start new game: ${error.message}`);

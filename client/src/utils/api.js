@@ -24,14 +24,14 @@ export const login = async (credentials) => apiRequest('/players/login', 'POST',
 export const register = async (userData) => apiRequest('/players/register', 'POST', userData);
 
 // Game Management
-export const createGame = (status = 'pending', round = 0, playerId) => {
+export const createGame = (status, round, playerId) => {
   if (!playerId) {
     throw new Error('Player ID is required to create a game');
   }
   
   return apiRequest('/game', 'POST', {
     status: status || 'pending',
-    round: Number(round) || 0,  // Ensure round is a number
+    round: Number(round) || 0,
     playerId: playerId
   });
 };
@@ -75,8 +75,12 @@ export const updateScoreCategory = (categoryId, score) =>
     is_submitted: true 
   });
 
-export const resetPlayerCategories = (playerId) => 
-  apiRequest(`/scorecategory/player/${playerId}/reset`, 'PUT');
+export const resetPlayerCategories = (playerId) => {
+  if (!playerId) {
+    throw new Error('Player ID is required to reset categories');
+  }
+  return apiRequest(`/scorecategory/player/${playerId}/reset`, 'PUT');
+};
 
 export const submitGameScore = (gameId, playerId, categoryName, score) => {
   const payload = {
