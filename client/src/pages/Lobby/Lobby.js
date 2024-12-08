@@ -156,41 +156,53 @@ function Lobby() {
 
   // Handle opponent turns
   useEffect(() => {
-    const executeOpponentTurn = async () => {
-      if (opponentState.isOpponentTurn && gameId) {
-        try {
-          // Show each roll with delay
-          for (let i = 0; i < 3; i++) {
-            const newDice = Array(5).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
-            setOpponentState(prev => ({
-              ...prev,
-              dice: newDice,
-              rollCount: i + 1
-            }));
-            
-            message.info(`Opponent Roll ${i + 1}: ${newDice.join(', ')}`, 1);
-            await new Promise(resolve => setTimeout(resolve, 1500));
+    // In the opponent turn useEffect
+  const executeOpponentTurn = async () => {
+    if (opponentState.isOpponentTurn && gameId) {
+      try {
+        // Show each roll with delay
+        for (let i = 0; i < 3; i++) {
+          const newDice = Array(5).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
+          setOpponentState(prev => ({
+            ...prev,
+            dice: newDice,
+            rollCount: i + 1
+          }));
+          
+          message.info(`Opponent Roll ${i + 1}: ${newDice.join(', ')}`, 1);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
+        // Calculate best move
+        const availableCategories = opponentState.categories.filter(cat => !cat.is_submitted);
+        const scores = calculateScores(opponentState.dice);
+        
+        let bestCategory = availableCategories[0];
+        let bestScore = scores[bestCategory.name] || 0;
+        
+        availableCategories.forEach(category => {
+          const score = scores[category.name] || 0;
+          if (score > bestScore) {
+            bestScore = score;
+            bestCategory = category;
           }
+        });
 
-          // Calculate best move
-          const availableCategories = opponentState.categories.filter(cat => !cat.is_submitted);
-          const scores = calculateScores(opponentState.dice);
-          
-          let bestCategory = availableCategories[0];
-          let bestScore = scores[bestCategory.name] || 0;
-          
-          availableCategories.forEach(category => {
-            const score = scores[category.name] || 0;
-            if (score > bestScore) {
-              bestScore = score;
-              bestCategory = category;
-            }
-          });
+        // Ensure we have valid data before submission
+        if (!bestCategory?.name || bestScore === undefined) {
+          throw new Error('Invalid category or score data');
+        }
 
-          // Submit score
-          await API.submitGameScore(gameId, '9', bestCategory.name, bestScore);
-          
-          // Update opponent state
+        // Submit score with validated data
+        try {
+          await API.submitGameScore(
+            gameId,
+            '9', // opponent ID
+            bestCategory.name,
+            Number(bestScore)
+          );
+
+          // Update opponent state only after successful submission
           const updatedCategories = await API.getPlayerCategories('9');
           setOpponentState(prev => ({
             ...prev,
@@ -207,18 +219,18 @@ function Lobby() {
             `Opponent chose ${bestCategory.name} for ${bestScore} points!`, 
             2.5
           );
-        } catch (error) {
-          console.error('Error during opponent turn:', error);
-          message.error('Opponent turn failed');
-          setOpponentState(prev => ({
-            ...prev,
-            isOpponentTurn: false,
-            rollCount: 0,
-            dice: INITIAL_DICE_VALUES
-          }));
+        } catch (submitError) {
+          console.error('Error submitting opponent score:', submitError);
+          message.error('Failed to submit opponent score');
+          resetOpponentTurn();
         }
+      } catch (error) {
+        console.error('Error during opponent turn:', error);
+        message.error('Opponent turn failed');
+        resetOpponentTurn();
       }
-    };
+    }
+  };
 
     executeOpponentTurn();
   }, [opponentState.isOpponentTurn, gameId, calculateScores]);
