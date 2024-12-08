@@ -354,11 +354,6 @@ const Scoreboard = ({
               );
             })}
 
-          <tr className="subtotal-row">
-            <td>Score Before Bonus</td>
-            <td style={getSectionTotalStyle()}>{lowerSectionBaseScore}</td>
-          </tr>
-
           {yahtzeeBonus > 0 && (
             <tr className="bonus-row">
               <td>Yahtzee Bonus</td>
