@@ -4,20 +4,27 @@ const API_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app/api'
 const apiRequest = async (endpoint, method = 'GET', body = null) => {
   const options = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',  
   };
   if (body) {
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'An error occurred');
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'An error occurred');
+    }
+    return response.json();
+  } catch (error) {
+    console.error(`API Request failed for ${endpoint}:`, error);
+    throw error;
   }
-  return response.json();
 };
-
 // Authentication
 export const login = async (credentials) => apiRequest('/players/login', 'POST', credentials);
 
