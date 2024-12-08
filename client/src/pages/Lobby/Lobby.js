@@ -503,6 +503,7 @@ function Lobby() {
     opponentRollCount,       // Added opponent state
     isOpponentTurn,          // Added opponent state
     isNewGame,
+    API,
     handleNewGame,
     handleLogout: handlePlayerLogout,
     handleRollDice: handleDiceRoll,
