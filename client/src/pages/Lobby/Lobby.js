@@ -148,47 +148,79 @@ function Lobby() {
     return dice.every(value => value === dice[0]);
   };
 
-  // Enhanced game initialization
   useEffect(() => {
     const initializeGameSession = async () => {
       if (!currentPlayer || isInitializing || isLoading) return;
 
-      if (isNewGame || !gameId) {
-        setIsInitializing(true);
-        try {
-          const result = await initializeGame(currentPlayer, 'singleplayer', setGameId, () => {});
-          
-          if (result.success) {
+      setIsInitializing(true);
+      try {
+        // Initialize or resume game
+        const result = await initializeGame(currentPlayer, 'singleplayer', setGameId, () => {});
+        
+        if (result.success) {
+          // Only show message for new games
+          if (!result.existingGame) {
             message.success(result.message);
-            
-            let categories = await API.getPlayerCategories(currentPlayer.player_id);
-            if (!categories || categories.length === 0) {
-              categories = await initializeDefaultCategories(currentPlayer.player_id);
+          }
+          
+          // Load categories
+          let categories = await API.getPlayerCategories(currentPlayer.player_id);
+          if (!categories || categories.length === 0) {
+            categories = await initializeDefaultCategories(currentPlayer.player_id);
+          }
+          
+          setPlayerCategories(categories);
+          
+          if (result.existingGame) {
+            // Load existing game state
+            const gameState = await API.getGameState(result.gameId);
+            if (gameState) {
+              setDiceValues(gameState.diceValues || INITIAL_DICE_VALUES);
+              setRollCount(gameState.rollCount || 0);
+              setSelectedDice(gameState.selectedDice || []);
+              
+              // Calculate scores based on current dice values
+              if (gameState.diceValues && gameState.rollCount > 0) {
+                setCurrentScores(calculateScores(gameState.diceValues));
+              }
+
+              // Load bonus states
+              setHasYahtzee(gameState.hasYahtzee || false);
+              setYahtzeeBonus(gameState.yahtzeeBonus || 0);
+              
+              // Calculate totals
+              const scores = calculateAllScores(categories);
+              setPlayerTotal(scores.total);
+              setUpperSectionTotal(scores.upperTotal);
+              setUpperSectionBonus(scores.upperBonus);
             }
-            
-            setPlayerCategories(categories);
-            
-            // Reset all bonus states
+          } else {
+            // Reset all states for new game
+            setDiceValues(INITIAL_DICE_VALUES);
+            setSelectedDice([]);
+            setRollCount(0);
+            setCurrentScores({});
             setHasYahtzee(false);
             setYahtzeeBonus(0);
             setUpperSectionTotal(0);
             setUpperSectionBonus(0);
             setPlayerTotal(0);
-            setIsNewGame(false);
-          } else {
-            throw new Error(result.message);
           }
-        } catch (error) {
-          console.error('Error initializing game:', error);
-          message.error('Failed to initialize game');
-        } finally {
-          setIsInitializing(false);
+          
+          setIsNewGame(false);
+        } else {
+          throw new Error(result.message);
         }
+      } catch (error) {
+        console.error('Error initializing game:', error);
+        message.error('Failed to initialize game');
+      } finally {
+        setIsInitializing(false);
       }
     };
 
     initializeGameSession();
-  }, [currentPlayer, isNewGame, gameId, isLoading, isInitializing]);
+  }, [currentPlayer, isLoading]);
 
   // Handle new game
   const handleNewGame = async () => {

@@ -6,17 +6,25 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
     const activeGame = await API.getActiveGameForPlayer(currentPlayer.player_id);
     let gameId;
 
-    if (activeGame) {
-      // If there's an active game, end it first
-      try {
-        await API.endGame(activeGame.game_id);
-        // Add a small delay to ensure the game ending is processed
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (endError) {
-        console.log('Error ending previous game:', endError);
+    if (activeGame && activeGame.game_id) {
+      // If there's an active game, use it
+      gameId = activeGame.game_id;
+      setGameId(gameId);
+
+      // Load existing categories and state
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      if (categories && categories.length > 0) {
+        return {
+          success: true,
+          message: 'Resumed existing game',
+          gameId: gameId,
+          existingGame: true,
+          mode: 'singleplayer'
+        };
       }
     }
 
+    // If no active game or no categories, create a new game
     // Clean up any existing player categories
     await API.resetPlayerCategories(currentPlayer.player_id);
     
@@ -54,7 +62,7 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
     console.error('Full error details:', error);
     return { 
       success: false, 
-      message: `Failed to create game: ${error.message}`,
+      message: `Failed to initialize game: ${error.message}`,
       error: error
     };
   }
