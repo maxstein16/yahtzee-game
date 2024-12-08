@@ -107,22 +107,19 @@ export const executeOpponentTurn = async (gameId, playerId, categories, currentD
   let finalMove = null;
 
   while (rollCount < 3) {
-    // Calculate optimal move
     const move = calculateOptimalMove(diceValues, availableCategories);
-    
+
     if (move.expectedScore >= getThresholdForCategory(move.category.name)) {
       finalMove = move;
       break;
     }
 
-    // Roll dice
     rollCount++;
     if (rollCount === 3) {
       finalMove = move;
       break;
     }
 
-    // Perform roll
     const result = await API.rollDice(gameId, {
       playerId,
       currentDice: diceValues,
@@ -135,17 +132,8 @@ export const executeOpponentTurn = async (gameId, playerId, categories, currentD
   }
 
   if (finalMove) {
-    // Submit the score
     await API.createTurn(gameId, playerId, diceValues, rollCount, finalMove.expectedScore, false);
     await API.submitGameScore(gameId, playerId, finalMove.category.name, finalMove.expectedScore);
-    await API.submitTurn(
-      gameId,
-      playerId,
-      finalMove.category.category_id,
-      finalMove.expectedScore,
-      diceValues,
-      rollCount
-    );
   }
 
   return {
