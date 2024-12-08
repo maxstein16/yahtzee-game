@@ -169,7 +169,7 @@ function Lobby() {
   };
 
   const handleScoreCategoryClick = async (categoryName) => {
-    if (!currentGame?.game_id || !currentPlayer?.player_id) {
+    if (!gameId || !currentPlayer?.player_id) {
       message.error('Game or player information missing');
       return;
     }
@@ -187,7 +187,7 @@ function Lobby() {
   
       // Submit the game score
       await API.submitGameScore(
-        currentGame.game_id,
+        gameId,
         currentPlayer.player_id,
         categoryName,
         score
@@ -195,7 +195,7 @@ function Lobby() {
   
       // Submit the turn with the correct score
       await API.submitTurn(
-        currentGame.game_id,
+        gameId,
         currentPlayer.player_id,
         category.category_id,
         score,
@@ -204,9 +204,9 @@ function Lobby() {
       );
   
       // Reset dice and roll count
-      setDiceValues([]);
+      setDiceValues(INITIAL_DICE_VALUES);
       setRollCount(0);
-      setSelectedDice(new Set());
+      setSelectedDice([]);
   
     } catch (error) {
       console.error('Error submitting score and turn:', error);
