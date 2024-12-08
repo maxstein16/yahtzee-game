@@ -226,7 +226,7 @@ const ScoreboardContainer = ({
 
     {opponentState.categories && opponentState.categories.length > 0 ? (
       <Scoreboard
-        key={`opponent-${gameId}`}
+        key={`opponent-${gameId}-${shouldResetScores}`}  // Changed this line
         gameId={gameId}
         currentPlayer={{ name: 'AI Opponent', player_id: '9' }}
         playerCategories={opponentState.categories}
