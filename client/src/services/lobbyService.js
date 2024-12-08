@@ -1,4 +1,5 @@
 import * as API from '../utils/api';
+import { calculateScores } from './scoreTurnService';
 
 export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers) => {
   try {
@@ -97,60 +98,10 @@ export const initializeDefaultCategories = async (playerId) => {
   }
 };
 
-// Add this function in lobbyService.js 
-export const calculateOpponentScores = (dice) => {
-  const counts = dice.reduce((acc, val) => {
-    acc[val] = (acc[val] || 0) + 1;
-    return acc;
-  }, {});
-
-  const scores = {};
-  const diceSum = dice.reduce((sum, val) => sum + val, 0);
-
-  // Score upper section
-  Object.keys(counts).forEach(num => {
-    scores[`${['', 'ones', 'twos', 'threes', 'fours', 'fives', 'sixes'][num]}`] = counts[num] * num;
-  });
-
-  // Score three of a kind
-  scores.threeOfAKind = Object.values(counts).some(count => count >= 3) ? diceSum : 0;
-
-  // Score four of a kind
-  scores.fourOfAKind = Object.values(counts).some(count => count >= 4) ? diceSum : 0;
-
-  // Score full house
-  scores.fullHouse = Object.values(counts).length === 2 && 
-    Object.values(counts).includes(2) && 
-    Object.values(counts).includes(3) ? 25 : 0;
-
-  // Score small straight
-  const uniqueSorted = [...new Set(dice)].sort((a, b) => a - b);
-  let hasSmallStraight = false;
-  for (let i = 0; i < uniqueSorted.length - 3; i++) {
-    if (uniqueSorted[i + 3] - uniqueSorted[i] === 3) {
-      hasSmallStraight = true;
-      break;
-    }
-  }
-  scores.smallStraight = hasSmallStraight ? 30 : 0;
-
-  // Score large straight
-  scores.largeStraight = uniqueSorted.length === 5 && 
-    uniqueSorted[4] - uniqueSorted[0] === 4 ? 40 : 0;
-
-  // Score yahtzee
-  scores.yahtzee = Object.values(counts).some(count => count === 5) ? 50 : 0;
-
-  // Score chance
-  scores.chance = diceSum;
-
-  return scores;
-};
-
 export const executeOpponentTurn = async (gameId, opponentId, categories, dice, API) => {
   try {
     // Calculate best scoring category
-    const scores = calculateOpponentScores(dice);
+    const scores = calculateScores(dice);
     const availableCategories = categories.filter(cat => !cat.is_submitted);
     
     let bestCategory = availableCategories[0];
