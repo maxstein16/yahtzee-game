@@ -114,11 +114,7 @@ async function updateTurn(gameId, playerId, dice, rerolls, turnScore, turnComple
 }
 
 async function submitTurn(gameId, playerId, categoryId, score) {
-  // Begin transaction
-  const connection = await getConnection();
   try {
-    await connection.beginTransaction();
-
     // Update the turn
     const turnQuery = `
       UPDATE turn
@@ -131,7 +127,7 @@ async function submitTurn(gameId, playerId, categoryId, score) {
       ORDER BY turn_id DESC
       LIMIT 1;
     `;
-    await connection.execute(turnQuery, [Number(score), Number(gameId), Number(playerId)]);
+    await runSQL(turnQuery, [Number(score), Number(gameId), Number(playerId)]);
 
     // Update the score category
     const categoryQuery = `
@@ -142,9 +138,7 @@ async function submitTurn(gameId, playerId, categoryId, score) {
       WHERE category_id = ? 
       AND player_id = ?;
     `;
-    await connection.execute(categoryQuery, [Number(score), Number(categoryId), Number(playerId)]);
-
-    await connection.commit();
+    await runSQL(categoryQuery, [Number(score), Number(categoryId), Number(playerId)]);
 
     return {
       gameId: Number(gameId),
@@ -154,10 +148,8 @@ async function submitTurn(gameId, playerId, categoryId, score) {
       completed: true
     };
   } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
+    console.error('Error in submitTurn:', error);
+    throw new Error(`Failed to submit turn: ${error.message}`);
   }
 }
 
