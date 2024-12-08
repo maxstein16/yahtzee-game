@@ -3,7 +3,7 @@ import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd'
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../../pages/Dice';
 import '../../styles/Lobby.css';
-import { executeOpponentTurn } from '../../services/aiService';
+import { executeOpponentTurn } from '../../services/opponentService';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
