@@ -148,6 +148,7 @@ function Lobby() {
     return dice.every(value => value === dice[0]);
   };
 
+  // Modified game initialization effect in Lobby.jsx
   useEffect(() => {
     const initializeGameSession = async () => {
       if (!currentPlayer || isInitializing || isLoading) return;
@@ -163,7 +164,7 @@ function Lobby() {
             message.success(result.message);
           }
           
-          // Load categories
+          // Load categories and game state
           let categories = await API.getPlayerCategories(currentPlayer.player_id);
           if (!categories || categories.length === 0) {
             categories = await initializeDefaultCategories(currentPlayer.player_id);
@@ -172,27 +173,69 @@ function Lobby() {
           setPlayerCategories(categories);
           
           if (result.existingGame) {
-            // Load existing game state
-            const gameState = await API.getGameState(result.gameId);
-            if (gameState) {
-              setDiceValues(gameState.diceValues || INITIAL_DICE_VALUES);
-              setRollCount(gameState.rollCount || 0);
-              setSelectedDice(gameState.selectedDice || []);
+            try {
+              // Get the current game details
+              const gameDetails = await API.getGameById(result.gameId);
               
-              // Calculate scores based on current dice values
-              if (gameState.diceValues && gameState.rollCount > 0) {
-                setCurrentScores(calculateScores(gameState.diceValues));
-              }
+              if (gameDetails) {
+                // Get the latest turn if it exists
+                const lastTurn = gameDetails.currentTurn || {};
+                
+                // Restore dice state
+                if (lastTurn.dice) {
+                  const diceArray = typeof lastTurn.dice === 'string' 
+                    ? JSON.parse(lastTurn.dice) 
+                    : lastTurn.dice;
+                  setDiceValues(diceArray);
+                  
+                  // Calculate potential scores based on current dice
+                  if (lastTurn.rerolls > 0) {
+                    setCurrentScores(calculateScores(diceArray));
+                  }
+                } else {
+                  setDiceValues(INITIAL_DICE_VALUES);
+                }
 
-              // Load bonus states
-              setHasYahtzee(gameState.hasYahtzee || false);
-              setYahtzeeBonus(gameState.yahtzeeBonus || 0);
-              
-              // Calculate totals
-              const scores = calculateAllScores(categories);
-              setPlayerTotal(scores.total);
-              setUpperSectionTotal(scores.upperTotal);
-              setUpperSectionBonus(scores.upperBonus);
+                // Restore roll count
+                setRollCount(lastTurn.rerolls || 0);
+
+                // Check for Yahtzee
+                const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
+                const hasExistingYahtzee = yahtzeeCategory?.is_submitted && yahtzeeCategory?.score === 50;
+                setHasYahtzee(hasExistingYahtzee);
+
+                // Calculate total scores
+                let upperTotal = 0;
+                let yahtzeeBonus = 0;
+
+                categories.forEach(category => {
+                  if (category.is_submitted) {
+                    if (['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].includes(category.name)) {
+                      upperTotal += category.score;
+                    }
+                    if (category.name === 'yahtzeeBonus') {
+                      yahtzeeBonus += category.score;
+                    }
+                  }
+                });
+
+                setYahtzeeBonus(yahtzeeBonus);
+                setUpperSectionTotal(upperTotal);
+                setUpperSectionBonus(upperTotal >= 63 ? 35 : 0);
+
+                // Calculate and set total score
+                const totalScore = categories.reduce((sum, cat) => {
+                  return sum + (cat.is_submitted ? cat.score : 0);
+                }, 0);
+                setPlayerTotal(totalScore + (upperTotal >= 63 ? 35 : 0) + yahtzeeBonus);
+              }
+            } catch (error) {
+              console.error('Error loading game state:', error);
+              // If we can't load the game state, reset to initial values
+              setDiceValues(INITIAL_DICE_VALUES);
+              setSelectedDice([]);
+              setRollCount(0);
+              setCurrentScores({});
             }
           } else {
             // Reset all states for new game
