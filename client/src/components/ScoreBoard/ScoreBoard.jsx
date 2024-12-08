@@ -12,7 +12,8 @@ const Scoreboard = ({
   diceValues,
   rollCount,
   handleScoreCategoryClick,
-  onTurnComplete
+  onTurnComplete,
+  handleNewGame
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
@@ -121,48 +122,12 @@ const Scoreboard = ({
           // End the game
           await API.endGame(activeGame.game_id);
           
-          // Show completion modal with new game option
+          // Show completion modal
           Modal.success({
             title: 'Game Complete!',
             content: `Congratulations! You've completed the game with a total score of ${totalScore} points!`,
             okText: 'New Game',
-            onOk: async () => {
-              try {
-                // Create new game
-                const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
-                if (!newGame?.game_id) {
-                  throw new Error('Failed to create new game');
-                }
-                
-                // Start the game
-                await API.startGame(newGame.game_id);
-                
-                // Reset categories
-                await API.resetPlayerCategories(currentPlayer.player_id);
-                await API.initializePlayerCategories(currentPlayer.player_id);
-                
-                // Refresh the scores and categories
-                const categories = await API.getPlayerCategories(currentPlayer.player_id);
-                const scoreMap = {};
-                const lockedMap = {};
-                
-                categories.forEach((cat) => {
-                  const key = cat.name;
-                  scoreMap[key] = '-';
-                  lockedMap[key] = false;
-                });
-                
-                setScores(scoreMap);
-                setLockedCategories(lockedMap);
-                setTotalScore(0);
-                
-                message.success('New game started successfully!');
-                
-              } catch (error) {
-                console.error('Error starting new game:', error);
-                message.error(`Failed to start new game: ${error.message}`);
-              }
-            },
+            onOk: handleNewGame,
             maskClosable: false,
             closable: false
           });

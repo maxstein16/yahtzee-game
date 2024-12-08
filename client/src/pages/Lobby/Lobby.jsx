@@ -100,6 +100,7 @@ const LobbyView = ({
             rollCount={rollCount}
             handleScoreCategoryClick={handleScoreCategoryClick}
             onTurnComplete={onTurnComplete}
+            handleNewGame={handleNewGame}
           />
         ) : (
           <div style={{ textAlign: 'center', padding: '20px' }}>
