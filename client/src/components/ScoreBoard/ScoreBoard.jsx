@@ -110,6 +110,32 @@ const Scoreboard = ({
     }
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
+  const startNewGame = async () => {
+    try {
+      // Reset categories for the player
+      await API.resetPlayerCategories(currentPlayer.player_id);
+      
+      // Create a new game
+      const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
+      
+      if (newGame) {
+        // Start the game
+        await API.startGame(newGame.game_id);
+        
+        // Initialize categories
+        await API.initializePlayerCategories(currentPlayer.player_id);
+        
+        // Reload the page to reset all states
+        window.location.reload();
+      } else {
+        throw new Error('Failed to create new game');
+      }
+    } catch (error) {
+      console.error('Error starting new game:', error);
+      message.error('Failed to start new game');
+    }
+  };
+
   const checkGameCompletion = async (updatedLockedCategories) => {
     const allCategoriesSubmitted = Object.values(updatedLockedCategories).every(isLocked => isLocked);
     
@@ -126,7 +152,9 @@ const Scoreboard = ({
             title: 'Game Complete!',
             content: `Congratulations! You've completed the game with a total score of ${totalScore} points!`,
             okText: 'Play Again',
-            onOk: () => window.location.reload()
+            onOk: startNewGame,
+            maskClosable: false,
+            closable: false
           });
         }
       } catch (error) {
