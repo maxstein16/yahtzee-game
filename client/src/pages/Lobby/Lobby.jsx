@@ -1,5 +1,6 @@
+// LobbyView.jsx
 import React from 'react';
-import { Layout, Typography, Button, Space } from 'antd';
+import { Layout, Typography, Button, Space, Spin } from 'antd';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../../pages/Dice';
 import '../../styles/Lobby.css';
@@ -21,8 +22,24 @@ const LobbyView = ({
   toggleDiceSelection,
   handleScoreCategoryClick,
   calculateScores,
-  onTurnComplete
+  onTurnComplete,
+  isLoading
 }) => {
+  if (isLoading) {
+    return (
+      <Layout style={{ height: '100vh' }}>
+        <Header className="top-nav">
+          <Space style={{ width: '100%', justifyContent: 'center' }}>
+            <Spin size="large" />
+          </Space>
+        </Header>
+        <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Loading game...</Text>
+        </Content>
+      </Layout>
+    );
+  }
+
   return (
     <Layout style={{ height: '100vh' }}>
       <Header className="top-nav">
@@ -74,15 +91,22 @@ const LobbyView = ({
           </div>
         </div>
 
-        <Scoreboard
-          currentPlayer={currentPlayer}
-          playerCategories={playerCategories}
-          calculateScores={calculateScores}
-          diceValues={diceValues}
-          rollCount={rollCount}
-          handleScoreCategoryClick={handleScoreCategoryClick}
-          onTurnComplete={onTurnComplete}
-        />
+        {playerCategories && playerCategories.length > 0 ? (
+          <Scoreboard
+            currentPlayer={currentPlayer}
+            playerCategories={playerCategories}
+            calculateScores={calculateScores}
+            diceValues={diceValues}
+            rollCount={rollCount}
+            handleScoreCategoryClick={handleScoreCategoryClick}
+            onTurnComplete={onTurnComplete}
+          />
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <Spin />
+            <Text>Initializing scoreboard...</Text>
+          </div>
+        )}
       </Content>
     </Layout>
   );

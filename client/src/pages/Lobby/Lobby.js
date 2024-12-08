@@ -19,6 +19,7 @@ function Lobby() {
   const [isNewGame, setIsNewGame] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [shouldResetScores, setShouldResetScores] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Game States
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
@@ -29,30 +30,73 @@ function Lobby() {
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
 
-  useEffect(() => {
-    if (diceValues && diceValues.length > 0 && rollCount > 0) {
-      const newScores = calculateScores(diceValues);
-      console.log('New calculated scores:', newScores);
-      setCurrentScores(newScores);
-    }
-  }, [diceValues, rollCount]);
+  // Initialize default categories for new users
+  const initializeDefaultCategories = async (playerId) => {
+    try {
+      const defaultCategories = [
+        'ones', 'twos', 'threes', 'fours', 'fives', 'sixes',
+        'threeOfAKind', 'fourOfAKind', 'fullHouse', 'smallStraight',
+        'largeStraight', 'yahtzee', 'chance'
+      ];
 
+      const categories = await Promise.all(
+        defaultCategories.map(async (category) => {
+          try {
+            return await API.createPlayerCategory(playerId, category);
+          } catch (error) {
+            console.error(`Error creating category ${category}:`, error);
+            return null;
+          }
+        })
+      );
+
+      const validCategories = categories.filter(cat => cat !== null);
+      setPlayerCategories(validCategories);
+      return validCategories;
+    } catch (error) {
+      console.error('Error initializing default categories:', error);
+      message.error('Failed to initialize game categories');
+      return [];
+    }
+  };
+
+  // Enhanced player initialization
   useEffect(() => {
     const initializePlayer = async () => {
-      const playerInfo = await fetchCurrentPlayer(navigate);
-      if (playerInfo) {
-        setCurrentPlayer(playerInfo.playerData);
-        setPlayerCategories(playerInfo.categories);
-        setPlayerTotal(playerInfo.total);
+      setIsLoading(true);
+      try {
+        const playerInfo = await fetchCurrentPlayer(navigate);
+        if (playerInfo) {
+          setCurrentPlayer(playerInfo.playerData);
+          
+          // Check if player has categories
+          let categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
+          
+          // If no categories exist, initialize them
+          if (!categories || categories.length === 0) {
+            categories = await initializeDefaultCategories(playerInfo.playerData.player_id);
+          }
+          
+          setPlayerCategories(categories);
+          
+          const totalScore = await API.getPlayerTotalScore(playerInfo.playerData.player_id);
+          setPlayerTotal(totalScore?.totalScore || 0);
+        }
+      } catch (error) {
+        console.error('Error initializing player:', error);
+        message.error('Failed to initialize player data');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     initializePlayer();
   }, [navigate]);
 
+  // Enhanced game initialization
   useEffect(() => {
     const initializeGameSession = async () => {
-      if (!currentPlayer || isInitializing) return;
+      if (!currentPlayer || isInitializing || isLoading) return;
 
       if (isNewGame || !gameId) {
         setIsInitializing(true);
@@ -62,17 +106,22 @@ function Lobby() {
           if (result.success) {
             message.success(result.message);
             
-            if (result.existingGame) {
-              const categories = await API.getPlayerCategories(currentPlayer.player_id);
-              setPlayerCategories(categories);
-              const total = await API.getPlayerTotalScore(currentPlayer.player_id);
-              setPlayerTotal(total.totalScore);
+            // Ensure categories exist
+            let categories = await API.getPlayerCategories(currentPlayer.player_id);
+            if (!categories || categories.length === 0) {
+              categories = await initializeDefaultCategories(currentPlayer.player_id);
             }
+            setPlayerCategories(categories);
             
+            const total = await API.getPlayerTotalScore(currentPlayer.player_id);
+            setPlayerTotal(total?.totalScore || 0);
             setIsNewGame(false);
           } else {
-            message.error(result.message);
+            throw new Error(result.message);
           }
+        } catch (error) {
+          console.error('Error initializing game:', error);
+          message.error('Failed to initialize game');
         } finally {
           setIsInitializing(false);
         }
@@ -80,7 +129,7 @@ function Lobby() {
     };
 
     initializeGameSession();
-  }, [currentPlayer, isNewGame, gameId]);
+  }, [currentPlayer, isNewGame, gameId, isLoading, isInitializing]);
 
   const handleNewGame = async () => {
     try {
@@ -266,6 +315,7 @@ function Lobby() {
     playerTotal,
     playerCategories,
     shouldResetScores,
+    isLoading,
     handleNewGame,
     handleLogout: handlePlayerLogout,
     handleRollDice: handleDiceRoll,
