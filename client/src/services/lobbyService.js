@@ -15,26 +15,12 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
       } catch (endError) {
         console.log('Error ending previous game:', endError);
       }
-
-      // Clean up game player relationship
-      try {
-        await API.removePlayerFromGame(currentPlayer.player_id, activeGame.game_id);
-      } catch (removeError) {
-        console.log('Error removing player from game:', removeError);
-      }
-    }
-
-    // Ensure all player games are cleaned up
-    try {
-      await API.cleanupPlayerGames(currentPlayer.player_id);
-    } catch (cleanupError) {
-      console.log('Error during cleanup:', cleanupError);
     }
 
     // Clean up any existing player categories
     await API.resetPlayerCategories(currentPlayer.player_id);
     
-    // Add delay before creating new game
+    // Add small delay before creating new game
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Create new game
