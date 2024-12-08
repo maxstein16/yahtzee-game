@@ -67,7 +67,7 @@ function Lobby() {
       const categories = await Promise.all(
         defaultCategories.map(async (category) => {
           try {
-            const newCategory = await API.createPlayerCategory(
+            const newCategory = await API.initializePlayerCategories(
               playerId,
               category.name,
               category.section,
@@ -135,59 +135,31 @@ function Lobby() {
     const initializeOpponent = async () => {
       if (gameId) {
         try {
-          // Check if opponent categories already exist
+          // Check if opponent categories exist
           let categories = await API.getPlayerCategories('9'); // Replace '9' with opponent ID
   
           if (!categories || categories.length === 0) {
-            // Create default categories for the opponent if none exist
-            const defaultCategories = [
-              { name: 'ones', section: 'upper', maxScore: 5 },
-              { name: 'twos', section: 'upper', maxScore: 10 },
-              { name: 'threes', section: 'upper', maxScore: 15 },
-              { name: 'fours', section: 'upper', maxScore: 20 },
-              { name: 'fives', section: 'upper', maxScore: 25 },
-              { name: 'sixes', section: 'upper', maxScore: 30 },
-              { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
-              { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
-              { name: 'fullHouse', section: 'lower', maxScore: 25 },
-              { name: 'smallStraight', section: 'lower', maxScore: 30 },
-              { name: 'largeStraight', section: 'lower', maxScore: 40 },
-              { name: 'yahtzee', section: 'lower', maxScore: 50 },
-              { name: 'chance', section: 'lower', maxScore: 30 },
-            ];
-  
-            categories = await Promise.all(
-              defaultCategories.map(async (category) => {
-                try {
-                  const newCategory = await API.createPlayerCategory(
-                    '9', // Replace with opponent ID
-                    category.name,
-                    category.section,
-                    category.maxScore
-                  );
-                  return { ...newCategory, section: category.section, maxScore: category.maxScore };
-                } catch (error) {
-                  console.error(`Error creating opponent category ${category.name}:`, error);
-                  return null;
-                }
-              })
-            );
-  
-            categories = categories.filter((cat) => cat !== null); // Remove any failed categories
+            // Initialize default categories for the opponent
+            categories = await API.initializePlayerCategories('9'); // Replace '9' with opponent ID
           }
   
+          // Update state with opponent's categories
           setOpponentCategories(categories);
+  
+          // Reset opponent-specific state
           setOpponentDice([1, 1, 1, 1, 1]);
           setOpponentScore(0);
           setOpponentRollCount(0);
         } catch (error) {
           console.error('Error initializing opponent:', error);
+          message.error('Failed to initialize opponent.');
         }
       }
     };
   
     initializeOpponent();
   }, [gameId, API]);
+  
    
 
   // Score calculation utilities
