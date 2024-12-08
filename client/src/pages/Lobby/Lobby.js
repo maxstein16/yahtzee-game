@@ -48,6 +48,15 @@ function Lobby() {
     turnScore: 0
   });
 
+  const resetOpponentTurn = () => {
+    setOpponentState(prev => ({
+      ...prev,
+      isOpponentTurn: false,
+      rollCount: 0,
+      dice: INITIAL_DICE_VALUES
+    }));
+  };
+
   // Helper Functions
   const checkForYahtzeeBonus = (dice) => {
     if (!hasYahtzee) return false;
