@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { initializeGame } from '../../services/lobbyService';
+import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
-import { resetTurnState } from '../../services/gameStateService.js'
+import { resetTurnState } from '../../services/gameStateService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
-import LobbyView from './Lobby.jsx';
-import API from '../../utils/api.js';
+import LobbyView from './LobbyView';
+import API from '../../utils/api';
 
 const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 
@@ -38,58 +38,17 @@ function Lobby() {
   const [isRolling, setIsRolling] = useState(false);
 
   // Opponent-specific state
-  const [opponentCategories, setOpponentCategories] = useState([]);
-  const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
-  const [opponentScore, setOpponentScore] = useState(0);
-  const [opponentRollCount, setOpponentRollCount] = useState(0);
-  const [isOpponentTurn, setIsOpponentTurn] = useState(false);
+  const [opponentState, setOpponentState] = useState({
+    categories: [],
+    dice: INITIAL_DICE_VALUES,
+    score: 0,
+    rollCount: 0,
+    isOpponentTurn: false,
+    lastCategory: null,
+    turnScore: 0
+  });
 
-
-  // Initialize default categories
-  const initializeDefaultCategories = async (playerId) => {
-    const defaultCategories = [
-      { name: 'ones', section: 'upper', maxScore: 5 },
-      { name: 'twos', section: 'upper', maxScore: 10 },
-      { name: 'threes', section: 'upper', maxScore: 15 },
-      { name: 'fours', section: 'upper', maxScore: 20 },
-      { name: 'fives', section: 'upper', maxScore: 25 },
-      { name: 'sixes', section: 'upper', maxScore: 30 },
-      { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
-      { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
-      { name: 'fullHouse', section: 'lower', maxScore: 25 },
-      { name: 'smallStraight', section: 'lower', maxScore: 30 },
-      { name: 'largeStraight', section: 'lower', maxScore: 40 },
-      { name: 'yahtzee', section: 'lower', maxScore: 50 },
-      { name: 'chance', section: 'lower', maxScore: 30 },
-    ];
-  
-    try {
-      const categories = await Promise.all(
-        defaultCategories.map(async (category) => {
-          try {
-            const newCategory = await API.initializePlayerCategories(
-              playerId,
-              category.name,
-              category.section,
-              category.maxScore
-            );
-            return { ...newCategory, section: category.section, maxScore: category.maxScore };
-          } catch (error) {
-            console.error(`Error creating category ${category.name}:`, error);
-            return null;
-          }
-        })
-      );
-  
-      return categories.filter((cat) => cat !== null);
-    } catch (error) {
-      console.error('Error initializing default categories:', error);
-      message.error('Failed to initialize game categories');
-      return [];
-    }
-  };
-
-  // Enhanced player initialization
+  // Initialize player
   useEffect(() => {
     const initializePlayer = async () => {
       setIsLoading(true);
@@ -99,20 +58,13 @@ function Lobby() {
           setCurrentPlayer(playerInfo.playerData);
           
           let categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
-          
           if (!categories || categories.length === 0) {
             categories = await initializeDefaultCategories(playerInfo.playerData.player_id);
           }
           
           setPlayerCategories(categories);
-          
-          // Calculate initial scores and bonuses
           const scores = calculateAllScores(categories);
-          setPlayerTotal(scores.total);
-          setUpperSectionTotal(scores.upperTotal);
-          setUpperSectionBonus(scores.upperBonus);
-          setYahtzeeBonus(scores.yahtzeeBonus);
-          setHasYahtzee(scores.hasYahtzee);
+          updatePlayerScores(scores);
         }
       } catch (error) {
         console.error('Error initializing player:', error);
@@ -125,169 +77,17 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
-  useEffect(() => {
-    const initializeOpponent = async () => {
-      if (gameId) {
-        try {
-          // Check if opponent categories exist
-          let categories = await API.getPlayerCategories('9'); // Replace '9' with opponent ID
-  
-          if (!categories || categories.length === 0) {
-            // Initialize default categories for the opponent
-            categories = await API.initializePlayerCategories('9'); // Replace '9' with opponent ID
-          }
-  
-          // Update state with opponent's categories
-          setOpponentCategories(categories);
-  
-          // Reset opponent-specific state
-          setOpponentDice([1, 1, 1, 1, 1]);
-          setOpponentScore(0);
-          setOpponentRollCount(0);
-        } catch (error) {
-          console.error('Error initializing opponent:', error);
-          message.error('Failed to initialize opponent.');
-        }
-      }
-    };
-  
-    initializeOpponent();
-  }, [gameId, API]);
-  
-   
-
-  // Score calculation utilities
-  const calculateAllScores = (categories) => {
-    const upperCategories = categories.filter(cat => cat.section === 'upper');
-    const upperTotal = upperCategories.reduce((total, cat) => total + (cat.score || 0), 0);
-    const upperBonus = upperTotal >= 63 ? 35 : 0;
-    
-    const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
-    const hasYahtzee = yahtzeeCategory?.score === 50;
-    
-    const total = categories.reduce((sum, cat) => sum + (cat.score || 0), 0) + upperBonus;
-    
-    return {
-      upperTotal,
-      upperBonus,
-      hasYahtzee,
-      yahtzeeBonus: categories.filter(cat => cat.name === 'yahtzeeBonus').reduce((sum, cat) => sum + (cat.score || 0), 0),
-      total
-    };
-  };
-
-  const checkForYahtzeeBonus = (dice) => {
-    if (!hasYahtzee) return false;
-    return dice.every(value => value === dice[0]);
-  };
-
-  const onTurnComplete = () => {
-    console.log("Player turn completed!");
-  };  
-
-  // Modified game initialization effect in Lobby.jsx
+  // Initialize game session
   useEffect(() => {
     const initializeGameSession = async () => {
       if (!currentPlayer || isInitializing || isLoading) return;
 
       setIsInitializing(true);
       try {
-        // Initialize or resume game
         const result = await initializeGame(currentPlayer, 'singleplayer', setGameId, () => {});
         
         if (result.success) {
-          // Only show message for new games
-          if (!result.existingGame) {
-            message.success(result.message);
-          }
-          
-          // Load categories and game state
-          let categories = await API.getPlayerCategories(currentPlayer.player_id);
-          if (!categories || categories.length === 0) {
-            categories = await initializeDefaultCategories(currentPlayer.player_id);
-          }
-          
-          setPlayerCategories(categories);
-          
-          if (result.existingGame) {
-            try {
-              // Get the current game details
-              const gameDetails = await API.getGameById(result.gameId);
-              
-              if (gameDetails) {
-                // Get the latest turn if it exists
-                const lastTurn = gameDetails.currentTurn || {};
-                
-                // Restore dice state
-                if (lastTurn.dice) {
-                  const diceArray = typeof lastTurn.dice === 'string' 
-                    ? JSON.parse(lastTurn.dice) 
-                    : lastTurn.dice;
-                  setDiceValues(diceArray);
-                  
-                  // Calculate potential scores based on current dice
-                  if (lastTurn.rerolls > 0) {
-                    setCurrentScores(calculateScores(diceArray));
-                  }
-                } else {
-                  setDiceValues(INITIAL_DICE_VALUES);
-                }
-
-                // Restore roll count
-                setRollCount(lastTurn.rerolls || 0);
-
-                // Check for Yahtzee
-                const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
-                const hasExistingYahtzee = yahtzeeCategory?.is_submitted && yahtzeeCategory?.score === 50;
-                setHasYahtzee(hasExistingYahtzee);
-
-                // Calculate total scores
-                let upperTotal = 0;
-                let yahtzeeBonus = 0;
-
-                categories.forEach(category => {
-                  if (category.is_submitted) {
-                    if (['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].includes(category.name)) {
-                      upperTotal += category.score;
-                    }
-                    if (category.name === 'yahtzeeBonus') {
-                      yahtzeeBonus += category.score;
-                    }
-                  }
-                });
-
-                setYahtzeeBonus(yahtzeeBonus);
-                setUpperSectionTotal(upperTotal);
-                setUpperSectionBonus(upperTotal >= 63 ? 35 : 0);
-
-                // Calculate and set total score
-                const totalScore = categories.reduce((sum, cat) => {
-                  return sum + (cat.is_submitted ? cat.score : 0);
-                }, 0);
-                setPlayerTotal(totalScore + (upperTotal >= 63 ? 35 : 0) + yahtzeeBonus);
-              }
-            } catch (error) {
-              console.error('Error loading game state:', error);
-              // If we can't load the game state, reset to initial values
-              setDiceValues(INITIAL_DICE_VALUES);
-              setSelectedDice([]);
-              setRollCount(0);
-              setCurrentScores({});
-            }
-          } else {
-            // Reset all states for new game
-            setDiceValues(INITIAL_DICE_VALUES);
-            setSelectedDice([]);
-            setRollCount(0);
-            setCurrentScores({});
-            setHasYahtzee(false);
-            setYahtzeeBonus(0);
-            setUpperSectionTotal(0);
-            setUpperSectionBonus(0);
-            setPlayerTotal(0);
-          }
-          
-          setIsNewGame(false);
+          handleGameInitialization(result);
         } else {
           throw new Error(result.message);
         }
@@ -302,16 +102,73 @@ function Lobby() {
     initializeGameSession();
   }, [currentPlayer, isLoading]);
 
-  // Handle new game
+  // Handle opponent turns
+  useEffect(() => {
+    const executeOpponentTurn = async () => {
+      if (opponentState.isOpponentTurn && gameId) {
+        try {
+          // Show each roll with delay
+          for (let i = 0; i < 3; i++) {
+            const newDice = Array(5).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
+            setOpponentState(prev => ({
+              ...prev,
+              dice: newDice,
+              rollCount: i + 1
+            }));
+            
+            message.info(`Opponent Roll ${i + 1}: ${newDice.join(', ')}`, 1);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+
+          const finalResult = await calculateOpponentMove();
+          updateOpponentState(finalResult);
+          await submitOpponentScore(finalResult);
+
+          message.success(
+            `Opponent chose ${finalResult.selectedCategory.name} for ${finalResult.score} points!`, 
+            2.5
+          );
+        } catch (error) {
+          console.error('Error during opponent turn:', error);
+          message.error('Opponent turn failed');
+          resetOpponentTurn();
+        }
+      }
+    };
+
+    executeOpponentTurn();
+  }, [opponentState.isOpponentTurn, gameId]);
+
+  const calculateAllScores = (categories) => {
+    const upperCategories = categories.filter(cat => cat.section === 'upper');
+    const upperTotal = upperCategories.reduce((total, cat) => total + (cat.score || 0), 0);
+    const upperBonus = upperTotal >= 63 ? 35 : 0;
+    
+    const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
+    const hasYahtzee = yahtzeeCategory?.score === 50;
+    
+    const total = categories.reduce((sum, cat) => sum + (cat.score || 0), 0) + upperBonus;
+    
+    return {
+      upperTotal,
+      upperBonus,
+      hasYahtzee,
+      yahtzeeBonus: categories.filter(cat => cat.name === 'yahtzeeBonus')
+        .reduce((sum, cat) => sum + (cat.score || 0), 0),
+      total
+    };
+  };
+
   const handleNewGame = async () => {
     if (!currentPlayer?.player_id) {
       message.error('No player found');
       return;
     }
-  
+
     try {
       setIsLoading(true);
-  
+
+      // Clean up existing game if exists
       if (gameId) {
         try {
           await API.endGame(gameId);
@@ -319,7 +176,8 @@ function Lobby() {
           console.log('Previous game already ended or not found:', endError);
         }
       }
-  
+
+      // Create new game
       let newGame;
       try {
         newGame = await API.createGame('pending', 0, currentPlayer.player_id);
@@ -329,17 +187,17 @@ function Lobby() {
         setGameId(null);
         return;
       }
-        
+
       if (!newGame?.game_id) {
         setIsNewGame(true);
         setGameId(null);
         return;
       }
-  
+
       await API.startGame(newGame.game_id);
       setGameId(newGame.game_id);
       
-      // Reset all game state
+      // Reset turn state
       resetTurnState({
         setDiceValues: (values) => {
           setDiceValues(values);
@@ -349,7 +207,8 @@ function Lobby() {
         setRollCount,
         setScores: setCurrentScores
       });
-  
+
+      // Reset player categories using the imported function
       await resetPlayerCategories({
         currentPlayer,
         setPlayerCategories,
@@ -362,11 +221,24 @@ function Lobby() {
       setUpperSectionTotal(0);
       setUpperSectionBonus(0);
       
+      // Reset opponent state
+      setOpponentState({
+        categories: [],
+        dice: INITIAL_DICE_VALUES,
+        score: 0,
+        rollCount: 0,
+        isOpponentTurn: false,
+        lastCategory: null,
+        turnScore: 0
+      });
+      
+      // Get fresh categories
       const categories = await API.getPlayerCategories(currentPlayer.player_id);
       setPlayerCategories(categories);
       
       setShouldResetScores(true);
       
+      // Reset shouldResetScores after a short delay
       setTimeout(() => {
         message.success('New game started successfully!');
         setShouldResetScores(false);
@@ -381,60 +253,19 @@ function Lobby() {
     }
   };
 
-  // Handle score submission
   const handleScoreCategoryClick = async (categoryName) => {
-    if (!gameId || !currentPlayer?.player_id) {
-      message.error('Game or player information missing');
-      return;
-    }
+    if (!validateScoreSubmission(categoryName)) return;
 
     try {
-      const category = playerCategories.find(cat => cat.name === categoryName);
-      if (!category) {
-        throw new Error('Category not found');
-      }
-
-      const calculatedScores = calculateScores(diceValues);
-      let categoryScore = calculatedScores[categoryName];
-
-      // Handle Yahtzee scoring
-      if (categoryName === 'yahtzee' && categoryScore === 50) {
-        setHasYahtzee(true);
-      } else if (hasYahtzee && checkForYahtzeeBonus(diceValues)) {
-        const newBonus = yahtzeeBonus + 100;
-        setYahtzeeBonus(newBonus);
-        await API.submitYahtzeeBonus(gameId, currentPlayer.player_id, newBonus);
-        message.success('Yahtzee Bonus! +100 points');
-      }
-
-      // Submit turn and score
-      await API.createTurn(gameId, currentPlayer.player_id, diceValues, rollCount, categoryScore, false);
-      await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, categoryScore);
-      await API.submitTurn(gameId, currentPlayer.player_id, category.category_id, categoryScore, diceValues, rollCount);
-
-      // Update categories and recalculate scores
-      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
-      setPlayerCategories(updatedCategories);
-      
-      const scores = calculateAllScores(updatedCategories);
-      setUpperSectionTotal(scores.upperTotal);
-      setUpperSectionBonus(scores.upperBonus);
-      setPlayerTotal(scores.total + yahtzeeBonus);
-
-      // Reset turn state
-      setDiceValues(INITIAL_DICE_VALUES);
-      setRollCount(0);
-      setSelectedDice([]);
-      setCurrentScores({});
-
+      const categoryScore = await calculateAndSubmitScore(categoryName);
+      await updateGameState(categoryName, categoryScore);
+      resetTurnState();
     } catch (error) {
       console.error('Error submitting score and turn:', error);
       message.error('Failed to submit score');
-      throw error;
     }
   };
 
-  // Handle dice rolling
   const handleDiceRoll = async () => {
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
@@ -445,11 +276,7 @@ function Lobby() {
     try {
       const result = await rollDice(gameId, currentPlayer, diceValues, selectedDice);
       if (result.success) {
-        setDiceValues(result.dice);
-        const newScores = calculateScores(result.dice);
-        console.log('Calculated scores after roll:', newScores);
-        setCurrentScores(newScores);
-        setRollCount(prevCount => prevCount + 1);
+        updateDiceState(result);
       } else {
         message.error(result.message);
       }
@@ -461,35 +288,27 @@ function Lobby() {
     }
   };
 
-  // Handle dice selection
-  const handleDiceSelection = (index) => toggleDiceSelection(
-    index,
-    isRolling,
-    false,
-    setSelectedDice
-  );
-
-  const handlePlayerLogout = () => handleLogout(navigate);
-
   const handleTurnComplete = () => {
-    setDiceValues(INITIAL_DICE_VALUES);
-    setSelectedDice([]);
-    setRollCount(0);
-    setCurrentScores({});
-    onTurnComplete();
-    setIsOpponentTurn(true);
+    resetTurnState({
+      setDiceValues,
+      setSelectedDice,
+      setRollCount,
+      setCurrentScores
+    });
+    
+    setOpponentState(prev => ({
+      ...prev,
+      isOpponentTurn: true
+    }));
   };
 
-  // Prepare view props
   const viewProps = {
     currentPlayer,
     gameId,
-    scores: currentScores,
     diceValues,
     selectedDice,
     isRolling,
     rollCount,
-    playerTotal,
     playerCategories,
     shouldResetScores,
     isLoading,
@@ -497,26 +316,20 @@ function Lobby() {
     yahtzeeBonus,
     upperSectionTotal,
     upperSectionBonus,
-    opponentCategories,       // Added opponent state
-    opponentDice,            // Added opponent state
-    opponentScore,           // Added opponent state
-    opponentRollCount,       // Added opponent state
-    isOpponentTurn,          // Added opponent state
-    isNewGame,
-    API,
+    opponentState,
     handleNewGame,
-    handleLogout: handlePlayerLogout,
-    handleRollDice: handleDiceRoll,
-    toggleDiceSelection: handleDiceSelection,
+    handleLogout: () => handleLogout(navigate),
+    handleRollDice,
+    toggleDiceSelection: (index) => toggleDiceSelection(
+      index,
+      isRolling,
+      false,
+      setSelectedDice
+    ),
     handleScoreCategoryClick,
     calculateScores,
-    onTurnComplete: handleTurnComplete,
-    setOpponentCategories,   // Added setters
-    setOpponentDice,         // Added setters
-    setOpponentScore,        // Added setters
-    setOpponentRollCount,    // Added setters
-    setIsOpponentTurn        // Added setter
-  };  
+    onTurnComplete: handleTurnComplete
+  };
 
   return <LobbyView {...viewProps} />;
 }

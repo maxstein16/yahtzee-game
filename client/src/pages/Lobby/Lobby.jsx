@@ -1,58 +1,192 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
-import Dice from '../../pages/Dice';
+import Dice from '../../components/Dice';
 import '../../styles/Lobby.css';
-import { executeOpponentTurn } from '../../services/opponentService';
-import API from '../../utils/api';
-
-const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
-const initializeDefaultCategories = async (playerId) => {
-  const defaultCategories = [
-    { name: 'ones', section: 'upper', maxScore: 5 },
-    { name: 'twos', section: 'upper', maxScore: 10 },
-    { name: 'threes', section: 'upper', maxScore: 15 },
-    { name: 'fours', section: 'upper', maxScore: 20 },
-    { name: 'fives', section: 'upper', maxScore: 25 },
-    { name: 'sixes', section: 'upper', maxScore: 30 },
-    { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
-    { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
-    { name: 'fullHouse', section: 'lower', maxScore: 25 },
-    { name: 'smallStraight', section: 'lower', maxScore: 30 },
-    { name: 'largeStraight', section: 'lower', maxScore: 40 },
-    { name: 'yahtzee', section: 'lower', maxScore: 50 },
-    { name: 'chance', section: 'lower', maxScore: 30 },
-  ];
+const LoadingView = () => (
+  <Layout style={{ height: '100vh' }}>
+    <Header className="top-nav">
+      <Space style={{ width: '100%', justifyContent: 'center' }}>
+        <Spin size="large" />
+      </Space>
+    </Header>
+    <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <Text>Loading game...</Text>
+    </Content>
+  </Layout>
+);
 
-  try {
-    const categories = await Promise.all(
-      defaultCategories.map(async (category) => {
-        try {
-          const newCategory = await API.initializePlayerCategories(
-            playerId,
-            category.name,
-            category.section,
-            category.maxScore
-          );
-          return { ...newCategory, section: category.section, maxScore: category.maxScore };
-        } catch (error) {
-          console.error(`Error creating category ${category.name}:`, error);
-          return null;
-        }
-      })
-    );
+const GameHeader = ({ currentPlayer, handleNewGame, handleLogout }) => (
+  <Header className="top-nav">
+    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+      <Button onClick={handleNewGame}>New Game</Button>
+      <Space>
+        <span style={{ color: 'white' }}>
+          {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
+        </span>
+        <Button onClick={handleLogout} type="primary" danger>
+          Logout
+        </Button>
+      </Space>
+    </Space>
+  </Header>
+);
 
-    return categories.filter((cat) => cat !== null);
-  } catch (error) {
-    console.error('Error initializing default categories:', error);
-    message.error('Failed to initialize game categories');
-    return [];
-  }
-};
+const PlayerSection = ({ 
+  isOpponent,
+  name,
+  dice,
+  selectedDice,
+  isRolling,
+  rollCount,
+  onDiceClick,
+  handleRoll,
+  disabled,
+  isOpponentTurn
+}) => (
+  <div className="player-section">
+    <Title level={4}>{name}</Title>
+    <div className="game-dice-container">
+      {dice.map((value, index) => (
+        <Dice
+          key={index}
+          value={value}
+          isSelected={!isOpponent && selectedDice.includes(index)}
+          isRolling={isRolling}
+          onClick={() => onDiceClick(index)}
+          disabled={disabled || isOpponent}
+        />
+      ))}
+    </div>
+    <div className="roll-button-container">
+      {!isOpponent ? (
+        <Button
+          type="primary"
+          onClick={handleRoll}
+          disabled={disabled || isOpponentTurn}
+          style={{
+            cursor: (disabled || isOpponentTurn) ? 'not-allowed' : 'pointer',
+            opacity: (disabled || isOpponentTurn) ? 0.5 : 1
+          }}
+        >
+          Roll Dice
+        </Button>
+      ) : (
+        <Text className="opponent-status" style={{ 
+          color: isOpponentTurn ? '#1890ff' : '#666',
+          fontWeight: isOpponentTurn ? 'bold' : 'normal'
+        }}>
+          {isOpponentTurn ? "Opponent is rolling..." : "Waiting for player..."}
+        </Text>
+      )}
+      <Text className="roll-count" style={{ marginLeft: '8px' }}>
+        Roll Count: {Math.min(rollCount, 3)}/3
+      </Text>
+    </div>
+  </div>
+);
+
+const GameBoard = ({
+  currentPlayer,
+  diceValues,
+  selectedDice,
+  isRolling,
+  rollCount,
+  handleRollDice,
+  toggleDiceSelection,
+  opponentState
+}) => (
+  <div className="game-board">
+    <PlayerSection
+      name={currentPlayer?.name || 'Player'}
+      dice={diceValues}
+      selectedDice={selectedDice}
+      isRolling={isRolling}
+      rollCount={rollCount}
+      onDiceClick={toggleDiceSelection}
+      handleRoll={handleRollDice}
+      disabled={rollCount >= 3}
+      isOpponentTurn={opponentState.isOpponentTurn}
+    />
+
+    <Divider type="vertical" style={{ height: '100%' }} />
+
+    <PlayerSection
+      isOpponent
+      name="Opponent"
+      dice={opponentState.dice}
+      selectedDice={[]}
+      isRolling={opponentState.isOpponentTurn}
+      rollCount={opponentState.rollCount}
+      onDiceClick={() => {}}
+      disabled={true}
+      isOpponentTurn={opponentState.isOpponentTurn}
+    />
+  </div>
+);
+
+const ScoreboardContainer = ({
+  gameId,
+  currentPlayer,
+  playerCategories,
+  calculateScores,
+  diceValues,
+  rollCount,
+  handleScoreCategoryClick,
+  onTurnComplete,
+  shouldResetScores,
+  opponentState
+}) => (
+  <div className="scoreboards-container" style={{ display: 'flex', justifyContent: 'space-around', padding: '20px' }}>
+    {/* Player Scoreboard */}
+    {playerCategories && playerCategories.length > 0 ? (
+      <Scoreboard
+        key={`player-${gameId}`}
+        gameId={gameId}
+        currentPlayer={currentPlayer}
+        playerCategories={playerCategories}
+        calculateScores={calculateScores}
+        diceValues={diceValues}
+        rollCount={rollCount}
+        handleScoreCategoryClick={handleScoreCategoryClick}
+        onTurnComplete={onTurnComplete}
+        shouldResetScores={shouldResetScores}
+        isOpponent={false}
+      />
+    ) : (
+      <div style={{ textAlign: 'center', padding: '20px' }}>
+        <Spin />
+        <Text>Initializing scoreboard...</Text>
+      </div>
+    )}
+
+    {/* Opponent Scoreboard */}
+    {opponentState.categories && opponentState.categories.length > 0 ? (
+      <Scoreboard
+        key={`opponent-${gameId}`}
+        gameId={gameId}
+        currentPlayer={{ name: 'AI Opponent', player_id: 'opponent-1' }}
+        playerCategories={opponentState.categories}
+        calculateScores={calculateScores}
+        diceValues={opponentState.dice}
+        rollCount={opponentState.rollCount}
+        handleScoreCategoryClick={() => {}}
+        onTurnComplete={() => {}}
+        shouldResetScores={shouldResetScores}
+        isOpponent={true}
+      />
+    ) : (
+      <div style={{ textAlign: 'center', padding: '20px' }}>
+        <Spin />
+        <Text>Initializing opponent scoreboard...</Text>
+      </div>
+    )}
+  </div>
+);
 
 const LobbyView = ({
   currentPlayer,
@@ -71,223 +205,76 @@ const LobbyView = ({
   calculateScores,
   onTurnComplete,
   isLoading,
-  API,
-  opponentCategories,
-  opponentDice,
-  opponentScore,
-  opponentRollCount,
-  isOpponentTurn,
-  setOpponentCategories,
-  setOpponentDice,
-  setOpponentScore,
-  setOpponentRollCount,
-  setIsOpponentTurn,
+  opponentState,
 }) => {
-  // Handle opponent's turn after player completes theirs
-  useEffect(() => {
-    const playOpponentTurn = async () => {
-      if (isOpponentTurn && gameId) {
-        try {
-          const result = await executeOpponentTurn(
-            gameId,
-            '9',
-            opponentCategories,
-            opponentDice,
-            API 
-          );
-          setOpponentDice(result.finalDice);
-          setOpponentRollCount(result.rollCount);
-          setOpponentScore((prev) => prev + result.score);
-  
-          // Update opponent's categories
-          const updatedCategories = await API.getPlayerCategories('9'); // Ensure API is defined here
-          setOpponentCategories(updatedCategories);
-  
-          message.info(`Opponent scored ${result.score} points in ${result.selectedCategory.name}!`);
-          setIsOpponentTurn(false);
-        } catch (error) {
-          console.error('Error during opponent turn:', error);
-          message.error('Opponent turn failed.');
-          setIsOpponentTurn(false);
-        }
-      }
-    };
-  
-    playOpponentTurn();
-  }, [isOpponentTurn, gameId, opponentCategories, opponentDice, API]);  
-
-  // Initialize opponent when game starts
-  useEffect(() => {
-    const initializeOpponent = async () => {
-      if (!gameId) return;
-  
-      try {
-        let categories = await API.getPlayerCategories('9'); // Replace '9' with opponent ID
-  
-        if (!categories || categories.length === 0) {
-          categories = await initializeDefaultCategories('9'); // Reuse the function for opponents
-        }
-  
-        setOpponentCategories(categories);
-        setOpponentDice(INITIAL_DICE_VALUES);
-        setOpponentScore(0);
-        setOpponentRollCount(0);
-      } catch (error) {
-        console.error('Error initializing opponent:', error);
-        message.error('Failed to initialize opponent.');
-      }
-    };
-  
-    initializeOpponent();
-  }, [gameId]);
-  
-
-  // Modified turn complete handler
-  const handleTurnComplete = () => {
-    onTurnComplete();
-    setIsOpponentTurn(true);
-  };
-
   if (isLoading) {
-    return (
-      <Layout style={{ height: '100vh' }}>
-        <Header className="top-nav">
-          <Space style={{ width: '100%', justifyContent: 'center' }}>
-            <Spin size="large" />
-          </Space>
-        </Header>
-        <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <Text>Loading game...</Text>
-        </Content>
-      </Layout>
-    );
+    return <LoadingView />;
   }
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <Header className="top-nav">
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Button onClick={handleNewGame}>New Game</Button>
-          <Space>
-            <span style={{ color: 'white' }}>
-              {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
-            </span>
-            <Button onClick={handleLogout} type="primary" danger>
-              Logout
-            </Button>
-          </Space>
-        </Space>
-      </Header>
+      <GameHeader 
+        currentPlayer={currentPlayer}
+        handleNewGame={handleNewGame}
+        handleLogout={handleLogout}
+      />
 
       <Content className="game-container">
-        <div className="game-board">
-          {/* Player Section */}
-          <div className="player-section">
-            <Title level={4}>{currentPlayer?.name || 'Player'}</Title>
-            <div className="game-dice-container">
-              {diceValues.map((value, index) => (
-                <Dice
-                  key={index}
-                  value={value}
-                  isSelected={selectedDice.includes(index)}
-                  isRolling={isRolling}
-                  onClick={() => toggleDiceSelection(index)}
-                  disabled={rollCount >= 3 || isOpponentTurn}
-                />
-              ))}
-            </div>
-            <div className="roll-button-container">
-              <Button
-                type="primary"
-                onClick={handleRollDice}
-                disabled={!gameId || rollCount >= 3 || isOpponentTurn}
-                style={{
-                  cursor: (rollCount >= 3 || isOpponentTurn) ? 'not-allowed' : 'pointer',
-                  opacity: (rollCount >= 3 || isOpponentTurn) ? 0.5 : 1
-                }}
-              >
-                Roll Dice
-              </Button>
-              <Text className="roll-count" style={{ marginLeft: '8px' }}>
-                Roll Count: {Math.min(rollCount, 3)}/3
-              </Text>
-            </div>
-          </div>
+        <GameBoard
+          currentPlayer={currentPlayer}
+          diceValues={diceValues}
+          selectedDice={selectedDice}
+          isRolling={isRolling}
+          rollCount={rollCount}
+          handleRollDice={handleRollDice}
+          toggleDiceSelection={toggleDiceSelection}
+          opponentState={opponentState}
+        />
 
-          <Divider type="vertical" style={{ height: '100%' }} />
-
-          {/* Opponent Section */}
-          <div className="player-section">
-            <Title level={4}>Opponent</Title>
-            <div className="game-dice-container">
-              {opponentDice.map((value, index) => (
-                <Dice
-                  key={index}
-                  value={value}
-                  isSelected={false}
-                  isRolling={isOpponentTurn}
-                  disabled={true}
-                />
-              ))}
-            </div>
-            <div className="roll-button-container">
-              <Text>
-                {isOpponentTurn ? "Opponent's turn..." : "Waiting for player..."}
-              </Text>
-              <Text className="roll-count" style={{ marginLeft: '8px' }}>
-                Roll Count: {Math.min(opponentRollCount, 3)}/3
-              </Text>
-            </div>
-          </div>
-        </div>
-
-        <div className="scoreboards-container" style={{ display: 'flex', justifyContent: 'space-around' }}>
-          {/* Player Scoreboard */}
-          {playerCategories && playerCategories.length > 0 ? (
-            <Scoreboard
-              key={`player-${gameId}`}
-              gameId={gameId}
-              currentPlayer={currentPlayer}
-              playerCategories={playerCategories}
-              calculateScores={calculateScores}
-              diceValues={diceValues}
-              rollCount={rollCount}
-              handleScoreCategoryClick={handleScoreCategoryClick}
-              onTurnComplete={handleTurnComplete}
-              shouldResetScores={shouldResetScores}
-            />
-          ) : (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <Spin />
-              <Text>Initializing scoreboard...</Text>
-            </div>
-          )}
-
-          {/* Opponent Scoreboard */}
-          {opponentCategories && opponentCategories.length > 0 ? (
-            <Scoreboard
-              key={`opponent-${gameId}`}
-              gameId={gameId}
-              currentPlayer={{ name: 'AI Opponent', player_id: 'opponent-1' }}
-              playerCategories={opponentCategories}
-              calculateScores={calculateScores}
-              diceValues={opponentDice}
-              rollCount={opponentRollCount}
-              handleScoreCategoryClick={() => {}}
-              onTurnComplete={() => {}}
-              shouldResetScores={shouldResetScores}
-              isOpponent={true}
-            />
-          ) : (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <Spin />
-              <Text>Initializing opponent scoreboard...</Text>
-            </div>
-          )}
-        </div>
+        <ScoreboardContainer
+          gameId={gameId}
+          currentPlayer={currentPlayer}
+          playerCategories={playerCategories}
+          calculateScores={calculateScores}
+          diceValues={diceValues}
+          rollCount={rollCount}
+          handleScoreCategoryClick={handleScoreCategoryClick}
+          onTurnComplete={onTurnComplete}
+          shouldResetScores={shouldResetScores}
+          opponentState={opponentState}
+        />
       </Content>
     </Layout>
   );
+};
+
+// PropTypes validation (optional but recommended)
+LobbyView.propTypes = {
+  currentPlayer: PropTypes.object,
+  gameId: PropTypes.string,
+  diceValues: PropTypes.arrayOf(PropTypes.number).isRequired,
+  selectedDice: PropTypes.arrayOf(PropTypes.number).isRequired,
+  isRolling: PropTypes.bool.isRequired,
+  rollCount: PropTypes.number.isRequired,
+  playerCategories: PropTypes.array.isRequired,
+  handleNewGame: PropTypes.func.isRequired,
+  handleLogout: PropTypes.func.isRequired,
+  handleRollDice: PropTypes.func.isRequired,
+  toggleDiceSelection: PropTypes.func.isRequired,
+  shouldResetScores: PropTypes.bool.isRequired,
+  handleScoreCategoryClick: PropTypes.func.isRequired,
+  calculateScores: PropTypes.func.isRequired,
+  onTurnComplete: PropTypes.func.isRequired,
+  isLoading: PropTypes.bool.isRequired,
+  opponentState: PropTypes.shape({
+    categories: PropTypes.array,
+    dice: PropTypes.arrayOf(PropTypes.number),
+    score: PropTypes.number,
+    rollCount: PropTypes.number,
+    isOpponentTurn: PropTypes.bool,
+    lastCategory: PropTypes.string,
+    turnScore: PropTypes.number
+  }).isRequired,
 };
 
 export default LobbyView;

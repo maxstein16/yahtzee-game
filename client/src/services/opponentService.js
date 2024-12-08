@@ -100,47 +100,48 @@ const hasLargeStraight = (counts) => {
          (counts[2] && counts[3] && counts[4] && counts[5] && counts[6]);
 };
 
-export const executeOpponentTurn = async (gameId, playerId, categories, currentDice, API) => {
-  const availableCategories = categories.filter(cat => !cat.is_submitted);
-  let diceValues = [...currentDice];
+export const executeOpponentTurn = async (gameId, opponentId, categories, initialDice, API) => {
+  const rollHistory = [];
+  let currentDice = [...initialDice];
   let rollCount = 0;
-  let finalMove = null;
-
-  while (rollCount < 3) {
-    const move = calculateOptimalMove(diceValues, availableCategories);
-
-    if (move.expectedScore >= getThresholdForCategory(move.category.name)) {
-      finalMove = move;
-      break;
-    }
-
+  
+  // Simulate 2-3 rolls
+  const numRolls = Math.floor(Math.random() * 2) + 2;
+  
+  for (let i = 0; i < numRolls && rollCount < 3; i++) {
+    // Simulate dice roll
+    currentDice = currentDice.map(() => Math.floor(Math.random() * 6) + 1);
+    rollHistory.push([...currentDice]);
     rollCount++;
-    if (rollCount === 3) {
-      finalMove = move;
-      break;
-    }
-
-    const result = await API.rollDice(gameId, {
-      playerId,
-      currentDice: diceValues,
-      keepIndices: move.keepIndices
-    });
-
-    if (result.success) {
-      diceValues = result.dice;
-    }
+    
+    // Add delay between rolls
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
-  if (finalMove) {
-    await API.createTurn(gameId, playerId, diceValues, rollCount, finalMove.expectedScore, false);
-    await API.submitGameScore(gameId, playerId, finalMove.category.name, finalMove.expectedScore);
-  }
+  // Select best scoring category
+  const scores = calculateScores(currentDice);
+  const availableCategories = categories.filter(cat => !cat.is_submitted);
+  
+  let bestCategory = availableCategories[0];
+  let bestScore = scores[bestCategory.name] || 0;
+  
+  availableCategories.forEach(category => {
+    const score = scores[category.name] || 0;
+    if (score > bestScore) {
+      bestScore = score;
+      bestCategory = category;
+    }
+  });
+
+  // Submit the score
+  await API.submitGameScore(gameId, opponentId, bestCategory.name, bestScore);
 
   return {
-    finalDice: diceValues,
-    selectedCategory: finalMove?.category,
-    score: finalMove?.expectedScore,
-    rollCount
+    finalDice: currentDice,
+    rollCount,
+    score: bestScore,
+    selectedCategory: bestCategory,
+    rollHistory
   };
 };
 

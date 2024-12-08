@@ -13,7 +13,8 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
   onTurnComplete,
-  gameId
+  gameId,
+  isOpponent = false
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
@@ -60,7 +61,6 @@ const Scoreboard = ({
       }
     });
 
-    // Calculate bonuses
     const upperBonus = upperBase >= 63 ? 35 : 0;
     const upperTotal = upperBase + upperBonus;
     const lowerTotal = lowerBase + yahtzeeBonus;
@@ -74,22 +74,7 @@ const Scoreboard = ({
     };
   };
 
-  const loadTotalScore = async () => {
-    if (currentPlayer?.player_id) {
-      try {
-        const { totalScore: newTotal } = await API.getPlayerTotalScore(currentPlayer.player_id);
-        
-        // Calculate section totals
-        const sectionTotals = calculateSectionScores(playerCategories, scores);
-        setUpperSectionScore(sectionTotals.upperTotal);
-        setLowerSectionScore(sectionTotals.lowerTotal);
-        setTotalScore(sectionTotals.upperTotal + sectionTotals.lowerTotal);
-      } catch (error) {
-        console.error('Error loading total score:', error);
-      }
-    }
-  };
-
+  // Load scores when component mounts or when categories change
   useEffect(() => {
     const loadScores = async () => {
       if (currentPlayer?.player_id) {
@@ -112,7 +97,6 @@ const Scoreboard = ({
           setScores(scoreMap);
           setLockedCategories(lockedMap);
           
-          // Calculate all scores including base scores
           const sectionTotals = calculateSectionScores(categories, scoreMap);
           setUpperSectionBaseScore(sectionTotals.upperBase);
           setLowerSectionBaseScore(sectionTotals.lowerBase);
@@ -126,24 +110,11 @@ const Scoreboard = ({
     };
   
     loadScores();
-  }, [currentPlayer?.player_id, gameId]);
+  }, [currentPlayer?.player_id, gameId, playerCategories]);
 
+  // Update available scores when dice are rolled (only for active player)
   useEffect(() => {
-    if (rollCount === 0) {
-      setScores(prevScores => {
-        const newScores = { ...prevScores };
-        Object.keys(newScores).forEach(key => {
-          if (!lockedCategories[key]) {
-            newScores[key] = '-';
-          }
-        });
-        return newScores;
-      });
-    }
-  }, [rollCount, lockedCategories]);
-
-  useEffect(() => {
-    if (diceValues && diceValues.length > 0 && rollCount > 0) {
+    if (!isOpponent && diceValues && diceValues.length > 0 && rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);
       setScores(prevScores => {
         const newScores = { ...prevScores };
@@ -155,79 +126,35 @@ const Scoreboard = ({
         return newScores;
       });
     }
-  }, [diceValues, rollCount, calculateScores, lockedCategories]);
-
-  const checkGameCompletion = async (updatedLockedCategories) => {
-    const allCategoriesSubmitted = Object.values(updatedLockedCategories).every(isLocked => isLocked);
-    
-    if (allCategoriesSubmitted) {
-      try {
-        const activeGame = await API.getActiveGameForPlayer(currentPlayer.player_id);
-        if (activeGame && activeGame.game_id) {
-          await API.endGame(activeGame.game_id);
-          
-          Modal.success({
-            title: 'Game Complete!',
-            content: `Congratulations! You've completed the game with a total score of ${totalScore} points!`,
-            okText: 'OK'
-          });
-        }
-      } catch (error) {
-        console.error('Error ending game:', error);
-        message.error('Failed to end game properly');
-      }
-    }
-  };
-
-  const checkForYahtzeeBonus = (diceValues) => {
-    if (!hasYahtzee) return false;
-    return diceValues.every(value => value === diceValues[0]);
-  };
+  }, [diceValues, rollCount, calculateScores, lockedCategories, isOpponent]);
 
   const handleClick = async (category) => {
+    if (isOpponent) return; // Prevent clicking on opponent's scoreboard
+    
     const key = category.name;
     if (lockedCategories[key] || rollCount === 0) return;
 
     try {
-      // Check for Yahtzee bonus
-      if (key === 'yahtzee' && checkForYahtzeeBonus(diceValues)) {
+      if (key === 'yahtzee' && hasYahtzee && diceValues.every(val => val === diceValues[0])) {
         setYahtzeeBonus(prevBonus => prevBonus + 100);
         message.success('Yahtzee Bonus! +100 points');
       }
 
-      const updatedLockedCategories = {
-        ...lockedCategories,
-        [key]: true
-      };
-      setLockedCategories(updatedLockedCategories);
-
-      const currentScore = scores[key];
       await handleScoreCategoryClick(category.name);
 
-      // Update scores and recalculate totals
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const scoreMap = {};
       const lockedMap = {};
       
       updatedCategories.forEach((cat) => {
         const catKey = cat.name;
-        if (cat.is_submitted) {
-          scoreMap[catKey] = cat.score;
-          lockedMap[catKey] = true;
-          
-          if (catKey === 'yahtzee' && cat.score === 50) {
-            setHasYahtzee(true);
-          }
-        } else {
-          scoreMap[catKey] = '-';
-          lockedMap[catKey] = false;
-        }
+        scoreMap[catKey] = cat.is_submitted ? cat.score : '-';
+        lockedMap[catKey] = cat.is_submitted;
       });
 
       setScores(scoreMap);
       setLockedCategories(lockedMap);
 
-      // Recalculate section totals
       const sectionTotals = calculateSectionScores(updatedCategories, scoreMap);
       setUpperSectionBaseScore(sectionTotals.upperBase);
       setLowerSectionBaseScore(sectionTotals.lowerBase);
@@ -235,54 +162,42 @@ const Scoreboard = ({
       setLowerSectionScore(sectionTotals.lowerTotal);
       setTotalScore(sectionTotals.upperTotal + sectionTotals.lowerTotal);
 
-      await checkGameCompletion(lockedMap);
+      // Check for game completion
+      if (Object.values(lockedMap).every(isLocked => isLocked)) {
+        Modal.success({
+          title: 'Game Complete!',
+          content: `Final Score: ${sectionTotals.upperTotal + sectionTotals.lowerTotal}`,
+        });
+      }
+
       onTurnComplete();
     } catch (error) {
       console.error('Error submitting score:', error);
-      setLockedCategories(prev => ({
-        ...prev,
-        [key]: false
-      }));
+      message.error('Failed to submit score');
     }
   };
 
-  const getScoreStyle = (isLocked, isAvailable) => {
-    return {
-      textAlign: 'center',
-      fontWeight: isAvailable ? 'bold' : 'normal',
-      color: isLocked ? '#666' : isAvailable ? '#1890ff' : '#000'
-    };
-  };
-
-  const getRowStyle = (isLocked, isAvailable) => {
+  const getRowStyle = (category, isLocked) => {
+    const isAvailable = !isLocked && rollCount > 0 && !isOpponent;
     return {
       cursor: isAvailable ? 'pointer' : 'default',
       backgroundColor: isAvailable ? '#f5f5f5' : 'transparent',
-      opacity: isLocked ? 0.6 : 1
+      opacity: isLocked ? 0.8 : 1,
+      transition: 'all 0.3s ease'
     };
   };
 
-  const getBonusStyle = (isEligible) => {
+  const getScoreStyle = (isLocked, score) => {
     return {
-      backgroundColor: isEligible ? '#f6ffed' : 'transparent',
-      color: isEligible ? '#52c41a' : '#666',
-      fontWeight: isEligible ? 'bold' : 'normal',
-      textAlign: 'center'
-    };
-  };
-
-  const getSectionTotalStyle = () => {
-    return {
-      backgroundColor: '#fafafa',
-      fontWeight: 'bold',
       textAlign: 'center',
-      borderTop: '2px solid #d9d9d9'
+      fontWeight: isLocked ? 'normal' : 'bold',
+      color: isLocked ? '#666' : score === '-' ? '#999' : '#1890ff'
     };
   };
 
   return (
     <div className="scoreboard">
-      <Title level={4}>Scoreboard</Title>
+      <Title level={4}>{isOpponent ? 'Opponent Score' : 'Your Score'}</Title>
       <table className="score-table">
         <thead>
           <tr>
@@ -291,88 +206,85 @@ const Scoreboard = ({
           </tr>
         </thead>
         <tbody>
+          {/* Upper Section */}
           <tr className="section-header">
             <td colSpan="2">Upper Section</td>
           </tr>
           {playerCategories
             .filter(cat => ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].includes(cat.name))
-            .map((category) => {
-              const key = category.name;
-              const isLocked = lockedCategories[key];
-              const score = scores[key];
-              const isAvailable = !isLocked && rollCount > 0;
-              
-              return (
-                <tr
-                  key={category.category_id}
-                  onClick={() => handleClick(category)}
-                  style={getRowStyle(isLocked, isAvailable)}
-                >
-                  <td>{formatCategoryName(category.name)}</td>
-                  <td style={getScoreStyle(isLocked, isAvailable)}>{score}</td>
-                </tr>
-              );
-            })}
+            .map((category) => (
+              <tr
+                key={category.category_id}
+                onClick={() => handleClick(category)}
+                style={getRowStyle(category, lockedCategories[category.name])}
+              >
+                <td>{formatCategoryName(category.name)}</td>
+                <td style={getScoreStyle(lockedCategories[category.name], scores[category.name])}>
+                  {scores[category.name] || '-'}
+                </td>
+              </tr>
+            ))}
 
           <tr className="subtotal-row">
-            <td>Score Before Bonus</td>
-            <td style={getSectionTotalStyle()}>{upperSectionBaseScore}</td>
+            <td>Upper Score</td>
+            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{upperSectionBaseScore}</td>
           </tr>
-
           <tr className="bonus-row">
-            <td>Upper Section Bonus (≥63)</td>
-            <td style={getBonusStyle(upperSectionBaseScore >= 63)}>
+            <td>Bonus (≥63)</td>
+            <td style={{ 
+              textAlign: 'center',
+              color: upperSectionBaseScore >= 63 ? '#52c41a' : '#666',
+              fontWeight: upperSectionBaseScore >= 63 ? 'bold' : 'normal'
+            }}>
               {upperSectionBaseScore >= 63 ? '35' : '0'}
             </td>
           </tr>
 
+          {/* Lower Section */}
           <tr className="section-header">
             <td colSpan="2">Lower Section</td>
           </tr>
           {playerCategories
             .filter(cat => !['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].includes(cat.name))
-            .map((category) => {
-              const key = category.name;
-              const isLocked = lockedCategories[key];
-              const score = scores[key];
-              const isAvailable = !isLocked && rollCount > 0;
-              
-              return (
-                <tr
-                  key={category.category_id}
-                  onClick={() => handleClick(category)}
-                  style={getRowStyle(isLocked, isAvailable)}
-                >
-                  <td>{formatCategoryName(category.name)}</td>
-                  <td style={getScoreStyle(isLocked, isAvailable)}>{score}</td>
-                </tr>
-              );
-            })}
+            .map((category) => (
+              <tr
+                key={category.category_id}
+                onClick={() => handleClick(category)}
+                style={getRowStyle(category, lockedCategories[category.name])}
+              >
+                <td>{formatCategoryName(category.name)}</td>
+                <td style={getScoreStyle(lockedCategories[category.name], scores[category.name])}>
+                  {scores[category.name] || '-'}
+                </td>
+              </tr>
+            ))}
 
           {yahtzeeBonus > 0 && (
             <tr className="bonus-row">
               <td>Yahtzee Bonus</td>
-              <td style={getBonusStyle(true)}>{yahtzeeBonus}</td>
+              <td style={{ textAlign: 'center', color: '#52c41a', fontWeight: 'bold' }}>
+                {yahtzeeBonus}
+              </td>
             </tr>
           )}
 
+          {/* Totals */}
           <tr className="section-total">
-                      <td>Lower Section Total</td>
-                      <td style={getSectionTotalStyle()}>{lowerSectionScore}</td>
+            <td>Upper Total</td>
+            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{upperSectionScore}</td>
           </tr>
-          
           <tr className="section-total">
-                      <td>Upper Section Total</td>
-                      <td style={getSectionTotalStyle()}>{upperSectionScore}</td>
+            <td>Lower Total</td>
+            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{lowerSectionScore}</td>
           </tr>
-
           <tr className="grand-total">
             <td>Grand Total</td>
-            <td style={{
-              ...getSectionTotalStyle(),
-              backgroundColor: '#e6f7ff',
+            <td style={{ 
+              textAlign: 'center', 
+              fontWeight: 'bold',
+              fontSize: '1.1em',
               color: '#1890ff',
-              fontSize: '1.1em'
+              backgroundColor: '#e6f7ff'
             }}>
               {totalScore}
             </td>
