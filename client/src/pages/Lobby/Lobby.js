@@ -254,6 +254,7 @@ function Lobby() {
     try {
       setIsLoading(true);
 
+      // End current game if exists
       if (gameId) {
         try {
           await API.endGame(gameId);
@@ -281,7 +282,7 @@ function Lobby() {
       await API.startGame(newGame.game_id);
       setGameId(newGame.game_id);
       
-      // Reset all states
+      // Reset player state
       resetTurnState({
         setDiceValues: (values) => {
           setDiceValues(values);
@@ -302,13 +303,14 @@ function Lobby() {
       setYahtzeeBonus(0);
       setUpperSectionTotal(0);
       setUpperSectionBonus(0);
+
+      // Reset opponent's categories first
+      await API.resetPlayerCategories('9');
       
-      // Reset and initialize opponent
-      let opponentCategories = await API.getPlayerCategories('9');
-      if (!opponentCategories || opponentCategories.length === 0) {
-        opponentCategories = await initializeDefaultCategories('9');
-      }
+      // Then initialize new categories for opponent
+      const opponentCategories = await initializeDefaultCategories('9');
       
+      // Reset all opponent state
       setOpponentState({
         categories: opponentCategories,
         dice: INITIAL_DICE_VALUES,
@@ -319,6 +321,7 @@ function Lobby() {
         turnScore: 0
       });
       
+      // Get fresh categories for player
       const categories = await API.getPlayerCategories(currentPlayer.player_id);
       setPlayerCategories(categories);
       
