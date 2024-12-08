@@ -168,93 +168,50 @@ function Lobby() {
     }
   };
 
-  const handleScoreCategoryClick = async (category) => {
+  const handleScoreCategoryClick = async (categoryName) => {
+    if (!currentGame?.game_id || !currentPlayer?.player_id) {
+      message.error('Game or player information missing');
+      return;
+    }
+  
     try {
-      console.log('Starting score submission for category:', category);
-      
-      const categoryInfo = await API.getPlayerCategory(currentPlayer.player_id, category);
-      if (!categoryInfo) {
-        message.error('Invalid category selected');
-        return;
+      // Find the category ID
+      const category = playerCategories.find(cat => cat.name === categoryName);
+      if (!category) {
+        throw new Error('Category not found');
       }
   
-      // Get score and verify it exists
-      const score = currentScores[category];
-      console.log('Score check:', {
-        category,
-        score,
-        currentScores,
-        allKeys: Object.keys(currentScores)
-      });
+      // Calculate the score for this category
+      const calculatedScores = calculateScores(diceValues);
+      const score = calculatedScores[categoryName];
   
-      if (score === undefined) {
-        throw new Error(`No score found for category ${category}`);
-      }
-  
-      const turnCreated = await API.createTurn(
-        gameId,
+      // Submit the game score
+      await API.submitGameScore(
+        currentGame.game_id,
         currentPlayer.player_id,
-        diceValues,
-        rollCount,
-        score,
-        false
-      );
-  
-      if (!turnCreated) {
-        throw new Error('Failed to create turn');
-      }
-  
-      // Log the exact payload we're sending to submitGameScore
-      console.log('Submitting to API:', {
-        gameId,
-        playerId: currentPlayer.player_id,
-        categoryName: category,
-        score
-      });
-  
-      const scoreResult = await API.submitGameScore(
-        gameId, 
-        currentPlayer.player_id, 
-        category,
+        categoryName,
         score
       );
-      
-      if (!scoreResult) {
-        throw new Error('Failed to submit score');
-      }
   
-      // Updated to include score in the submitTurn call
-      const turnResult = await API.submitTurn(
-        gameId,
+      // Submit the turn with the correct score
+      await API.submitTurn(
+        currentGame.game_id,
         currentPlayer.player_id,
-        categoryInfo.category_id,
-        score, // Added missing score parameter
+        category.category_id,
+        score,
         diceValues,
         rollCount
       );
   
-      if (!turnResult) {
-        throw new Error('Failed to complete turn');
-      }
-  
-      resetTurnState({
-        setDiceValues: (values) => {
-          setDiceValues(values);
-          setCurrentScores(calculateScores(values));
-        },
-        setSelectedDice,
-        setRollCount,
-        setScores: setCurrentScores
-      });
-      
-      setPlayerCategories(await API.getPlayerCategories(currentPlayer.player_id));
-      setPlayerTotal((await API.getPlayerTotalScore(currentPlayer.player_id)).totalScore);
-      
-      message.success(`${category} score saved!`);
+      // Reset dice and roll count
+      setDiceValues([]);
+      setRollCount(0);
+      setSelectedDice(new Set());
   
     } catch (error) {
       console.error('Error submitting score and turn:', error);
-      message.error(error.message || 'Failed to submit score and turn');
+      message.error('Failed to submit score');
+      throw error;
     }
   };
 

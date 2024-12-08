@@ -125,14 +125,25 @@ export const rollDice = (gameId, {playerId, currentDice, keepIndices}) =>
     keepIndices 
   });
 
-export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) =>
-  apiRequest(`/game/${gameId}/turn`, 'PUT', {
-    playerId,
-    categoryId,
-    score,
-    dice: dice || [1, 1, 1, 1, 1],
-    rerolls: rerolls || 0
-  });
+  export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {
+    if (!gameId || !playerId || !categoryId || score === undefined) {
+      throw new Error('Missing required parameters for turn submission');
+    }
+    
+    // Ensure score is a number, not an array
+    const turnScore = typeof score === 'number' ? score : 0;
+    
+    // Convert dice array to string if needed
+    const diceString = Array.isArray(dice) ? JSON.stringify(dice) : dice;
+    
+    return apiRequest(`/game/${gameId}/turn`, 'PUT', {
+      playerId: Number(playerId),
+      categoryId: Number(categoryId),
+      score: turnScore,
+      dice: diceString,
+      rerolls: Number(rerolls) || 0
+    });
+  };  
 
 export const createTurn = (gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) =>
   apiRequest(`/game/${gameId}/turn`, 'POST', {
