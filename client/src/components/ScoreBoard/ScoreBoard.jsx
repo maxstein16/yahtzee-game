@@ -115,10 +115,10 @@ const Scoreboard = ({
       // Reset categories for the player
       await API.resetPlayerCategories(currentPlayer.player_id);
       
-      // Create a new game
+      // Create a new game with explicit initial values
       const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
       
-      if (newGame) {
+      if (newGame?.game_id) {  // Add null check for game_id
         // Start the game
         await API.startGame(newGame.game_id);
         
@@ -128,11 +128,11 @@ const Scoreboard = ({
         // Reload the page to reset all states
         window.location.reload();
       } else {
-        throw new Error('Failed to create new game');
+        throw new Error('Failed to create new game: Invalid game response');
       }
     } catch (error) {
       console.error('Error starting new game:', error);
-      message.error('Failed to start new game');
+      message.error(`Failed to start new game: ${error.message}`);
     }
   };
 
