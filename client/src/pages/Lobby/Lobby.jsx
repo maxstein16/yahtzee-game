@@ -95,6 +95,7 @@ const LobbyView = ({
         {playerCategories && playerCategories.length > 0 ? (
           <Scoreboard
             key={gameId}
+            gameId={gameId}
             currentPlayer={currentPlayer}
             playerCategories={playerCategories}
             calculateScores={calculateScores}

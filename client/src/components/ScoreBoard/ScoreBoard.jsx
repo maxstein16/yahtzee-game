@@ -13,7 +13,7 @@ const Scoreboard = ({
   rollCount,
   handleScoreCategoryClick,
   onTurnComplete,
-  shouldResetScores
+  gameId
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
