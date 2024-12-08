@@ -25,7 +25,6 @@ const LobbyView = ({
   calculateScores,
   onTurnComplete,
   isLoading,
-  API,
   opponentCategories,
   opponentDice,
   opponentScore,
@@ -73,21 +72,28 @@ const LobbyView = ({
   // Initialize opponent when game starts
   useEffect(() => {
     const initializeOpponent = async () => {
-      if (gameId) {
-        try {
-          const categories = await API.getPlayerCategories('9');
-          setOpponentCategories(categories);
-          setOpponentScore(0);
-          setOpponentDice([1, 1, 1, 1, 1]);
-          setOpponentRollCount(0);
-        } catch (error) {
-          console.error('Error initializing opponent:', error);
+      if (!gameId) return;
+  
+      try {
+        let categories = await API.getPlayerCategories('9'); // Replace '9' with opponent ID
+  
+        if (!categories || categories.length === 0) {
+          categories = await initializeDefaultCategories('9'); // Reuse the function for opponents
         }
+  
+        setOpponentCategories(categories);
+        setOpponentDice(INITIAL_DICE_VALUES);
+        setOpponentScore(0);
+        setOpponentRollCount(0);
+      } catch (error) {
+        console.error('Error initializing opponent:', error);
+        message.error('Failed to initialize opponent.');
       }
     };
-
+  
     initializeOpponent();
-  }, [gameId, API]);
+  }, [gameId]);
+  
 
   // Modified turn complete handler
   const handleTurnComplete = () => {

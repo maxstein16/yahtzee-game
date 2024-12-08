@@ -47,23 +47,23 @@ function Lobby() {
 
   // Initialize default categories
   const initializeDefaultCategories = async (playerId) => {
+    const defaultCategories = [
+      { name: 'ones', section: 'upper', maxScore: 5 },
+      { name: 'twos', section: 'upper', maxScore: 10 },
+      { name: 'threes', section: 'upper', maxScore: 15 },
+      { name: 'fours', section: 'upper', maxScore: 20 },
+      { name: 'fives', section: 'upper', maxScore: 25 },
+      { name: 'sixes', section: 'upper', maxScore: 30 },
+      { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
+      { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
+      { name: 'fullHouse', section: 'lower', maxScore: 25 },
+      { name: 'smallStraight', section: 'lower', maxScore: 30 },
+      { name: 'largeStraight', section: 'lower', maxScore: 40 },
+      { name: 'yahtzee', section: 'lower', maxScore: 50 },
+      { name: 'chance', section: 'lower', maxScore: 30 },
+    ];
+  
     try {
-      const defaultCategories = [
-        { name: 'ones', section: 'upper', maxScore: 5 },
-        { name: 'twos', section: 'upper', maxScore: 10 },
-        { name: 'threes', section: 'upper', maxScore: 15 },
-        { name: 'fours', section: 'upper', maxScore: 20 },
-        { name: 'fives', section: 'upper', maxScore: 25 },
-        { name: 'sixes', section: 'upper', maxScore: 30 },
-        { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
-        { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
-        { name: 'fullHouse', section: 'lower', maxScore: 25 },
-        { name: 'smallStraight', section: 'lower', maxScore: 30 },
-        { name: 'largeStraight', section: 'lower', maxScore: 40 },
-        { name: 'yahtzee', section: 'lower', maxScore: 50 },
-        { name: 'chance', section: 'lower', maxScore: 30 }
-      ];
-
       const categories = await Promise.all(
         defaultCategories.map(async (category) => {
           try {
@@ -73,21 +73,15 @@ function Lobby() {
               category.section,
               category.maxScore
             );
-            return {
-              ...newCategory,
-              section: category.section,
-              maxScore: category.maxScore
-            };
+            return { ...newCategory, section: category.section, maxScore: category.maxScore };
           } catch (error) {
             console.error(`Error creating category ${category.name}:`, error);
             return null;
           }
         })
       );
-
-      const validCategories = categories.filter(cat => cat !== null);
-      setPlayerCategories(validCategories);
-      return validCategories;
+  
+      return categories.filter((cat) => cat !== null);
     } catch (error) {
       console.error('Error initializing default categories:', error);
       message.error('Failed to initialize game categories');
