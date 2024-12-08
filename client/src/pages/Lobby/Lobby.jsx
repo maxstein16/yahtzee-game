@@ -4,6 +4,9 @@ import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../../pages/Dice';
 import '../../styles/Lobby.css';
 import { executeOpponentTurn } from '../../services/opponentService';
+import { initializeDefaultCategories } from '../../services/categoryService';
+
+const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
