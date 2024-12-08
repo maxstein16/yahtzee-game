@@ -3,6 +3,7 @@ import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd'
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../Dice';
 import '../../styles/Lobby.css';
+import PropTypes from 'prop-types';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -36,6 +37,15 @@ const GameHeader = ({ currentPlayer, handleNewGame, handleLogout }) => (
   </Header>
 );
 
+GameHeader.propTypes = {
+  currentPlayer: PropTypes.shape({
+    name: PropTypes.string,
+    player_id: PropTypes.string
+  }),
+  handleNewGame: PropTypes.func.isRequired,
+  handleLogout: PropTypes.func.isRequired
+};
+
 const PlayerSection = ({ 
   isOpponent,
   name,
@@ -46,7 +56,8 @@ const PlayerSection = ({
   onDiceClick,
   handleRoll,
   disabled,
-  isOpponentTurn
+  isOpponentTurn,
+  lastMove
 }) => (
   <div className="player-section">
     <Title level={4}>{name}</Title>
@@ -76,12 +87,23 @@ const PlayerSection = ({
           Roll Dice
         </Button>
       ) : (
-        <Text className="opponent-status" style={{ 
-          color: isOpponentTurn ? '#1890ff' : '#666',
-          fontWeight: isOpponentTurn ? 'bold' : 'normal'
-        }}>
-          {isOpponentTurn ? "Opponent is rolling..." : "Waiting for player..."}
-        </Text>
+        <div>
+          <Text className="opponent-status" style={{ 
+            color: isOpponentTurn ? '#1890ff' : '#666',
+            fontWeight: isOpponentTurn ? 'bold' : 'normal'
+          }}>
+            {isOpponentTurn ? "Opponent is rolling..." : "Waiting for player..."}
+          </Text>
+          {lastMove && (
+            <Text className="last-move" style={{ 
+              display: 'block',
+              fontSize: '12px',
+              color: '#666'
+            }}>
+              Last move: {lastMove}
+            </Text>
+          )}
+        </div>
       )}
       <Text className="roll-count" style={{ marginLeft: '8px' }}>
         Roll Count: {Math.min(rollCount, 3)}/3
@@ -89,6 +111,20 @@ const PlayerSection = ({
     </div>
   </div>
 );
+
+PlayerSection.propTypes = {
+  isOpponent: PropTypes.bool,
+  name: PropTypes.string.isRequired,
+  dice: PropTypes.arrayOf(PropTypes.number).isRequired,
+  selectedDice: PropTypes.arrayOf(PropTypes.number).isRequired,
+  isRolling: PropTypes.bool.isRequired,
+  rollCount: PropTypes.number.isRequired,
+  onDiceClick: PropTypes.func.isRequired,
+  handleRoll: PropTypes.func,
+  disabled: PropTypes.bool.isRequired,
+  isOpponentTurn: PropTypes.bool.isRequired,
+  lastMove: PropTypes.string
+};
 
 const GameBoard = ({
   currentPlayer,
@@ -125,9 +161,34 @@ const GameBoard = ({
       onDiceClick={() => {}}
       disabled={true}
       isOpponentTurn={opponentState.isOpponentTurn}
+      lastMove={opponentState.lastCategory ? 
+        `Scored ${opponentState.turnScore} in ${opponentState.lastCategory}` : 
+        undefined}
     />
   </div>
 );
+
+GameBoard.propTypes = {
+  currentPlayer: PropTypes.shape({
+    name: PropTypes.string,
+    player_id: PropTypes.string
+  }),
+  diceValues: PropTypes.arrayOf(PropTypes.number).isRequired,
+  selectedDice: PropTypes.arrayOf(PropTypes.number).isRequired,
+  isRolling: PropTypes.bool.isRequired,
+  rollCount: PropTypes.number.isRequired,
+  handleRollDice: PropTypes.func.isRequired,
+  toggleDiceSelection: PropTypes.func.isRequired,
+  opponentState: PropTypes.shape({
+    categories: PropTypes.array,
+    dice: PropTypes.arrayOf(PropTypes.number),
+    score: PropTypes.number,
+    rollCount: PropTypes.number,
+    isOpponentTurn: PropTypes.bool,
+    lastCategory: PropTypes.string,
+    turnScore: PropTypes.number
+  }).isRequired
+};
 
 const ScoreboardContainer = ({
   gameId,
@@ -142,7 +203,6 @@ const ScoreboardContainer = ({
   opponentState
 }) => (
   <div className="scoreboards-container" style={{ display: 'flex', justifyContent: 'space-around', padding: '20px' }}>
-    {/* Player Scoreboard */}
     {playerCategories && playerCategories.length > 0 ? (
       <Scoreboard
         key={`player-${gameId}`}
@@ -164,7 +224,6 @@ const ScoreboardContainer = ({
       </div>
     )}
 
-    {/* Opponent Scoreboard */}
     {opponentState.categories && opponentState.categories.length > 0 ? (
       <Scoreboard
         key={`opponent-${gameId}`}
@@ -188,69 +247,77 @@ const ScoreboardContainer = ({
   </div>
 );
 
-const LobbyView = ({
-  currentPlayer,
-  gameId,
-  diceValues,
-  selectedDice,
-  isRolling,
-  rollCount,
-  playerCategories,
-  handleNewGame,
-  handleLogout,
-  handleRollDice,
-  toggleDiceSelection,
-  shouldResetScores,
-  handleScoreCategoryClick,
-  calculateScores,
-  onTurnComplete,
-  isLoading,
-  opponentState,
-}) => {
-  if (isLoading) {
+ScoreboardContainer.propTypes = {
+  gameId: PropTypes.string,
+  currentPlayer: PropTypes.shape({
+    name: PropTypes.string,
+    player_id: PropTypes.string
+  }),
+  playerCategories: PropTypes.array.isRequired,
+  calculateScores: PropTypes.func.isRequired,
+  diceValues: PropTypes.arrayOf(PropTypes.number).isRequired,
+  rollCount: PropTypes.number.isRequired,
+  handleScoreCategoryClick: PropTypes.func.isRequired,
+  onTurnComplete: PropTypes.func.isRequired,
+  shouldResetScores: PropTypes.bool.isRequired,
+  opponentState: PropTypes.shape({
+    categories: PropTypes.array,
+    dice: PropTypes.arrayOf(PropTypes.number),
+    score: PropTypes.number,
+    rollCount: PropTypes.number,
+    isOpponentTurn: PropTypes.bool,
+    lastCategory: PropTypes.string,
+    turnScore: PropTypes.number
+  }).isRequired
+};
+
+const LobbyView = (props) => {
+  if (props.isLoading) {
     return <LoadingView />;
   }
 
   return (
     <Layout style={{ height: '100vh' }}>
       <GameHeader 
-        currentPlayer={currentPlayer}
-        handleNewGame={handleNewGame}
-        handleLogout={handleLogout}
+        currentPlayer={props.currentPlayer}
+        handleNewGame={props.handleNewGame}
+        handleLogout={props.handleLogout}
       />
 
       <Content className="game-container">
         <GameBoard
-          currentPlayer={currentPlayer}
-          diceValues={diceValues}
-          selectedDice={selectedDice}
-          isRolling={isRolling}
-          rollCount={rollCount}
-          handleRollDice={handleRollDice}
-          toggleDiceSelection={toggleDiceSelection}
-          opponentState={opponentState}
+          currentPlayer={props.currentPlayer}
+          diceValues={props.diceValues}
+          selectedDice={props.selectedDice}
+          isRolling={props.isRolling}
+          rollCount={props.rollCount}
+          handleRollDice={props.handleRollDice}
+          toggleDiceSelection={props.toggleDiceSelection}
+          opponentState={props.opponentState}
         />
 
         <ScoreboardContainer
-          gameId={gameId}
-          currentPlayer={currentPlayer}
-          playerCategories={playerCategories}
-          calculateScores={calculateScores}
-          diceValues={diceValues}
-          rollCount={rollCount}
-          handleScoreCategoryClick={handleScoreCategoryClick}
-          onTurnComplete={onTurnComplete}
-          shouldResetScores={shouldResetScores}
-          opponentState={opponentState}
+          gameId={props.gameId}
+          currentPlayer={props.currentPlayer}
+          playerCategories={props.playerCategories}
+          calculateScores={props.calculateScores}
+          diceValues={props.diceValues}
+          rollCount={props.rollCount}
+          handleScoreCategoryClick={props.handleScoreCategoryClick}
+          onTurnComplete={props.onTurnComplete}
+          shouldResetScores={props.shouldResetScores}
+          opponentState={props.opponentState}
         />
       </Content>
     </Layout>
   );
 };
 
-// PropTypes validation (optional but recommended)
 LobbyView.propTypes = {
-  currentPlayer: PropTypes.object,
+  currentPlayer: PropTypes.shape({
+    name: PropTypes.string,
+    player_id: PropTypes.string
+  }),
   gameId: PropTypes.string,
   diceValues: PropTypes.arrayOf(PropTypes.number).isRequired,
   selectedDice: PropTypes.arrayOf(PropTypes.number).isRequired,
