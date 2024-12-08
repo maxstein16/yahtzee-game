@@ -1,5 +1,3 @@
-import API from "../utils/api";
-
 export const calculateOptimalMove = (diceValues, availableCategories) => {
   const allPossibleCombos = generatePossibleCombinations(diceValues);
   let bestScore = -1;
@@ -102,7 +100,7 @@ const hasLargeStraight = (counts) => {
          (counts[2] && counts[3] && counts[4] && counts[5] && counts[6]);
 };
 
-export const executeOpponentTurn = async (gameId, playerId, categories, currentDice) => {
+export const executeOpponentTurn = async (gameId, playerId, categories, currentDice, API) => {
   const availableCategories = categories.filter(cat => !cat.is_submitted);
   let diceValues = [...currentDice];
   let rollCount = 0;

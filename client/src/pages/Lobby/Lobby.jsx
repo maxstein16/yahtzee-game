@@ -46,27 +46,29 @@ const LobbyView = ({
             gameId,
             '9',
             opponentCategories,
-            opponentDice
+            opponentDice,
+            API 
           );
           setOpponentDice(result.finalDice);
           setOpponentRollCount(result.rollCount);
-          setOpponentScore(prev => prev + result.score);
+          setOpponentScore((prev) => prev + result.score);
   
           // Update opponent's categories
-          const updatedCategories = await API.getPlayerCategories('9');
+          const updatedCategories = await API.getPlayerCategories('9'); // Ensure API is defined here
           setOpponentCategories(updatedCategories);
   
           message.info(`Opponent scored ${result.score} points in ${result.selectedCategory.name}!`);
           setIsOpponentTurn(false);
         } catch (error) {
           console.error('Error during opponent turn:', error);
+          message.error('Opponent turn failed.');
           setIsOpponentTurn(false);
         }
       }
     };
   
     playOpponentTurn();
-  }, [isOpponentTurn, gameId, opponentCategories, opponentDice, API]);
+  }, [isOpponentTurn, gameId, opponentCategories, opponentDice, API]);  
 
   // Initialize opponent when game starts
   useEffect(() => {
