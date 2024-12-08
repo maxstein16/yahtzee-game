@@ -1,30 +1,59 @@
 const API_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app/api';
 
 // Helper function to handle API requests
-const apiRequest = async (endpoint, method = 'GET', body = null) => {
+const apiRequest = async (endpoint, method = 'GET', body = null, retries = 3) => {
   const options = {
     method,
     headers: { 
       'Content-Type': 'application/json',
+      // Add custom headers if needed
     },
-    credentials: 'include',  
+    credentials: 'include',
+    mode: 'cors' // Explicitly set CORS mode
   };
+
   if (body) {
     options.body = JSON.stringify(body);
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'An error occurred');
+  const url = `${API_BASE_URL}${endpoint}`;
+  let attempt = 0;
+
+  while (attempt < retries) {
+    try {
+      const response = await fetch(url, options);
+      
+      // Handle different response status codes
+      if (response.status === 503) {
+        console.warn(`Service unavailable, attempt ${attempt + 1} of ${retries}`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        attempt++;
+        continue;
+      }
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        console.warn(`Network error, attempt ${attempt + 1} of ${retries}`);
+        if (attempt === retries - 1) {
+          throw new Error('Network error: Failed to connect to the server after multiple attempts');
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        attempt++;
+        continue;
+      }
+      throw error;
     }
-    return response.json();
-  } catch (error) {
-    console.error(`API Request failed for ${endpoint}:`, error);
-    throw error;
   }
+  
+  throw new Error('Failed to complete request after multiple attempts');
 };
+
 // Authentication
 export const login = async (credentials) => apiRequest('/players/login', 'POST', credentials);
 
@@ -145,14 +174,31 @@ export const rollDice = (gameId, {playerId, currentDice, keepIndices}) =>
     });
   };  
 
-export const createTurn = (gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) =>
-  apiRequest(`/game/${gameId}/turn`, 'POST', {
-    playerId,
-    dice: dice || [1, 1, 1, 1, 1],
-    rerolls: rerolls || 0,
-    turnScore: turnScore || 0,
-    turnCompleted
-  });
+  export const createTurn = async (gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) => {
+    if (!gameId || !playerId) {
+      throw new Error('Game ID and Player ID are required');
+    }
+  
+    const payload = {
+      playerId,
+      dice: Array.isArray(dice) ? dice : [1, 1, 1, 1, 1],
+      rerolls: Number(rerolls) || 0,
+      turnScore: Number(turnScore) || 0,
+      turnCompleted: Boolean(turnCompleted)
+    };
+  
+    try {
+      const result = await apiRequest(`/game/${gameId}/turn`, 'POST', payload);
+      console.log('Turn created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error creating turn:', error);
+      if (error.message.includes('CORS')) {
+        throw new Error('Server connection error. Please try again later.');
+      }
+      throw error;
+    }
+  };
 
 export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompleted) =>
   apiRequest(`/game/${gameId}/roll`, 'PUT', {
