@@ -37,6 +37,14 @@ function Lobby() {
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
 
+  // Opponent-specific state
+  const [opponentCategories, setOpponentCategories] = useState([]);
+  const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
+  const [opponentScore, setOpponentScore] = useState(0);
+  const [opponentRollCount, setOpponentRollCount] = useState(0);
+  const [isOpponentTurn, setIsOpponentTurn] = useState(false);
+
+
   // Initialize default categories
   const initializeDefaultCategories = async (playerId) => {
     try {
@@ -478,14 +486,25 @@ function Lobby() {
     yahtzeeBonus,
     upperSectionTotal,
     upperSectionBonus,
+    opponentCategories,       // Added opponent state
+    opponentDice,            // Added opponent state
+    opponentScore,           // Added opponent state
+    opponentRollCount,       // Added opponent state
+    isOpponentTurn,          // Added opponent state
+    isNewGame,
     handleNewGame,
     handleLogout: handlePlayerLogout,
     handleRollDice: handleDiceRoll,
     toggleDiceSelection: handleDiceSelection,
     handleScoreCategoryClick,
     calculateScores,
-    onTurnComplete: handleTurnComplete
-  };
+    onTurnComplete: handleTurnComplete,
+    setOpponentCategories,   // Added setters
+    setOpponentDice,         // Added setters
+    setOpponentScore,        // Added setters
+    setOpponentRollCount,    // Added setters
+    setIsOpponentTurn        // Added setter
+  };  
 
   return <LobbyView {...viewProps} />;
 }
