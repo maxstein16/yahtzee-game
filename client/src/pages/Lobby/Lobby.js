@@ -412,7 +412,7 @@ function Lobby() {
     opponentState,
     handleNewGame,
     handleLogout: () => handleLogout(navigate),
-    handleRollDice,
+    handleRollDice: handleDiceRoll,
     toggleDiceSelection: (index) => toggleDiceSelection(
       index,
       isRolling,
