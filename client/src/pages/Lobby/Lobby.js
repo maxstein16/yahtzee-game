@@ -14,6 +14,7 @@ const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
 function Lobby() {
   const navigate = useNavigate();
   
+  // Basic game state
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [isNewGame, setIsNewGame] = useState(false);
@@ -21,7 +22,13 @@ function Lobby() {
   const [shouldResetScores, setShouldResetScores] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Game States
+  // Scoring and bonus state
+  const [hasYahtzee, setHasYahtzee] = useState(false);
+  const [yahtzeeBonus, setYahtzeeBonus] = useState(0);
+  const [upperSectionTotal, setUpperSectionTotal] = useState(0);
+  const [upperSectionBonus, setUpperSectionBonus] = useState(0);
+
+  // Game play state
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
   const [selectedDice, setSelectedDice] = useState([]);
   const [playerCategories, setPlayerCategories] = useState([]);
@@ -30,21 +37,41 @@ function Lobby() {
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
 
-  // Initialize default categories for new users
+  // Initialize default categories
   const initializeDefaultCategories = async (playerId) => {
     try {
       const defaultCategories = [
-        'ones', 'twos', 'threes', 'fours', 'fives', 'sixes',
-        'threeOfAKind', 'fourOfAKind', 'fullHouse', 'smallStraight',
-        'largeStraight', 'yahtzee', 'chance'
+        { name: 'ones', section: 'upper', maxScore: 5 },
+        { name: 'twos', section: 'upper', maxScore: 10 },
+        { name: 'threes', section: 'upper', maxScore: 15 },
+        { name: 'fours', section: 'upper', maxScore: 20 },
+        { name: 'fives', section: 'upper', maxScore: 25 },
+        { name: 'sixes', section: 'upper', maxScore: 30 },
+        { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
+        { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
+        { name: 'fullHouse', section: 'lower', maxScore: 25 },
+        { name: 'smallStraight', section: 'lower', maxScore: 30 },
+        { name: 'largeStraight', section: 'lower', maxScore: 40 },
+        { name: 'yahtzee', section: 'lower', maxScore: 50 },
+        { name: 'chance', section: 'lower', maxScore: 30 }
       ];
 
       const categories = await Promise.all(
         defaultCategories.map(async (category) => {
           try {
-            return await API.createPlayerCategory(playerId, category);
+            const newCategory = await API.createPlayerCategory(
+              playerId,
+              category.name,
+              category.section,
+              category.maxScore
+            );
+            return {
+              ...newCategory,
+              section: category.section,
+              maxScore: category.maxScore
+            };
           } catch (error) {
-            console.error(`Error creating category ${category}:`, error);
+            console.error(`Error creating category ${category.name}:`, error);
             return null;
           }
         })
@@ -69,18 +96,21 @@ function Lobby() {
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
           
-          // Check if player has categories
           let categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
           
-          // If no categories exist, initialize them
           if (!categories || categories.length === 0) {
             categories = await initializeDefaultCategories(playerInfo.playerData.player_id);
           }
           
           setPlayerCategories(categories);
           
-          const totalScore = await API.getPlayerTotalScore(playerInfo.playerData.player_id);
-          setPlayerTotal(totalScore?.totalScore || 0);
+          // Calculate initial scores and bonuses
+          const scores = calculateAllScores(categories);
+          setPlayerTotal(scores.total);
+          setUpperSectionTotal(scores.upperTotal);
+          setUpperSectionBonus(scores.upperBonus);
+          setYahtzeeBonus(scores.yahtzeeBonus);
+          setHasYahtzee(scores.hasYahtzee);
         }
       } catch (error) {
         console.error('Error initializing player:', error);
@@ -92,6 +122,31 @@ function Lobby() {
 
     initializePlayer();
   }, [navigate]);
+
+  // Score calculation utilities
+  const calculateAllScores = (categories) => {
+    const upperCategories = categories.filter(cat => cat.section === 'upper');
+    const upperTotal = upperCategories.reduce((total, cat) => total + (cat.score || 0), 0);
+    const upperBonus = upperTotal >= 63 ? 35 : 0;
+    
+    const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
+    const hasYahtzee = yahtzeeCategory?.score === 50;
+    
+    const total = categories.reduce((sum, cat) => sum + (cat.score || 0), 0) + upperBonus;
+    
+    return {
+      upperTotal,
+      upperBonus,
+      hasYahtzee,
+      yahtzeeBonus: categories.filter(cat => cat.name === 'yahtzeeBonus').reduce((sum, cat) => sum + (cat.score || 0), 0),
+      total
+    };
+  };
+
+  const checkForYahtzeeBonus = (dice) => {
+    if (!hasYahtzee) return false;
+    return dice.every(value => value === dice[0]);
+  };
 
   // Enhanced game initialization
   useEffect(() => {
@@ -106,15 +161,19 @@ function Lobby() {
           if (result.success) {
             message.success(result.message);
             
-            // Ensure categories exist
             let categories = await API.getPlayerCategories(currentPlayer.player_id);
             if (!categories || categories.length === 0) {
               categories = await initializeDefaultCategories(currentPlayer.player_id);
             }
+            
             setPlayerCategories(categories);
             
-            const total = await API.getPlayerTotalScore(currentPlayer.player_id);
-            setPlayerTotal(total?.totalScore || 0);
+            // Reset all bonus states
+            setHasYahtzee(false);
+            setYahtzeeBonus(0);
+            setUpperSectionTotal(0);
+            setUpperSectionBonus(0);
+            setPlayerTotal(0);
             setIsNewGame(false);
           } else {
             throw new Error(result.message);
@@ -131,6 +190,7 @@ function Lobby() {
     initializeGameSession();
   }, [currentPlayer, isNewGame, gameId, isLoading, isInitializing]);
 
+  // Handle new game
   const handleNewGame = async () => {
     if (!currentPlayer?.player_id) {
       message.error('No player found');
@@ -140,23 +200,19 @@ function Lobby() {
     try {
       setIsLoading(true);
   
-      // End current game if exists
       if (gameId) {
         try {
           await API.endGame(gameId);
         } catch (endError) {
           console.log('Previous game already ended or not found:', endError);
-          // Continue with new game creation even if ending current game fails
         }
       }
   
-      // Create and start new game
       let newGame;
       try {
         newGame = await API.createGame('pending', 0, currentPlayer.player_id);
       } catch (createError) {
         console.log('Error creating game:', createError);
-        // If game creation fails, try initializing a new game session
         setIsNewGame(true);
         setGameId(null);
         return;
@@ -171,7 +227,7 @@ function Lobby() {
       await API.startGame(newGame.game_id);
       setGameId(newGame.game_id);
       
-      // Reset game state using resetTurnState
+      // Reset all game state
       resetTurnState({
         setDiceValues: (values) => {
           setDiceValues(values);
@@ -182,20 +238,23 @@ function Lobby() {
         setScores: setCurrentScores
       });
   
-      // Reset player categories using the imported function
       await resetPlayerCategories({
         currentPlayer,
         setPlayerCategories,
         setPlayerTotal
       });
       
-      // Fetch fresh categories
+      // Reset bonus states
+      setHasYahtzee(false);
+      setYahtzeeBonus(0);
+      setUpperSectionTotal(0);
+      setUpperSectionBonus(0);
+      
       const categories = await API.getPlayerCategories(currentPlayer.player_id);
       setPlayerCategories(categories);
       
       setShouldResetScores(true);
       
-      // Delay the success message slightly to ensure state updates are complete
       setTimeout(() => {
         message.success('New game started successfully!');
         setShouldResetScores(false);
@@ -203,7 +262,6 @@ function Lobby() {
       
     } catch (error) {
       console.error('Error during game initialization:', error);
-      // Instead of showing error, trigger new game initialization
       setIsNewGame(true);
       setGameId(null);
     } finally {
@@ -211,6 +269,7 @@ function Lobby() {
     }
   };
 
+  // Handle score submission
   const handleScoreCategoryClick = async (categoryName) => {
     if (!gameId || !currentPlayer?.player_id) {
       message.error('Game or player information missing');
@@ -218,55 +277,39 @@ function Lobby() {
     }
 
     try {
-      // Find the category ID
       const category = playerCategories.find(cat => cat.name === categoryName);
       if (!category) {
         throw new Error('Category not found');
       }
 
-      // Calculate the score for this category
       const calculatedScores = calculateScores(diceValues);
-      const categoryScore = calculatedScores[categoryName];
+      let categoryScore = calculatedScores[categoryName];
 
-      console.log('Submitting score:', {
-        gameId,
-        playerId: currentPlayer.player_id,
-        categoryName,
-        categoryId: category.category_id,
-        score: categoryScore,
-        dice: diceValues,
-        rollCount
-      });
+      // Handle Yahtzee scoring
+      if (categoryName === 'yahtzee' && categoryScore === 50) {
+        setHasYahtzee(true);
+      } else if (hasYahtzee && checkForYahtzeeBonus(diceValues)) {
+        const newBonus = yahtzeeBonus + 100;
+        setYahtzeeBonus(newBonus);
+        await API.submitYahtzeeBonus(gameId, currentPlayer.player_id, newBonus);
+        message.success('Yahtzee Bonus! +100 points');
+      }
 
-      // Create a new turn first
-      await API.createTurn(
-        gameId,
-        currentPlayer.player_id,
-        diceValues,
-        rollCount,
-        categoryScore,
-        false
-      );
+      // Submit turn and score
+      await API.createTurn(gameId, currentPlayer.player_id, diceValues, rollCount, categoryScore, false);
+      await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, categoryScore);
+      await API.submitTurn(gameId, currentPlayer.player_id, category.category_id, categoryScore, diceValues, rollCount);
 
-      // Then submit the game score
-      await API.submitGameScore(
-        gameId,
-        currentPlayer.player_id,
-        categoryName,
-        categoryScore
-      );
+      // Update categories and recalculate scores
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(updatedCategories);
+      
+      const scores = calculateAllScores(updatedCategories);
+      setUpperSectionTotal(scores.upperTotal);
+      setUpperSectionBonus(scores.upperBonus);
+      setPlayerTotal(scores.total + yahtzeeBonus);
 
-      // Finally submit the turn as completed
-      await API.submitTurn(
-        gameId,
-        currentPlayer.player_id,
-        category.category_id,
-        categoryScore,
-        diceValues,
-        rollCount
-      );
-
-      // Update UI state
+      // Reset turn state
       setDiceValues(INITIAL_DICE_VALUES);
       setRollCount(0);
       setSelectedDice([]);
@@ -279,6 +322,7 @@ function Lobby() {
     }
   };
 
+  // Handle dice rolling
   const handleDiceRoll = async () => {
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
@@ -305,6 +349,7 @@ function Lobby() {
     }
   };
 
+  // Handle dice selection
   const handleDiceSelection = (index) => toggleDiceSelection(
     index,
     isRolling,
@@ -315,16 +360,13 @@ function Lobby() {
   const handlePlayerLogout = () => handleLogout(navigate);
 
   const handleTurnComplete = () => {
-    // Reset dice values to initial state
     setDiceValues(INITIAL_DICE_VALUES);
-    // Clear selected dice
     setSelectedDice([]);
-    // Reset roll count
     setRollCount(0);
-    // Clear current scores
     setCurrentScores({});
   };
 
+  // Prepare view props
   const viewProps = {
     currentPlayer,
     gameId,
@@ -337,6 +379,10 @@ function Lobby() {
     playerCategories,
     shouldResetScores,
     isLoading,
+    hasYahtzee,
+    yahtzeeBonus,
+    upperSectionTotal,
+    upperSectionBonus,
     handleNewGame,
     handleLogout: handlePlayerLogout,
     handleRollDice: handleDiceRoll,
