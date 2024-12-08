@@ -25,6 +25,7 @@ const LobbyView = ({
   calculateScores,
   onTurnComplete,
   isLoading,
+  API,
   opponentCategories,
   opponentDice,
   opponentScore,
