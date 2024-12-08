@@ -110,55 +110,6 @@ const Scoreboard = ({
     }
   }, [diceValues, rollCount, calculateScores, lockedCategories]);
 
-  const startNewGame = async () => {
-    if (!currentPlayer?.player_id) {
-      message.error('No player found');
-      return;
-    }
-  
-    try {
-      // Step 1: Create a new game first
-      const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
-      
-      if (!newGame?.game_id) {
-        throw new Error('Failed to create new game: Invalid game response');
-      }
-  
-      // Step 2: Start the game
-      await API.startGame(newGame.game_id);
-      
-      // Step 3: Reset categories
-      await API.resetPlayerCategories(currentPlayer.player_id);
-      
-      // Step 4: Initialize categories
-      await API.initializePlayerCategories(currentPlayer.player_id);
-  
-      // Step 5: Reset local state
-      setScores({});
-      setLockedCategories({});
-      setTotalScore(0);
-  
-      // Step 6: Load the fresh scores
-      const categories = await API.getPlayerCategories(currentPlayer.player_id);
-      const scoreMap = {};
-      const lockedMap = {};
-      
-      categories.forEach((category) => {
-        const key = category.name;
-        scoreMap[key] = '-';
-        lockedMap[key] = false;
-      });
-      
-      setScores(scoreMap);
-      setLockedCategories(lockedMap);
-      
-      message.success('New game started successfully!');
-    } catch (error) {
-      console.error('Error starting new game:', error);
-      message.error(`Failed to start new game: ${error.message}`);
-    }
-  };
-
   const checkGameCompletion = async (updatedLockedCategories) => {
     const allCategoriesSubmitted = Object.values(updatedLockedCategories).every(isLocked => isLocked);
     
@@ -170,12 +121,48 @@ const Scoreboard = ({
           // End the game
           await API.endGame(activeGame.game_id);
           
-          // Show completion modal
+          // Show completion modal with new game option
           Modal.success({
             title: 'Game Complete!',
             content: `Congratulations! You've completed the game with a total score of ${totalScore} points!`,
-            okText: 'Play Again',
-            onOk: startNewGame,
+            okText: 'New Game',
+            onOk: async () => {
+              try {
+                // Create new game
+                const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
+                if (!newGame?.game_id) {
+                  throw new Error('Failed to create new game');
+                }
+                
+                // Start the game
+                await API.startGame(newGame.game_id);
+                
+                // Reset categories
+                await API.resetPlayerCategories(currentPlayer.player_id);
+                await API.initializePlayerCategories(currentPlayer.player_id);
+                
+                // Refresh the scores and categories
+                const categories = await API.getPlayerCategories(currentPlayer.player_id);
+                const scoreMap = {};
+                const lockedMap = {};
+                
+                categories.forEach((cat) => {
+                  const key = cat.name;
+                  scoreMap[key] = '-';
+                  lockedMap[key] = false;
+                });
+                
+                setScores(scoreMap);
+                setLockedCategories(lockedMap);
+                setTotalScore(0);
+                
+                message.success('New game started successfully!');
+                
+              } catch (error) {
+                console.error('Error starting new game:', error);
+                message.error(`Failed to start new game: ${error.message}`);
+              }
+            },
             maskClosable: false,
             closable: false
           });
