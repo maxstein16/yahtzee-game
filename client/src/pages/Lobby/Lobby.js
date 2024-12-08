@@ -123,6 +123,24 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
+  useEffect(() => {
+    const initializeOpponent = async () => {
+      if (gameId) {
+        try {
+          const opponentCategories = await API.getPlayerCategories('9');
+          setOpponentCategories(opponentCategories);
+          setOpponentDice([1, 1, 1, 1, 1]);
+          setOpponentScore(0);
+          setOpponentRollCount(0);
+        } catch (error) {
+          console.error('Error initializing opponent:', error);
+        }
+      }
+    };
+  
+    initializeOpponent();
+  }, [gameId]);  
+
   // Score calculation utilities
   const calculateAllScores = (categories) => {
     const upperCategories = categories.filter(cat => cat.section === 'upper');
@@ -439,6 +457,8 @@ function Lobby() {
     setSelectedDice([]);
     setRollCount(0);
     setCurrentScores({});
+    onTurnComplete();
+    setIsOpponentTurn(true);
   };
 
   // Prepare view props

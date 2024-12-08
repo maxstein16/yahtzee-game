@@ -36,25 +36,23 @@ const LobbyView = ({
   // Handle opponent's turn after player completes theirs
   useEffect(() => {
     const playOpponentTurn = async () => {
-      if (isOpponentTurn && gameId && currentPlayer) {
+      if (isOpponentTurn && gameId) {
         try {
-          setOpponentRollCount(0);
           const result = await executeOpponentTurn(
             gameId,
-            'opponent-1',
+            '9',
             opponentCategories,
             opponentDice,
             API
           );
-
           setOpponentDice(result.finalDice);
           setOpponentRollCount(result.rollCount);
-          setOpponentScore(prev => prev + (result.score || 0));
-
-          // Update opponent categories
-          const updatedCategories = await API.getPlayerCategories('opponent-1');
+          setOpponentScore(prev => prev + result.score);
+  
+          // Update opponent's categories
+          const updatedCategories = await API.getPlayerCategories('9');
           setOpponentCategories(updatedCategories);
-
+  
           message.info(`Opponent scored ${result.score} points in ${result.selectedCategory.name}!`);
           setIsOpponentTurn(false);
         } catch (error) {
@@ -63,9 +61,10 @@ const LobbyView = ({
         }
       }
     };
-
+  
     playOpponentTurn();
-  }, [isOpponentTurn, gameId, currentPlayer, API]);
+  }, [isOpponentTurn, gameId, opponentCategories, opponentDice, API]);
+  
 
   // Initialize opponent when game starts
   useEffect(() => {
