@@ -164,8 +164,6 @@ function Lobby() {
     initializeGameSession();
   }, [currentPlayer, isLoading]);
 
-  // Handle opponent turns
-  // In Lobby.js - update the opponent turn useEffect
   useEffect(() => {
     const executeOpponentTurn = async () => {
       if (opponentState.isOpponentTurn && gameId) {
@@ -410,8 +408,25 @@ function Lobby() {
     }
 
     try {
+      // Calculate scores with current dice
       const calculatedScores = calculateScores(diceValues);
+      
+      // Verify we have a valid category and score
+      if (!categoryName || !calculatedScores.hasOwnProperty(categoryName)) {
+        throw new Error(`Invalid category: ${categoryName}`);
+      }
+      
       const categoryScore = calculatedScores[categoryName];
+      if (typeof categoryScore !== 'number') {
+        throw new Error('Invalid score calculation');
+      }
+
+      console.log('Submitting score:', {
+        categoryName,
+        categoryScore,
+        diceValues,
+        rollCount
+      });
 
       // Handle Yahtzee scoring
       if (categoryName === 'yahtzee' && categoryScore === 50) {
@@ -423,9 +438,23 @@ function Lobby() {
         message.success('Yahtzee Bonus! +100 points');
       }
 
-      // Submit score
-      await API.createTurn(gameId, currentPlayer.player_id, diceValues, rollCount, categoryScore, false);
-      await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, categoryScore);
+      // Create turn record first
+      await API.createTurn(
+        gameId, 
+        currentPlayer.player_id, 
+        diceValues, 
+        rollCount, 
+        categoryScore, 
+        false
+      );
+
+      // Submit score with verified data
+      await API.submitGameScore(
+        gameId,
+        currentPlayer.player_id,
+        categoryName,
+        categoryScore
+      );
 
       // Update categories and scores
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
@@ -448,9 +477,10 @@ function Lobby() {
         isOpponentTurn: true
       }));
 
+      message.success(`Scored ${categoryScore} points in ${categoryName}!`);
     } catch (error) {
       console.error('Error submitting score:', error);
-      message.error('Failed to submit score');
+      message.error(`Failed to submit score: ${error.message}`);
     }
   };
 
