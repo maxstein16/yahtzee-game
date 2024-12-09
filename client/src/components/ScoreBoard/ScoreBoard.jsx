@@ -132,15 +132,19 @@ const Scoreboard = ({
     
     const key = category.name;
     if (lockedCategories[key] || rollCount === 0) return;
-
+  
     try {
+      // Log the category being clicked
+      console.log('Category clicked:', category);
+  
       if (key === 'yahtzee' && hasYahtzee && diceValues.every(val => val === diceValues[0])) {
         setYahtzeeBonus(prevBonus => prevBonus + 100);
         message.success('Yahtzee Bonus! +100 points');
       }
-
-      await handleScoreCategoryClick(category.name);
-
+  
+      // Pass the category name to the handler
+      await handleScoreCategoryClick(key);
+  
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const scoreMap = {};
       const lockedMap = {};
@@ -150,17 +154,17 @@ const Scoreboard = ({
         scoreMap[catKey] = cat.is_submitted ? cat.score : '-';
         lockedMap[catKey] = cat.is_submitted;
       });
-
+  
       setScores(scoreMap);
       setLockedCategories(lockedMap);
-
+  
       const sectionTotals = calculateSectionScores(updatedCategories, scoreMap);
       setUpperSectionBaseScore(sectionTotals.upperBase);
       setLowerSectionBaseScore(sectionTotals.lowerBase);
       setUpperSectionScore(sectionTotals.upperTotal);
       setLowerSectionScore(sectionTotals.lowerTotal);
       setTotalScore(sectionTotals.upperTotal + sectionTotals.lowerTotal);
-
+  
       // Check for game completion
       if (Object.values(lockedMap).every(isLocked => isLocked)) {
         Modal.success({
@@ -168,8 +172,8 @@ const Scoreboard = ({
           content: `Final Score: ${sectionTotals.upperTotal + sectionTotals.lowerTotal}`,
         });
       }
-
-      onTurnComplete();
+  
+      onTurnComplete(key);
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error('Failed to submit score');

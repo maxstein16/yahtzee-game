@@ -406,20 +406,30 @@ function Lobby() {
       message.error('Game or player information missing');
       return;
     }
-
+  
+    if (!categoryName) {
+      message.error('No category selected');
+      return;
+    }
+  
     try {
       // Calculate scores with current dice
       const calculatedScores = calculateScores(diceValues);
       
+      // Debug log
+      console.log('Submitting score for category:', categoryName);
+      console.log('Current dice:', diceValues);
+      console.log('Calculated scores:', calculatedScores);
+  
       // Verify we have a valid category and score
-      if (!categoryName || !calculatedScores.hasOwnProperty(categoryName)) {
+      if (!calculatedScores.hasOwnProperty(categoryName)) {
         throw new Error(`Invalid category: ${categoryName}`);
       }
       
       const categoryScore = calculatedScores[categoryName];
       if (typeof categoryScore !== 'number') {
         throw new Error('Invalid score calculation');
-      }
+      }  
 
       console.log('Submitting score:', {
         categoryName,
