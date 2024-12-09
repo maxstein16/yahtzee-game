@@ -7,7 +7,7 @@ const { Title, Text } = Typography;
 const OpponentSection = ({ aiTotal, isAITurn, aiDiceValues, isRolling, aiRollCount }) => {
   return (
     <div className="opponent-section">
-      <Title level={4}>AI Opponent (Total: {aiTotal})</Title>
+      <Title level={4}>Opponent (Total: {aiTotal})</Title>
       {isAITurn && (
         <>
           <div className="game-dice-container">

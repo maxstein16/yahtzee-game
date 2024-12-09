@@ -169,7 +169,7 @@ function Lobby() {
       if (opponentState.isOpponentTurn && gameId) {
         try {
           // Initial roll
-          const opponentPlayer = { player_id: '9', name: 'AI Opponent' };
+          const opponentPlayer = { player_id: '9', name: 'Opponent' };
           const firstRoll = await rollDice(gameId, opponentPlayer, INITIAL_DICE_VALUES, []);
 
           if (!firstRoll.success) {

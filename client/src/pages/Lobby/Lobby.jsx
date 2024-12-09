@@ -226,7 +226,7 @@ const ScoreboardContainer = ({
       <Scoreboard
         key={`opponent-${gameId}-${shouldResetScores}`}  // Changed this line
         gameId={gameId}
-        currentPlayer={{ name: 'AI Opponent', player_id: '9' }}
+        currentPlayer={{ name: 'Opponent', player_id: '9' }}
         playerCategories={opponentState.categories}
         calculateScores={calculateScores}
         diceValues={opponentState.dice}
