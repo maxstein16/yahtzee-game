@@ -166,19 +166,18 @@ function Lobby() {
 
   // Handle opponent turns
   useEffect(() => {
-    // Update the executeOpponentTurn function in your useEffect
     const executeOpponentTurn = async () => {
       if (opponentState.isOpponentTurn && gameId) {
         try {
-          // Initial roll - use the API
-          const firstRoll = await API.rollDice(gameId, { 
+          // Initial roll - use the API with correct format
+          const firstRoll = await API.rollDice(gameId, {
             playerId: '9',
             currentDice: INITIAL_DICE_VALUES,
             keepIndices: []
           });
 
-          if (!firstRoll.success) {
-            throw new Error('Failed to roll dice');
+          if (!firstRoll?.success || !firstRoll?.dice) {
+            throw new Error('Invalid response from roll dice API');
           }
 
           let currentDice = firstRoll.dice;
@@ -194,6 +193,10 @@ function Lobby() {
 
           // Calculate optimal move
           const availableCategories = opponentState.categories.filter(cat => !cat.is_submitted);
+          if (!availableCategories.length) {
+            throw new Error('No available categories');
+          }
+
           let bestMove = calculateOptimalMove(currentDice, availableCategories, calculateScores);
           
           // Do 1-2 more rolls if beneficial
@@ -206,8 +209,8 @@ function Lobby() {
                 keepIndices: bestMove.keepIndices
               });
 
-              if (!rollResult.success) {
-                throw new Error('Failed to roll dice');
+              if (!rollResult?.success || !rollResult?.dice) {
+                throw new Error('Invalid response from roll dice API');
               }
 
               currentDice = rollResult.dice;
@@ -223,7 +226,7 @@ function Lobby() {
               
               bestMove = calculateOptimalMove(currentDice, availableCategories, calculateScores);
             } else {
-              break; // Stop rolling if we have a good score
+              break;
             }
           }
 
@@ -242,12 +245,12 @@ function Lobby() {
             }
           });
 
-          if (!bestCategory || bestScore === undefined) {
+          if (!bestCategory?.name || typeof bestScore !== 'number') {
             throw new Error('Invalid category or score data');
           }
 
           // Create the turn record first
-          await API.createTurn(
+          const turnResult = await API.createTurn(
             gameId,
             '9',
             currentDice,
@@ -256,13 +259,21 @@ function Lobby() {
             false
           );
 
+          if (!turnResult?.turn_id) {
+            throw new Error('Failed to create turn');
+          }
+
           // Submit the score
-          await API.submitGameScore(
+          const scoreResult = await API.submitGameScore(
             gameId,
             '9',
             bestCategory.name,
             bestScore
           );
+
+          if (!scoreResult) {
+            throw new Error('Failed to submit score');
+          }
 
           // Update opponent state
           const updatedCategories = await API.getPlayerCategories('9');
