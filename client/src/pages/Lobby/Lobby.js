@@ -165,18 +165,20 @@ function Lobby() {
   }, [currentPlayer, isLoading]);
 
   // Handle opponent turns
+  // In Lobby.js - update the opponent turn useEffect
   useEffect(() => {
     const executeOpponentTurn = async () => {
       if (opponentState.isOpponentTurn && gameId) {
         try {
-          // Initial roll - use the API
-          const result = await rollDice(gameId, { player_id: '9' }, INITIAL_DICE_VALUES, []);
-          
-          if (!result.success) {
+          // Initial roll
+          const opponentPlayer = { player_id: '9', name: 'AI Opponent' };
+          const firstRoll = await rollDice(gameId, opponentPlayer, INITIAL_DICE_VALUES, []);
+
+          if (!firstRoll.success) {
             throw new Error('Failed first roll');
           }
-    
-          let currentDice = result.dice;
+
+          let currentDice = firstRoll.dice;
           
           setOpponentState(prev => ({
             ...prev,
@@ -186,30 +188,30 @@ function Lobby() {
           
           message.info(`Opponent Roll 1: ${currentDice.join(', ')}`, 1);
           await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
           // Calculate optimal move
           const availableCategories = opponentState.categories.filter(cat => !cat.is_submitted);
           if (!availableCategories.length) {
             throw new Error('No available categories');
           }
-    
+
           let bestMove = calculateOptimalMove(currentDice, availableCategories, calculateScores);
           
           // Do 1-2 more rolls if beneficial
           for (let roll = 2; roll <= 3; roll++) {
             if (bestMove.expectedScore < getThresholdForCategory(bestMove.category.name)) {
-              // Roll using API, keeping optimal dice
+              // Roll again, keeping optimal dice
               const rollResult = await rollDice(
-                gameId, 
-                { player_id: '9' }, 
+                gameId,
+                opponentPlayer,
                 currentDice,
                 bestMove.keepIndices
               );
-    
+
               if (!rollResult.success) {
                 throw new Error(`Failed roll ${roll}`);
               }
-    
+
               currentDice = rollResult.dice;
               
               setOpponentState(prev => ({
@@ -226,25 +228,24 @@ function Lobby() {
               break;
             }
           }
-    
+
           // Calculate final score
-          const scores = calculateScores(currentDice);
+          const finalScores = calculateScores(currentDice);
           let bestCategory = null;
           let bestScore = -1;
-    
-          // Find best category based on current dice
+
           availableCategories.forEach(category => {
-            const score = scores[category.name] || 0;
+            const score = finalScores[category.name] || 0;
             if (score > bestScore) {
               bestScore = score;
               bestCategory = category;
             }
           });
-    
-          if (!bestCategory?.name) {
-            throw new Error('No valid category found');
+
+          if (!bestCategory || bestScore === undefined) {
+            throw new Error('Invalid category or score data');
           }
-    
+
           // Create turn record
           await API.createTurn(
             gameId,
@@ -254,15 +255,15 @@ function Lobby() {
             bestScore,
             false
           );
-    
+
           // Submit score
-          const scoreResult = await API.submitGameScore(
+          await API.submitGameScore(
             gameId,
             '9',
             bestCategory.name,
             bestScore
           );
-    
+
           // Update opponent state
           const updatedCategories = await API.getPlayerCategories('9');
           setOpponentState(prev => ({
@@ -275,7 +276,7 @@ function Lobby() {
             rollCount: 0,
             dice: INITIAL_DICE_VALUES
           }));
-    
+
           message.success(
             `Opponent chose ${bestCategory.name} for ${bestScore} points!`, 
             2.5
