@@ -96,4 +96,4 @@ class WebSocketService {
   }
 }
 
-export const chatService = new WebSocketService();
+export const webSocketService = new WebSocketService();
