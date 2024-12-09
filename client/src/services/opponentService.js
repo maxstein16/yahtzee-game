@@ -1,27 +1,3 @@
-export const calculateOptimalMove = (diceValues, availableCategories) => {
-  const allPossibleCombos = generatePossibleCombinations(diceValues);
-  let bestScore = -1;
-  let bestCategory = null;
-  let bestKeepIndices = [];
-
-  availableCategories.forEach(category => {
-    allPossibleCombos.forEach(combo => {
-      const score = calculatePotentialScore(combo.dice, category.name);
-      if (score > bestScore) {
-        bestScore = score;
-        bestCategory = category;
-        bestKeepIndices = combo.keepIndices;
-      }
-    });
-  });
-
-  return {
-    category: bestCategory,
-    keepIndices: bestKeepIndices,
-    expectedScore: bestScore
-  };
-};
-
 const generatePossibleCombinations = (diceValues) => {
   const combinations = [];
   // Generate all possible keep/reroll combinations
@@ -100,49 +76,98 @@ const hasLargeStraight = (counts) => {
          (counts[2] && counts[3] && counts[4] && counts[5] && counts[6]);
 };
 
-export const executeOpponentTurn = async (gameId, opponentId, categories, initialDice, API) => {
-  const rollHistory = [];
-  let currentDice = [...initialDice];
-  let rollCount = 0;
-  
-  // Simulate 2-3 rolls
-  const numRolls = Math.floor(Math.random() * 2) + 2;
-  
-  for (let i = 0; i < numRolls && rollCount < 3; i++) {
-    // Simulate dice roll
-    currentDice = currentDice.map(() => Math.floor(Math.random() * 6) + 1);
-    rollHistory.push([...currentDice]);
-    rollCount++;
-    
-    // Add delay between rolls
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
+// In your Lobby.js useEffect for opponent turns
+const executeOpponentTurn = async () => {
+  if (opponentState.isOpponentTurn && gameId) {
+    try {
+      // Initial roll
+      let currentDice = Array(5).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
+      
+      // Update state and show message for first roll
+      setOpponentState(prev => ({
+        ...prev,
+        dice: currentDice,
+        rollCount: 1
+      }));
+      
+      message.info(`Opponent Roll 1: ${currentDice.join(', ')}`, 1);
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-  // Select best scoring category
-  const scores = calculateScores(currentDice);
-  const availableCategories = categories.filter(cat => !cat.is_submitted);
-  
-  let bestCategory = availableCategories[0];
-  let bestScore = scores[bestCategory.name] || 0;
-  
-  availableCategories.forEach(category => {
-    const score = scores[category.name] || 0;
-    if (score > bestScore) {
-      bestScore = score;
-      bestCategory = category;
+      // Determine optimal move based on first roll
+      const availableCategories = opponentState.categories.filter(cat => !cat.is_submitted);
+      let bestMove = calculateOptimalMove(currentDice, availableCategories);
+      
+      // Do 1-2 more rolls if beneficial
+      for (let roll = 2; roll <= 3; roll++) {
+        if (bestMove.expectedScore < getThresholdForCategory(bestMove.category.name)) {
+          // Roll non-kept dice
+          const newDice = [...currentDice];
+          for (let i = 0; i < 5; i++) {
+            if (!bestMove.keepIndices.includes(i)) {
+              newDice[i] = Math.floor(Math.random() * 6) + 1;
+            }
+          }
+          currentDice = newDice;
+          
+          // Update state and show message
+          setOpponentState(prev => ({
+            ...prev,
+            dice: currentDice,
+            rollCount: roll
+          }));
+          
+          message.info(`Opponent Roll ${roll}: ${currentDice.join(', ')}`, 1);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // Recalculate best move
+          bestMove = calculateOptimalMove(currentDice, availableCategories);
+        } else {
+          break; // Stop rolling if we have a good score
+        }
+      }
+
+      // Ensure we have valid data before submission
+      if (!bestMove.category?.name || bestMove.expectedScore === undefined) {
+        throw new Error('Invalid category or score data');
+      }
+
+      // Submit score
+      try {
+        await API.submitGameScore(
+          gameId,
+          '9', // opponent ID
+          bestMove.category.name,
+          bestMove.expectedScore
+        );
+
+        // Update opponent state only after successful submission
+        const updatedCategories = await API.getPlayerCategories('9');
+        setOpponentState(prev => ({
+          ...prev,
+          categories: updatedCategories,
+          lastCategory: bestMove.category.name,
+          turnScore: bestMove.expectedScore,
+          score: prev.score + bestMove.expectedScore,
+          isOpponentTurn: false,
+          rollCount: 0,
+          dice: INITIAL_DICE_VALUES
+        }));
+
+        message.success(
+          `Opponent chose ${bestMove.category.name} for ${bestMove.expectedScore} points!`, 
+          2.5
+        );
+      } catch (submitError) {
+        console.error('Error submitting opponent score:', submitError);
+        message.error('Failed to submit opponent score');
+        resetOpponentTurn();
+      }
+    } catch (error) {
+      console.error('Error during opponent turn:', error);
+      message.error('Opponent turn failed');
+      resetOpponentTurn();
     }
-  });
-
-  // Submit the score
-  await API.submitGameScore(gameId, opponentId, bestCategory.name, bestScore);
-
-  return {
-    finalDice: currentDice,
-    rollCount,
-    score: bestScore,
-    selectedCategory: bestCategory,
-    rollHistory
-  };
+  }
 };
 
 const getThresholdForCategory = (categoryName) => {
@@ -162,4 +187,43 @@ const getThresholdForCategory = (categoryName) => {
     chance: 20
   };
   return thresholds[categoryName] || 0;
+};
+
+const calculateOptimalMove = (diceValues, availableCategories) => {
+  const scores = {};
+  let bestScore = -1;
+  let bestCategory = null;
+  let bestKeepIndices = [];
+
+  // Calculate scores for each category
+  availableCategories.forEach(category => {
+    const score = calculateScores(diceValues)[category.name] || 0;
+    scores[category.name] = score;
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestCategory = category;
+    }
+  });
+
+  // Determine which dice to keep based on the best category
+  if (bestCategory) {
+    const counts = new Array(7).fill(0);
+    diceValues.forEach((value, index) => {
+      counts[value]++;
+      // Keep dice that contribute to the best score
+      if ((bestCategory.name === `${value}s`) || 
+          (counts[value] >= 3 && bestCategory.name === 'threeOfAKind') ||
+          (counts[value] >= 4 && bestCategory.name === 'fourOfAKind') ||
+          (counts[value] === 5 && bestCategory.name === 'yahtzee')) {
+        bestKeepIndices.push(index);
+      }
+    });
+  }
+
+  return {
+    category: bestCategory,
+    expectedScore: bestScore,
+    keepIndices: bestKeepIndices
+  };
 };
