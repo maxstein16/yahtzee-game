@@ -1,100 +1,148 @@
-// src/services/websocketService.js
-import { io } from 'socket.io-client';
+import React, { useState, useEffect, useRef } from 'react';
+import { Input, Button, List, Typography, Space, message } from 'antd';
+import { chatService } from '../../services/websocketService';
 
-class WebSocketService {
-  constructor() {
-    this.socket = null;
-    this.messageHandlers = new Set();
-    this.connectionHandlers = new Set();
-    this.playerJoinHandlers = new Set();
-    this.playerLeaveHandlers = new Set();
-  }
+const { Text } = Typography;
 
-  connect(gameId, playerId, playerName) {
-    if (this.socket) {
-      this.socket.disconnect();
-    }
+export default function Chat({ gameId, playerId, playerName }) {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const messagesEndRef = useRef(null);
+  const [participants, setParticipants] = useState(new Set());
 
-    this.socket = io('https://yahtzee-backend-621359075899.us-east1.run.app', {
-      query: { 
-        gameId, 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    console.log('Connecting with:', { gameId, playerId, playerName }); // Debug log
+    
+    chatService.connect(gameId, playerId, playerName);
+
+    const messageHandler = (msg) => {
+      console.log('Received message:', msg); // Debug log
+      setMessages(prev => [...prev, msg]);
+      setParticipants(prev => new Set(prev).add(msg.playerName));
+    };
+
+    const connectionHandler = (status) => {
+      setIsConnected(status);
+      if (status) {
+        message.success('Connected to chat');
+      } else {
+        message.warning('Disconnected from chat');
+      }
+    };
+
+    const playerJoinedHandler = (data) => {
+      setParticipants(prev => new Set(prev).add(data.playerName));
+      setMessages(prev => [...prev, {
+        type: 'system',
+        text: `${data.playerName} joined the chat`,
+        timestamp: data.timestamp
+      }]);
+    };
+
+    const playerLeftHandler = (data) => {
+      setMessages(prev => [...prev, {
+        type: 'system',
+        text: `${data.playerName} left the chat`,
+        timestamp: data.timestamp
+      }]);
+    };
+
+    chatService.onMessage(messageHandler);
+    chatService.onConnectionChange(connectionHandler);
+    chatService.onPlayerJoined(playerJoinedHandler);
+    chatService.onPlayerLeft(playerLeftHandler);
+
+    return () => {
+      chatService.disconnect();
+    };
+  }, [gameId, playerId, playerName]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSend = () => {
+    if (newMessage.trim() && isConnected) {
+      const messageData = {
+        gameId,
         playerId,
-        playerName
-      },
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    });
-
-    this.socket.on('connect', () => {
-      console.log('Connected to WebSocket server');
-      this.connectionHandlers.forEach(handler => handler(true));
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
-      this.connectionHandlers.forEach(handler => handler(false));
-    });
-
-    this.socket.on('chat_message', (message) => {
-      console.log('Received message:', message);
-      this.messageHandlers.forEach(handler => handler(message));
-    });
-
-    this.socket.on('player_joined', (data) => {
-      console.log('Player joined:', data);
-      this.playerJoinHandlers.forEach(handler => handler(data));
-    });
-
-    this.socket.on('player_left', (data) => {
-      console.log('Player left:', data);
-      this.playerLeaveHandlers.forEach(handler => handler(data));
-    });
-
-    this.socket.on('error', (error) => {
-      console.error('WebSocket error:', error);
-    });
-  }
-
-  sendMessage(message) {
-    if (this.socket?.connected) {
-      this.socket.emit('chat_message', message);
-      return true;
+        playerName,
+        text: newMessage.trim(),
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('Sending message:', messageData); // Debug log
+      
+      if (chatService.sendMessage(messageData)) {
+        setNewMessage('');
+      } else {
+        message.error('Failed to send message');
+      }
     }
-    return false;
-  }
+  };
 
-  onMessage(handler) {
-    this.messageHandlers.add(handler);
-    return () => this.messageHandlers.delete(handler);
-  }
-
-  onConnectionChange(handler) {
-    this.connectionHandlers.add(handler);
-    return () => this.connectionHandlers.delete(handler);
-  }
-
-  onPlayerJoined(handler) {
-    this.playerJoinHandlers.add(handler);
-    return () => this.playerJoinHandlers.delete(handler);
-  }
-
-  onPlayerLeft(handler) {
-    this.playerLeaveHandlers.add(handler);
-    return () => this.playerLeaveHandlers.delete(handler);
-  }
-
-  disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-    this.messageHandlers.clear();
-    this.connectionHandlers.clear();
-    this.playerJoinHandlers.clear();
-    this.playerLeaveHandlers.clear();
-  }
+  return (
+    <div className="flex flex-col h-full">
+      <div className="mb-2 p-2 bg-gray-100 rounded">
+        <Text type="secondary">
+          {Array.from(participants).join(', ')} 
+          {participants.size === 1 ? ' is' : ' are'} in the chat
+        </Text>
+      </div>
+      
+      <List
+        className="flex-1 overflow-y-auto mb-4 p-4 bg-gray-50 rounded"
+        dataSource={messages}
+        renderItem={(msg) => (
+          <List.Item className={`flex ${msg.type === 'system' ? 'justify-center' : 
+            msg.playerId === playerId ? 'justify-end' : 'justify-start'}`}>
+            {msg.type === 'system' ? (
+              <Text type="secondary" italic>{msg.text}</Text>
+            ) : (
+              <div className={`max-w-[70%] p-2 rounded ${
+                msg.playerId === playerId ? 'bg-blue-500 text-white' : 'bg-gray-200'
+              }`}>
+                <div className="text-xs opacity-75 mb-1">
+                  {msg.playerName} • {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
+                <Text className={msg.playerId === playerId ? 'text-white' : 'text-gray-700'}>
+                  {msg.text}
+                </Text>
+              </div>
+            )}
+          </List.Item>
+        )}
+      />
+      
+      <div ref={messagesEndRef} />
+      
+      <Space.Compact className="w-full">
+        <Input
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onPressEnter={handleSend}
+          placeholder="Type a message..."
+          disabled={!isConnected}
+        />
+        <Button 
+          type="primary"
+          onClick={handleSend}
+          disabled={!isConnected || !newMessage.trim()}
+        >
+          Send
+        </Button>
+      </Space.Compact>
+      
+      {!isConnected && (
+        <Text type="warning" className="mt-2 text-center">
+          Connecting to chat...
+        </Text>
+      )}
+    </div>
+  );
 }
-
-export const chatService = new WebSocketService();

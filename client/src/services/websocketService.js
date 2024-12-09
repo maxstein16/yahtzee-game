@@ -1,3 +1,4 @@
+// src/services/websocketService.js
 import { io } from 'socket.io-client';
 
 class WebSocketService {
@@ -5,6 +6,8 @@ class WebSocketService {
     this.socket = null;
     this.messageHandlers = new Set();
     this.connectionHandlers = new Set();
+    this.playerJoinHandlers = new Set();
+    this.playerLeaveHandlers = new Set();
   }
 
   connect(gameId, playerId, playerName) {
@@ -25,26 +28,32 @@ class WebSocketService {
     });
 
     this.socket.on('connect', () => {
+      console.log('Connected to WebSocket server');
       this.connectionHandlers.forEach(handler => handler(true));
-      
-      // Request previous messages when connecting
-      this.socket.emit('get_messages', { gameId });
     });
 
     this.socket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket server');
       this.connectionHandlers.forEach(handler => handler(false));
     });
 
     this.socket.on('chat_message', (message) => {
+      console.log('Received message:', message);
       this.messageHandlers.forEach(handler => handler(message));
     });
 
-    this.socket.on('chat_history', (messages) => {
-      if (Array.isArray(messages)) {
-        messages.forEach(message => {
-          this.messageHandlers.forEach(handler => handler(message));
-        });
-      }
+    this.socket.on('player_joined', (data) => {
+      console.log('Player joined:', data);
+      this.playerJoinHandlers.forEach(handler => handler(data));
+    });
+
+    this.socket.on('player_left', (data) => {
+      console.log('Player left:', data);
+      this.playerLeaveHandlers.forEach(handler => handler(data));
+    });
+
+    this.socket.on('error', (error) => {
+      console.error('WebSocket error:', error);
     });
   }
 
@@ -66,11 +75,25 @@ class WebSocketService {
     return () => this.connectionHandlers.delete(handler);
   }
 
+  onPlayerJoined(handler) {
+    this.playerJoinHandlers.add(handler);
+    return () => this.playerJoinHandlers.delete(handler);
+  }
+
+  onPlayerLeft(handler) {
+    this.playerLeaveHandlers.add(handler);
+    return () => this.playerLeaveHandlers.delete(handler);
+  }
+
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.messageHandlers.clear();
+    this.connectionHandlers.clear();
+    this.playerJoinHandlers.clear();
+    this.playerLeaveHandlers.clear();
   }
 }
 
