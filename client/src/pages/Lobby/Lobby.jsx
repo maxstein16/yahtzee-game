@@ -149,7 +149,7 @@ const GameBoard = ({
       isOpponentTurn={opponentState.isOpponentTurn}
     />
 
-    <Divider type="vertical" style={{ height: '100%' }} />
+    <Divider type="horizontal" className="section-divider" />
 
     <PlayerSection
       isOpponent
