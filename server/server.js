@@ -1,9 +1,13 @@
 // server.js
 const http = require('http');
 const { app } = require('./app');
+const { initializeWebSocket } = require('./websocket');
 
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
+
+// Initialize WebSocket
+const io = initializeWebSocket(server);
 
 // Error handling for server
 server.on('error', (error) => {
