@@ -1,37 +1,44 @@
 .top-nav {
   background: #FF4500 !important;
   padding: 0 20px;
-  height: 50px; /* Reduce header height */
+  height: 50px;
   line-height: 50px;
 }
 
 .game-container {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 12px;
   padding: 12px;
   width: 100%;
-  height: calc(100vh - 50px); /* Match new header height */
+  height: calc(100vh - 50px);
 }
 
 .game-board {
-  flex: 3;
-  min-width: 400px;
   height: 100%;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   padding: 12px;
+  gap: 20px;
+}
+
+.player-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
 .player-section {
-  flex: 1;
+  height: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 8px;
+  background: #fafafa;
+  border-radius: 8px;
 }
 
 .game-dice-container {
@@ -41,29 +48,15 @@
   margin: 12px 0;
 }
 
-.scoreboards-container {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 300px;
-  max-width: 350px;
-  height: 100%;
-  overflow: hidden;
-}
-
 .scoreboard {
   flex: 1;
   padding: 12px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
 }
 
-/* Update Scoreboard.css */
 .score-table {
   width: 100%;
   border-collapse: collapse;
@@ -91,10 +84,4 @@
 .ant-typography.ant-typography-h4 {
   margin-bottom: 8px !important;
   font-size: 16px !important;
-}
-
-/* Adjust divider */
-.ant-divider-vertical {
-  height: auto !important;
-  margin: 0 8px;
 }

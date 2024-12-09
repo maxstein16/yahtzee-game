@@ -134,37 +134,72 @@ const GameBoard = ({
   rollCount,
   handleRollDice,
   toggleDiceSelection,
-  opponentState
+  opponentState,
+  // Add scoreboard props
+  gameId,
+  playerCategories,
+  calculateScores,
+  handleScoreCategoryClick,
+  onTurnComplete,
+  shouldResetScores,
 }) => (
   <div className="game-board">
-    <PlayerSection
-      name={currentPlayer?.name || 'Player'}
-      dice={diceValues}
-      selectedDice={selectedDice}
-      isRolling={isRolling}
-      rollCount={rollCount}
-      onDiceClick={toggleDiceSelection}
-      handleRoll={handleRollDice}
-      disabled={rollCount >= 3}
-      isOpponentTurn={opponentState.isOpponentTurn}
-    />
+    <div className="player-container">
+      <PlayerSection
+        name={currentPlayer?.name || 'Player'}
+        dice={diceValues}
+        selectedDice={selectedDice}
+        isRolling={isRolling}
+        rollCount={rollCount}
+        onDiceClick={toggleDiceSelection}
+        handleRoll={handleRollDice}
+        disabled={rollCount >= 3}
+        isOpponentTurn={opponentState.isOpponentTurn}
+      />
+      <Scoreboard
+        key={`player-${gameId}`}
+        gameId={gameId}
+        currentPlayer={currentPlayer}
+        playerCategories={playerCategories}
+        calculateScores={calculateScores}
+        diceValues={diceValues}
+        rollCount={rollCount}
+        handleScoreCategoryClick={handleScoreCategoryClick}
+        onTurnComplete={onTurnComplete}
+        shouldResetScores={shouldResetScores}
+        isOpponent={false}
+      />
+    </div>
 
-    <Divider type="horizontal" className="section-divider" />
-
-    <PlayerSection
-      isOpponent
-      name="Opponent"
-      dice={opponentState.dice}
-      selectedDice={[]}
-      isRolling={opponentState.isOpponentTurn}
-      rollCount={opponentState.rollCount}
-      onDiceClick={() => {}}
-      disabled={true}
-      isOpponentTurn={opponentState.isOpponentTurn}
-      lastMove={opponentState.lastCategory ? 
-        `Scored ${opponentState.turnScore} in ${opponentState.lastCategory}` : 
-        undefined}
-    />
+    <div className="player-container">
+      <PlayerSection
+        isOpponent
+        name="Opponent"
+        dice={opponentState.dice}
+        selectedDice={[]}
+        isRolling={opponentState.isOpponentTurn}
+        rollCount={opponentState.rollCount}
+        onDiceClick={() => {}}
+        disabled={true}
+        isOpponentTurn={opponentState.isOpponentTurn}
+        lastMove={opponentState.lastCategory ? 
+          `Scored ${opponentState.turnScore} in ${opponentState.lastCategory}` : 
+          undefined}
+      />
+      <Scoreboard
+        key={`opponent-${gameId}-${shouldResetScores}`}
+        gameId={gameId}
+        currentPlayer={{ name: 'AI Opponent', player_id: '9' }}
+        playerCategories={opponentState.categories}
+        calculateScores={calculateScores}
+        diceValues={opponentState.dice}
+        rollCount={opponentState.rollCount}
+        handleScoreCategoryClick={() => {}}
+        onTurnComplete={() => {}}
+        shouldResetScores={shouldResetScores}
+        isOpponent={true}
+      />
+    </div>
   </div>
 );
 
