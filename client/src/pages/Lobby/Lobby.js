@@ -101,7 +101,6 @@ function Lobby() {
       try {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
-          console.log('Player info:', playerInfo); // Debug log
           setCurrentPlayer(playerInfo.playerData);
           
           let categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
@@ -357,7 +356,7 @@ function Lobby() {
   
       // Reset player categories and reinitialize
       await resetPlayerCategories({
-        currentPlayer: currentPlayer,
+        currentPlayer,
         setPlayerCategories,
         setPlayerTotal
       });
