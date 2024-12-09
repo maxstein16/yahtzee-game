@@ -126,10 +126,6 @@ PlayerSection.propTypes = {
   lastMove: PropTypes.string
 };
 
-import React from 'react';
-import { Typography } from '@/components/ui/typography';
-import { Card } from '@/components/ui/card';
-
 const GameBoard = ({
   currentPlayer,
   diceValues,
