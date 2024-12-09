@@ -102,12 +102,15 @@ function Lobby() {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
-          
+  
+          // Fetch existing categories
           let categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
+  
+          // Initialize categories only if they don't exist
           if (!categories || categories.length === 0) {
             categories = await initializeDefaultCategories(playerInfo.playerData.player_id);
           }
-          
+  
           setPlayerCategories(categories);
           const scores = calculateAllScores(categories);
           updatePlayerScores(scores);
@@ -119,9 +122,9 @@ function Lobby() {
         setIsLoading(false);
       }
     };
-
+  
     initializePlayer();
-  }, [navigate]);
+  }, [navigate]);  
 
   // Initialize game session
   useEffect(() => {
