@@ -1,66 +1,41 @@
 // server/websocket.js
-const { Server } = require('socket.io');
+const messages = new Map(); // Store messages per game
 
-function initializeWebSocket(server) {
-  const io = new Server(server, {
-    cors: {
-      origin: [
-        'https://yahtzee.maxstein.info',
-        'http://localhost:3000'
-      ],
-      methods: ['GET', 'POST'],
-      credentials: true
-    },
-    path: '/socket.io'
-  });
-
-  // Store active game rooms
-  const gameRooms = new Map();
-
+function initializeWebSocket(io) {
   io.on('connection', (socket) => {
-    const { gameId, playerId } = socket.handshake.query;
+    const { gameId, playerId, playerName } = socket.handshake.query;
     
-    console.log(`Player ${playerId} connected to game ${gameId}`);
+    console.log(`Player ${playerName} (${playerId}) connected to game ${gameId}`);
     
-    // Join game room
     socket.join(`game:${gameId}`);
     
-    // Track players in game
-    if (!gameRooms.has(gameId)) {
-      gameRooms.set(gameId, new Set());
-    }
-    gameRooms.get(gameId).add(playerId);
-
-    // Broadcast player joined
-    io.to(`game:${gameId}`).emit('player_joined', {
-      playerId,
-      playerCount: gameRooms.get(gameId).size
+    // Send message history when requested
+    socket.on('get_messages', () => {
+      const gameMessages = messages.get(gameId) || [];
+      socket.emit('chat_history', gameMessages);
     });
 
     // Handle chat messages
     socket.on('chat_message', (message) => {
-      io.to(`game:${gameId}`).emit('chat_message', {
-        ...message,
-        timestamp: new Date().toISOString()
-      });
+      // Store message
+      if (!messages.has(gameId)) {
+        messages.set(gameId, []);
+      }
+      const gameMessages = messages.get(gameId);
+      gameMessages.push(message);
+      
+      // Only keep last 100 messages
+      if (gameMessages.length > 100) {
+        gameMessages.shift();
+      }
+      
+      // Broadcast to all players in the game
+      io.to(`game:${gameId}`).emit('chat_message', message);
     });
 
     // Handle disconnection
     socket.on('disconnect', () => {
-      console.log(`Player ${playerId} disconnected from game ${gameId}`);
-      
-      const gameRoom = gameRooms.get(gameId);
-      if (gameRoom) {
-        gameRoom.delete(playerId);
-        if (gameRoom.size === 0) {
-          gameRooms.delete(gameId);
-        }
-      }
-
-      io.to(`game:${gameId}`).emit('player_left', {
-        playerId,
-        playerCount: gameRoom ? gameRoom.size : 0
-      });
+      console.log(`Player ${playerName} (${playerId}) disconnected from game ${gameId}`);
     });
 
     // Error handling
@@ -69,8 +44,6 @@ function initializeWebSocket(server) {
       socket.emit('error', 'An error occurred');
     });
   });
-
-  return io;
 }
 
 module.exports = { initializeWebSocket };

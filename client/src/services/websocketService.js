@@ -1,6 +1,5 @@
+// src/services/websocketChatService.js
 import { io } from 'socket.io-client';
-
-const WS_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app';
 
 class WebSocketService {
   constructor() {
@@ -9,13 +8,17 @@ class WebSocketService {
     this.connectionHandlers = new Set();
   }
 
-  connect(gameId, playerId) {
+  connect(gameId, playerId, playerName) {
     if (this.socket) {
       this.socket.disconnect();
     }
 
-    this.socket = io(WS_BASE_URL, {
-      query: { gameId, playerId },
+    this.socket = io('https://yahtzee-backend-621359075899.us-east1.run.app', {
+      query: { 
+        gameId, 
+        playerId,
+        playerName
+      },
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
@@ -24,6 +27,9 @@ class WebSocketService {
 
     this.socket.on('connect', () => {
       this.connectionHandlers.forEach(handler => handler(true));
+      
+      // Request previous messages when connecting
+      this.socket.emit('get_messages', { gameId });
     });
 
     this.socket.on('disconnect', () => {
@@ -34,12 +40,12 @@ class WebSocketService {
       this.messageHandlers.forEach(handler => handler(message));
     });
 
-    this.socket.on('player_joined', (data) => {
-      console.log('Player joined:', data);
-    });
-
-    this.socket.on('player_left', (data) => {
-      console.log('Player left:', data);
+    this.socket.on('chat_history', (messages) => {
+      if (Array.isArray(messages)) {
+        messages.forEach(message => {
+          this.messageHandlers.forEach(handler => handler(message));
+        });
+      }
     });
   }
 

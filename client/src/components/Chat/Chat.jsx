@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button, List, Typography, Space } from 'antd';
-import { chatService } from '../../services/websocketService';
+import { chatService } from '../services/websocketChatService';
 
-export default function Chat({ gameId, playerId }) {
+const { Text } = Typography;
+
+export default function Chat({ gameId, playerId, playerName }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -13,7 +15,7 @@ export default function Chat({ gameId, playerId }) {
   };
 
   useEffect(() => {
-    chatService.connect(gameId, playerId);
+    chatService.connect(gameId, playerId, playerName);
 
     const messageCleanup = chatService.onMessage((message) => {
       setMessages(prev => [...prev, message]);
@@ -28,7 +30,7 @@ export default function Chat({ gameId, playerId }) {
       connectionCleanup();
       chatService.disconnect();
     };
-  }, [gameId, playerId]);
+  }, [gameId, playerId, playerName]);
 
   useEffect(() => {
     scrollToBottom();
@@ -39,6 +41,7 @@ export default function Chat({ gameId, playerId }) {
       chatService.sendMessage({
         gameId,
         playerId,
+        playerName,
         text: newMessage.trim(),
         timestamp: new Date().toISOString()
       });
@@ -56,9 +59,12 @@ export default function Chat({ gameId, playerId }) {
             <div className={`max-w-[70%] p-2 rounded ${
               msg.playerId === playerId ? 'bg-blue-500 text-white' : 'bg-gray-200'
             }`}>
-              <Typography.Text className={msg.playerId === playerId ? 'text-white' : 'text-gray-700'}>
+              <div className="text-xs opacity-75 mb-1">
+                {msg.playerName} • {new Date(msg.timestamp).toLocaleTimeString()}
+              </div>
+              <Text className={msg.playerId === playerId ? 'text-white' : 'text-gray-700'}>
                 {msg.text}
-              </Typography.Text>
+              </Text>
             </div>
           </List.Item>
         )}
@@ -80,6 +86,11 @@ export default function Chat({ gameId, playerId }) {
           Send
         </Button>
       </Space.Compact>
+      {!isConnected && (
+        <Text type="warning" className="mt-2 text-center">
+          Connecting to chat...
+        </Text>
+      )}
     </div>
   );
 }
