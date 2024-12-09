@@ -112,7 +112,6 @@ const Scoreboard = ({
     loadScores();
   }, [currentPlayer?.player_id, gameId, playerCategories]);
 
-  // Update available scores when dice are rolled (only for active player)
   useEffect(() => {
     if (!isOpponent && diceValues && diceValues.length > 0 && rollCount > 0) {
       const calculatedScores = calculateScores(diceValues);

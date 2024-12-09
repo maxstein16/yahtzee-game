@@ -22,52 +22,40 @@ export const getPlayerTotalScore = async (playerId) => {
 };
 
 export function calculateScores(dice) {
-  const counts = new Array(7).fill(0);
-  const sum = dice.reduce((total, value) => {
-    counts[value]++;
-    return total + value;
-  }, 0);
+  const counts = Array(6).fill(0);
+  dice.forEach((value) => counts[value - 1]++);
 
-  const scores = {};
-
-  // Upper section scoring (ones through sixes)
-  for (let i = 1; i <= 6; i++) {
-    scores[`${i}s`.toLowerCase()] = counts[i] * i;
-  }
-
-  // Three of a kind
-  scores.threeOfAKind = counts.some(count => count >= 3) ? sum : 0;
-
-  // Four of a kind
-  scores.fourOfAKind = counts.some(count => count >= 4) ? sum : 0;
-
-  // Full house
-  scores.fullHouse = (counts.includes(2) && counts.includes(3)) ? 25 : 0;
-
-  // Small straight
-  scores.smallStraight = hasSmallStraight(counts) ? 30 : 0;
-
-  // Large straight
-  scores.largeStraight = hasLargeStraight(counts) ? 40 : 0;
-
-  // Yahtzee
-  scores.yahtzee = counts.some(count => count === 5) ? 50 : 0;
-
-  // Chance
-  scores.chance = sum;
-
-  return scores;
+  return {
+    ones: counts[0] * 1,
+    twos: counts[1] * 2,
+    threes: counts[2] * 3,
+    fours: counts[3] * 4,
+    fives: counts[4] * 5,
+    sixes: counts[5] * 6,
+    threeOfAKind: counts.some(count => count >= 3) ? dice.reduce((sum, value) => sum + value, 0) : 0,
+    fourOfAKind: counts.some(count => count >= 4) ? dice.reduce((sum, value) => sum + value, 0) : 0,
+    fullHouse: counts.includes(3) && counts.includes(2) ? 25 : 0,
+    smallStraight: isSmallStraight(dice) ? 30 : 0,
+    largeStraight: isLargeStraight(dice) ? 40 : 0,
+    yahtzee: counts.includes(5) ? 50 : 0,
+    chance: dice.reduce((sum, value) => sum + value, 0),
+  };
 }
 
-function hasSmallStraight(counts) {
-  return (counts[1] >= 1 && counts[2] >= 1 && counts[3] >= 1 && counts[4] >= 1) ||
-         (counts[2] >= 1 && counts[3] >= 1 && counts[4] >= 1 && counts[5] >= 1) ||
-         (counts[3] >= 1 && counts[4] >= 1 && counts[5] >= 1 && counts[6] >= 1);
+function isSmallStraight(dice) {
+  const uniqueValues = [...new Set(dice)].sort();
+  const straights = [
+    [1, 2, 3, 4],
+    [2, 3, 4, 5],
+    [3, 4, 5, 6],
+  ];
+  return straights.some((straight) => straight.every((val) => uniqueValues.includes(val)));
 }
 
-function hasLargeStraight(counts) {
-  return (counts[1] >= 1 && counts[2] >= 1 && counts[3] >= 1 && counts[4] >= 1 && counts[5] >= 1) ||
-         (counts[2] >= 1 && counts[3] >= 1 && counts[4] >= 1 && counts[5] >= 1 && counts[6] >= 1);
+function isLargeStraight(dice) {
+  const uniqueValues = [...new Set(dice)].sort();
+  return JSON.stringify(uniqueValues) === JSON.stringify([1, 2, 3, 4, 5]) ||
+    JSON.stringify(uniqueValues) === JSON.stringify([2, 3, 4, 5, 6]);
 }
 
 export const resetPlayerCategories = async ({
