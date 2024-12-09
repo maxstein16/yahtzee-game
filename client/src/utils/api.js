@@ -147,12 +147,32 @@ export const sendMessage = (gameId, playerId, message) =>
   apiRequest(`/game/${gameId}/chat`, 'POST', { player_id: playerId, message });
 
 // Turn Management
-export const rollDice = (gameId, {playerId, currentDice, keepIndices}) =>
-  apiRequest(`/game/${gameId}/roll`, 'POST', { 
-    playerId, 
-    currentDice, 
-    keepIndices 
-  });
+export const rollDice = async (gameId, player, currentDice, keepIndices) => {
+  try {
+    const result = await API.rollDice(gameId, {
+      playerId: player?.player_id || '9',
+      currentDice: currentDice,
+      keepIndices: keepIndices || []
+    });
+
+    // Check for proper API response structure
+    if (!result || !Array.isArray(result.dice)) {
+      throw new Error('Invalid dice roll response');
+    }
+
+    return {
+      success: true,
+      dice: result.dice
+    };
+  } catch (error) {
+    console.error('Roll dice error:', error);
+    return {
+      success: false,
+      message: error.message,
+      dice: currentDice
+    };
+  }
+};
 
   export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {
     if (!gameId || !playerId || !categoryId || score === undefined) {
