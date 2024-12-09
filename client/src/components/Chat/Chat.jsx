@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button, List, Typography, Space, message } from 'antd';
-import { webSocketService } from '../../services/websocketService'
+import { chatService } from '../services/websocketService';
 
 const { Text } = Typography;
 
@@ -16,7 +16,7 @@ export default function Chat({ gameId, playerId, playerName }) {
   };
 
   useEffect(() => {
-    webSocketService.connect(gameId, playerId, playerName);
+    chatService.connect(gameId, playerId, playerName);
 
     const messageHandler = (msg) => {
       setMessages((prev) => [...prev, msg]);
@@ -56,13 +56,13 @@ export default function Chat({ gameId, playerId, playerName }) {
       ]);
     };
 
-    webSocketService.onMessage(messageHandler);
-    webSocketService.onConnectionChange(connectionHandler);
-    webSocketService.onPlayerJoined(playerJoinedHandler);
-    webSocketService.onPlayerLeft(playerLeftHandler);
+    chatService.onMessage(messageHandler);
+    chatService.onConnectionChange(connectionHandler);
+    chatService.onPlayerJoined(playerJoinedHandler);
+    chatService.onPlayerLeft(playerLeftHandler);
 
     return () => {
-      webSocketService.disconnect();
+      chatService.disconnect();
     };
   }, [gameId, playerId, playerName]);
 
@@ -80,7 +80,7 @@ export default function Chat({ gameId, playerId, playerName }) {
         timestamp: new Date().toISOString(),
       };
 
-      if (webSocketService.sendMessage(messageData)) {
+      if (chatService.sendMessage(messageData)) {
         setNewMessage('');
       } else {
         message.error('Failed to send message');

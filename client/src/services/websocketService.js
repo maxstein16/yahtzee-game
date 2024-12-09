@@ -29,6 +29,9 @@ class WebSocketService {
     this.socket.on('connect', () => {
       console.log('Connected to WebSocket server');
       this.connectionHandlers.forEach((handler) => handler(true));
+
+      // Request previous messages when connecting
+      this.socket.emit('get_messages', { gameId });
     });
 
     this.socket.on('disconnect', () => {
@@ -39,6 +42,14 @@ class WebSocketService {
     this.socket.on('chat_message', (message) => {
       console.log('Received message:', message);
       this.messageHandlers.forEach((handler) => handler(message));
+    });
+
+    this.socket.on('chat_history', (messages) => {
+      if (Array.isArray(messages)) {
+        messages.forEach((message) => {
+          this.messageHandlers.forEach((handler) => handler(message));
+        });
+      }
     });
 
     this.socket.on('player_joined', (data) => {
