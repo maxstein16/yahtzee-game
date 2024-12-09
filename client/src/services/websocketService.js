@@ -1,9 +1,8 @@
-// src/services/websocketChatService.js
 import { io } from 'socket.io-client';
 
 const WS_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app';
 
-class WebSocketChatService {
+class WebSocketService {
   constructor() {
     this.socket = null;
     this.messageHandlers = new Set();
@@ -70,4 +69,4 @@ class WebSocketChatService {
   }
 }
 
-export const chatService = new WebSocketChatService();
+export const chatService = new WebSocketService();

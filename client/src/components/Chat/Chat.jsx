@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button, List, Typography, Space } from 'antd';
-import { chatService } from '../services/websocketChatService';
+import { chatService } from '../../services/websocketService';
 
 export default function Chat({ gameId, playerId }) {
   const [messages, setMessages] = useState([]);
