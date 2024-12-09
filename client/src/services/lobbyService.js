@@ -92,7 +92,7 @@ export const initializeDefaultCategories = async (playerId) => {
     const createdCategories = await Promise.all(
       categoriesToCreate.map(async (category) => {
         try {
-          const newCategory = await API.initializePlayerCategory(
+          const newCategory = await API.initializePlayerCategories(
             playerId,
             category.name,
             category.section,
