@@ -124,7 +124,7 @@ function Lobby() {
     };
   
     initializePlayer();
-  }, [navigate]);s  
+  }, [navigate]);
 
   // Initialize game session
   useEffect(() => {
