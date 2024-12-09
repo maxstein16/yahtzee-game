@@ -357,7 +357,7 @@ function Lobby() {
   
       // Reset player categories and reinitialize
       await resetPlayerCategories({
-        currentPlayer,
+        currentPlayer: currentPlayer,
         setPlayerCategories,
         setPlayerTotal
       });
