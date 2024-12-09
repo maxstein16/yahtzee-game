@@ -58,35 +58,25 @@ function isLargeStraight(dice) {
     JSON.stringify(uniqueValues) === JSON.stringify([2, 3, 4, 5, 6]);
 }
 
-export const resetPlayerCategories = async ({
-  currentPlayer,
-  setPlayerCategories,
-  setPlayerTotal
-}) => {
+export const resetPlayerCategories = async ({ currentPlayer, setPlayerCategories, setPlayerTotal }) => {
   if (!currentPlayer?.player_id) {
-    throw new Error('Invalid player data');
+    throw new Error('Player ID is missing');
   }
 
   try {
-    const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
-    
-    // Reset player categories
-    if (currentCategories && currentCategories.length > 0) {
-      await API.resetPlayerCategories(currentPlayer.player_id);
-    }
-    
-    // Initialize categories if needed
+    await API.resetPlayerCategories(currentPlayer.player_id);
     const categories = await API.getPlayerCategories(currentPlayer.player_id);
+
     if (!categories || categories.length === 0) {
-      await API.initializePlayerCategories(currentPlayer.player_id);
+      throw new Error('Failed to fetch player categories after reset');
     }
-    
-    // Get fresh categories
-    const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
-    setPlayerCategories(updatedCategories);
-    setPlayerTotal(0);
+
+    setPlayerCategories(categories);
+
+    const totalScore = categories.reduce((total, cat) => total + (cat.score || 0), 0);
+    setPlayerTotal(totalScore);
   } catch (error) {
-    console.error('Error resetting categories:', error);
-    message.error('Failed to reset categories: ' + error.message);
+    console.error('Error resetting player categories:', error);
+    throw error;
   }
 };

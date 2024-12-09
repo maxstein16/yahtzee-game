@@ -1,8 +1,17 @@
 import * as API from '../utils/api';
 import { calculateScores } from './scoreTurnService';
 
+let gameCreatingInProgress = false;
+
 export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers) => {
+  if (gameCreatingInProgress) {
+    console.log('Game creation already in progress. Skipping redundant call.');
+    return { success: false, message: 'Game creation already in progress' };
+  }
+
   try {
+    gameCreatingInProgress = true;
+
     // Check for active game
     const activeGame = await API.getActiveGameForPlayer(currentPlayer.player_id);
     let gameId;
@@ -55,6 +64,8 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
       success: false,
       message: `Failed to initialize game: ${error.message}`,
     };
+  } finally {
+    gameCreatingInProgress = false;
   }
 };
 
