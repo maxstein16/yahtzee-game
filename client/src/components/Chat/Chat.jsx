@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button, List, Typography, Space, message } from 'antd';
-import { chatService } from '../services/websocketChatService';
+import { chatService } from '../../services/websocketService';
 
 const { Text } = Typography;
 
