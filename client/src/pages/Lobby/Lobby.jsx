@@ -149,8 +149,6 @@ const GameBoard = ({
       isOpponentTurn={opponentState.isOpponentTurn}
     />
 
-    <Divider type="vertical" style={{ height: '100%' }} />
-
     <PlayerSection
       isOpponent
       name="Opponent"
