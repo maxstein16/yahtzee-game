@@ -250,10 +250,10 @@ function Lobby() {
       message.error('No player found');
       return;
     }
-
+  
     try {
       setIsLoading(true);
-
+  
       // End current game if exists
       if (gameId) {
         try {
@@ -262,25 +262,36 @@ function Lobby() {
           console.log('Previous game already ended or not found:', endError);
         }
       }
-
+  
+      // Reset opponent categories first
+      try {
+        await API.resetPlayerCategories('9');
+        // Wait a bit to ensure the reset completes
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (resetError) {
+        console.error('Error resetting opponent categories:', resetError);
+      }
+  
+      // Create new game
       let newGame;
       try {
         newGame = await API.createGame('pending', 0, currentPlayer.player_id);
       } catch (createError) {
-        console.log('Error creating game:', createError);
+        console.error('Error creating game:', createError);
         setIsNewGame(true);
         setGameId(null);
         return;
       }
-
+  
       if (!newGame?.game_id) {
         setIsNewGame(true);
         setGameId(null);
         return;
       }
-
-      await API.startGame(newGame.game_id);
+  
+      // Initialize new game
       setGameId(newGame.game_id);
+      await API.startGame(newGame.game_id);
       
       // Reset player state
       resetTurnState({
@@ -292,22 +303,21 @@ function Lobby() {
         setRollCount,
         setScores: setCurrentScores
       });
-
+  
+      // Reset player categories and reinitialize
       await resetPlayerCategories({
         currentPlayer,
         setPlayerCategories,
         setPlayerTotal
       });
-      
+  
+      // Reset game state
       setHasYahtzee(false);
       setYahtzeeBonus(0);
       setUpperSectionTotal(0);
       setUpperSectionBonus(0);
-
-      // Reset opponent's categories first
-      await API.resetPlayerCategories('9');
-      
-      // Then initialize new categories for opponent
+  
+      // Initialize new categories for opponent
       const opponentCategories = await initializeDefaultCategories('9');
       
       // Reset all opponent state
@@ -320,19 +330,23 @@ function Lobby() {
         lastCategory: null,
         turnScore: 0
       });
+  
+      // Force scoreboard reset
+      setShouldResetScores(true);
       
       // Get fresh categories for player
       const categories = await API.getPlayerCategories(currentPlayer.player_id);
       setPlayerCategories(categories);
-      
-      setShouldResetScores(true);
+  
+      // Reset shouldResetScores after a delay
       setTimeout(() => {
-        message.success('New game started successfully!');
         setShouldResetScores(false);
       }, 100);
-      
+  
+      message.success('New game started successfully!');
     } catch (error) {
       console.error('Error during game initialization:', error);
+      message.error('Failed to start new game');
       setIsNewGame(true);
       setGameId(null);
     } finally {
