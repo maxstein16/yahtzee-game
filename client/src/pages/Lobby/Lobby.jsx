@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd';
+import { Layout, Typography, Button, Space, Spin, Modal } from 'antd';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../Dice';
 import Chat from '../../components/Chat/Chat';

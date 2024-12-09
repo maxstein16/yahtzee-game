@@ -293,9 +293,9 @@ function Lobby() {
   }, [opponentState.isOpponentTurn, gameId, calculateScores]);
 
   // Handle new game
-  const handleNewGame = async () => {
+  const handleNewGame = async (mode = "singleplayer") => {
     setGameMode(mode);
-    
+
     if (!currentPlayer?.player_id) {
       message.error('No player found');
       return;
