@@ -290,7 +290,7 @@ function Lobby() {
     };
 
     executeOpponentTurn();
-  }, [opponentState.isOpponentTurn, gameId, calculateScores]);
+  }, [opponentState.isOpponentTurn, gameId, calculateScores, currentPlayer]);
 
   // Handle new game
   const handleNewGame = async (mode = "singleplayer") => {
@@ -355,11 +355,13 @@ function Lobby() {
       });
   
       // Reset player categories and reinitialize
-      await resetPlayerCategories({
-        currentPlayer,
-        setPlayerCategories,
-        setPlayerTotal
-      });
+      if (currentPlayer) {
+        await resetPlayerCategories({
+          currentPlayer: currentPlayer,
+          setPlayerCategories,
+          setPlayerTotal
+        });
+      }
   
       // Reset game state
       setHasYahtzee(false);
