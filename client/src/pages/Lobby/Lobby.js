@@ -101,6 +101,7 @@ function Lobby() {
       try {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
+          console.log('Player info:', playerInfo); // Debug log
           setCurrentPlayer(playerInfo.playerData);
           
           let categories = await API.getPlayerCategories(playerInfo.playerData.player_id);

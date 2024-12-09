@@ -1,5 +1,6 @@
 // server/websocket.js
-const messages = new Map(); // Store messages per game
+const messages = new Map();
+const activeUsers = new Map(); // Track active users per game
 
 function initializeWebSocket(io) {
   io.on('connection', (socket) => {
@@ -7,35 +8,69 @@ function initializeWebSocket(io) {
     
     console.log(`Player ${playerName} (${playerId}) connected to game ${gameId}`);
     
+    // Add user to active users for this game
+    if (!activeUsers.has(gameId)) {
+      activeUsers.set(gameId, new Map());
+    }
+    activeUsers.get(gameId).set(playerId, { playerName, socketId: socket.id });
+    
+    // Join game room
     socket.join(`game:${gameId}`);
     
-    // Send message history when requested
+    // Notify others that a player joined
+    socket.to(`game:${gameId}`).emit('player_joined', {
+      playerId,
+      playerName,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Handle chat messages
+    socket.on('chat_message', (message) => {
+      console.log('Received message:', message); // Debug log
+      
+      // Ensure message has all required fields
+      const enhancedMessage = {
+        ...message,
+        playerName, // Ensure playerName is included
+        timestamp: new Date().toISOString()
+      };
+      
+      // Store message
+      if (!messages.has(gameId)) {
+        messages.set(gameId, []);
+      }
+      messages.get(gameId).push(enhancedMessage);
+      
+      // Broadcast to all clients in the game room, including sender
+      io.in(`game:${gameId}`).emit('chat_message', enhancedMessage);
+      
+      console.log('Broadcasted message to room:', `game:${gameId}`); // Debug log
+    });
+
+    // Send chat history when requested
     socket.on('get_messages', () => {
       const gameMessages = messages.get(gameId) || [];
       socket.emit('chat_history', gameMessages);
     });
 
-    // Handle chat messages
-    socket.on('chat_message', (message) => {
-      // Store message
-      if (!messages.has(gameId)) {
-        messages.set(gameId, []);
-      }
-      const gameMessages = messages.get(gameId);
-      gameMessages.push(message);
-      
-      // Only keep last 100 messages
-      if (gameMessages.length > 100) {
-        gameMessages.shift();
-      }
-      
-      // Broadcast to all players in the game
-      io.to(`game:${gameId}`).emit('chat_message', message);
-    });
-
     // Handle disconnection
     socket.on('disconnect', () => {
       console.log(`Player ${playerName} (${playerId}) disconnected from game ${gameId}`);
+      
+      // Remove user from active users
+      if (activeUsers.has(gameId)) {
+        activeUsers.get(gameId).delete(playerId);
+        if (activeUsers.get(gameId).size === 0) {
+          activeUsers.delete(gameId);
+        }
+      }
+      
+      // Notify others that player left
+      socket.to(`game:${gameId}`).emit('player_left', {
+        playerId,
+        playerName,
+        timestamp: new Date().toISOString()
+      });
     });
 
     // Error handling

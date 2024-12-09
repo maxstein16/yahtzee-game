@@ -337,6 +337,7 @@ const LobbyView = (props) => {
             <Chat
               gameId={props.gameId}
               playerId={props.currentPlayer.player_id}
+              playerName={currentPlayer.name}
             />
           )}
         </Modal>
