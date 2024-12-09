@@ -18,11 +18,15 @@ function initializeWebSocket(io) {
     socket.join(`game:${gameId}`);
     
     // Notify others that a player joined
-    socket.to(`game:${gameId}`).emit('player_joined', {
+    io.in(`game:${gameId}`).emit('player_joined', {
       playerId,
       playerName,
       timestamp: new Date().toISOString()
     });
+    
+    // Send chat history to the newly connected client
+    const gameMessages = messages.get(gameId) || [];
+    socket.emit('chat_history', gameMessages);
     
     // Handle chat messages
     socket.on('chat_message', (message) => {
@@ -47,12 +51,6 @@ function initializeWebSocket(io) {
       console.log('Broadcasted message to room:', `game:${gameId}`); // Debug log
     });
 
-    // Send chat history when requested
-    socket.on('get_messages', () => {
-      const gameMessages = messages.get(gameId) || [];
-      socket.emit('chat_history', gameMessages);
-    });
-
     // Handle disconnection
     socket.on('disconnect', () => {
       console.log(`Player ${playerName} (${playerId}) disconnected from game ${gameId}`);
@@ -66,7 +64,7 @@ function initializeWebSocket(io) {
       }
       
       // Notify others that player left
-      socket.to(`game:${gameId}`).emit('player_left', {
+      io.in(`game:${gameId}`).emit('player_left', {
         playerId,
         playerName,
         timestamp: new Date().toISOString()

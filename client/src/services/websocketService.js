@@ -15,51 +15,47 @@ class WebSocketService {
     }
 
     this.socket = io('https://yahtzee-backend-621359075899.us-east1.run.app', {
-      query: {
-        gameId,
+      query: { 
+        gameId, 
         playerId,
-        playerName,
+        playerName
       },
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionDelay: 1000
     });
 
     this.socket.on('connect', () => {
       console.log('Connected to WebSocket server');
-      this.connectionHandlers.forEach((handler) => handler(true));
-
-      // Request previous messages when connecting
-      this.socket.emit('get_messages', { gameId });
+      this.connectionHandlers.forEach(handler => handler(true));
     });
 
     this.socket.on('disconnect', () => {
       console.log('Disconnected from WebSocket server');
-      this.connectionHandlers.forEach((handler) => handler(false));
+      this.connectionHandlers.forEach(handler => handler(false));
     });
 
     this.socket.on('chat_message', (message) => {
       console.log('Received message:', message);
-      this.messageHandlers.forEach((handler) => handler(message));
+      this.messageHandlers.forEach(handler => handler(message));
     });
 
     this.socket.on('chat_history', (messages) => {
-      if (Array.isArray(messages)) {
-        messages.forEach((message) => {
-          this.messageHandlers.forEach((handler) => handler(message));
-        });
-      }
+      console.log('Received chat history:', messages);
+      messages.forEach(message => {
+        this.messageHandlers.forEach(handler => handler(message));
+      });
     });
 
     this.socket.on('player_joined', (data) => {
       console.log('Player joined:', data);
-      this.playerJoinHandlers.forEach((handler) => handler(data));
+      this.playerJoinHandlers.forEach(handler => handler(data));
     });
 
     this.socket.on('player_left', (data) => {
       console.log('Player left:', data);
-      this.playerLeaveHandlers.forEach((handler) => handler(data));
+      this.playerLeaveHandlers.forEach(handler => handler(data));
     });
 
     this.socket.on('error', (error) => {
@@ -107,4 +103,4 @@ class WebSocketService {
   }
 }
 
-export const webSocketService = new WebSocketService();
+export const chatService = new WebSocketService();
