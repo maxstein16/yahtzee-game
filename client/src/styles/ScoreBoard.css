@@ -1,8 +1,8 @@
 .scoreboard {
-  padding: 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
 }
 
 .score-table {
@@ -13,8 +13,9 @@
 
 .score-table th,
 .score-table td {
-  padding: 12px;
+  padding: 8px 12px;
   border: 1px solid #f0f0f0;
+  font-size: 14px;
 }
 
 .score-table th {
@@ -29,11 +30,16 @@
 
 .section-header td {
   padding: 8px 12px;
+  color: #1890ff;
 }
 
 .total-row {
   background-color: #fafafa;
   font-weight: bold;
+}
+
+.grand-total td {
+  background-color: #e6f7ff;
 }
 
 tr:hover:not(.section-header):not(.total-row) {
@@ -42,4 +48,9 @@ tr:hover:not(.section-header):not(.total-row) {
 
 tr[style*="cursor: pointer"]:hover {
   background-color: #e6f7ff !important;
+}
+
+/* Adjust spacing for category rows */
+tr:not(.section-header):not(.total-row) td {
+  height: 36px;
 }
