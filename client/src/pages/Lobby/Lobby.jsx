@@ -126,6 +126,10 @@ PlayerSection.propTypes = {
   lastMove: PropTypes.string
 };
 
+import React from 'react';
+import { Typography } from '@/components/ui/typography';
+import { Card } from '@/components/ui/card';
+
 const GameBoard = ({
   currentPlayer,
   diceValues,
@@ -134,37 +138,124 @@ const GameBoard = ({
   rollCount,
   handleRollDice,
   toggleDiceSelection,
-  opponentState
-}) => (
-  <div className="game-board">
-    <PlayerSection
-      name={currentPlayer?.name || 'Player'}
-      dice={diceValues}
-      selectedDice={selectedDice}
-      isRolling={isRolling}
-      rollCount={rollCount}
-      onDiceClick={toggleDiceSelection}
-      handleRoll={handleRollDice}
-      disabled={rollCount >= 3}
-      isOpponentTurn={opponentState.isOpponentTurn}
-    />
+  playerCategories,
+  calculateScores,
+  handleScoreCategoryClick,
+  onTurnComplete,
+  gameId,
+  opponentState,
+  shouldResetScores
+}) => {
+  return (
+    <div className="flex flex-1 gap-4 p-4 h-full">
+      {/* Left Scoreboard */}
+      <div className="w-1/4 min-w-[200px]">
+        <Card className="h-full overflow-y-auto">
+          <div className="p-4">
+            {playerCategories && playerCategories.length > 0 ? (
+              <Scoreboard
+                key={`player-${gameId}`}
+                gameId={gameId}
+                currentPlayer={currentPlayer}
+                playerCategories={playerCategories}
+                calculateScores={calculateScores}
+                diceValues={diceValues}
+                rollCount={rollCount}
+                handleScoreCategoryClick={handleScoreCategoryClick}
+                onTurnComplete={onTurnComplete}
+                shouldResetScores={shouldResetScores}
+                isOpponent={false}
+              />
+            ) : (
+              <div className="text-center p-4">
+                <span className="loading loading-spinner loading-md"></span>
+                <Typography>Loading scoreboard...</Typography>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
 
-    <PlayerSection
-      isOpponent
-      name="Opponent"
-      dice={opponentState.dice}
-      selectedDice={[]}
-      isRolling={opponentState.isOpponentTurn}
-      rollCount={opponentState.rollCount}
-      onDiceClick={() => {}}
-      disabled={true}
-      isOpponentTurn={opponentState.isOpponentTurn}
-      lastMove={opponentState.lastCategory ? 
-        `Scored ${opponentState.turnScore} in ${opponentState.lastCategory}` : 
-        undefined}
-    />
-  </div>
-);
+      {/* Center Dice Section */}
+      <div className="flex-1">
+        <Card className="h-full">
+          <div className="flex flex-col h-full">
+            {/* Player Section */}
+            <div className="flex-1 p-4 flex flex-col items-center justify-center">
+              <Typography variant="h4" className="mb-4">{currentPlayer?.name || 'Player'}</Typography>
+              <div className="flex gap-4 mb-4">
+                {diceValues.map((value, index) => (
+                  <div
+                    key={index}
+                    onClick={() => toggleDiceSelection(index)}
+                    className={`w-12 h-12 flex items-center justify-center rounded-lg cursor-pointer border-2
+                      ${selectedDice.includes(index) ? 'border-blue-500' : 'border-gray-200'}
+                      ${isRolling ? 'animate-bounce' : ''}`}
+                  >
+                    {value}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleRollDice}
+                disabled={rollCount >= 3 || opponentState.isOpponentTurn}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md disabled:opacity-50"
+              >
+                Roll Dice ({rollCount}/3)
+              </button>
+            </div>
+            
+            {/* Opponent Section */}
+            <div className="flex-1 p-4 flex flex-col items-center justify-center border-t">
+              <Typography variant="h4" className="mb-4">Opponent</Typography>
+              <div className="flex gap-4 mb-4">
+                {opponentState.dice.map((value, index) => (
+                  <div
+                    key={index}
+                    className="w-12 h-12 flex items-center justify-center rounded-lg border-2 border-gray-200"
+                  >
+                    {value}
+                  </div>
+                ))}
+              </div>
+              <div className="text-sm text-gray-600">
+                {opponentState.isOpponentTurn ? "Opponent is rolling..." : "Waiting for player..."}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Right Scoreboard */}
+      <div className="w-1/4 min-w-[200px]">
+        <Card className="h-full overflow-y-auto">
+          <div className="p-4">
+            {opponentState.categories && opponentState.categories.length > 0 ? (
+              <Scoreboard
+                key={`opponent-${gameId}-${shouldResetScores}`}
+                gameId={gameId}
+                currentPlayer={{ name: 'AI Opponent', player_id: '9' }}
+                playerCategories={opponentState.categories}
+                calculateScores={calculateScores}
+                diceValues={opponentState.dice}
+                rollCount={opponentState.rollCount}
+                handleScoreCategoryClick={() => {}}
+                onTurnComplete={() => {}}
+                shouldResetScores={shouldResetScores}
+                isOpponent={true}
+              />
+            ) : (
+              <div className="text-center p-4">
+                <span className="loading loading-spinner loading-md"></span>
+                <Typography>Loading opponent scoreboard...</Typography>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
 
 GameBoard.propTypes = {
   currentPlayer: PropTypes.shape({
