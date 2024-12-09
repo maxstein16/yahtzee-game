@@ -37,6 +37,8 @@ function Lobby() {
   const [currentScores, setCurrentScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
+  const [gameMode, setGameMode] = useState('singleplayer');
+  const [isChatVisible, setIsChatVisible] = useState(false);
 
   // Opponent-specific state
   const [opponentState, setOpponentState] = useState({
@@ -292,6 +294,8 @@ function Lobby() {
 
   // Handle new game
   const handleNewGame = async () => {
+    setGameMode(mode);
+    
     if (!currentPlayer?.player_id) {
       message.error('No player found');
       return;
@@ -536,6 +540,9 @@ function Lobby() {
     upperSectionTotal,
     upperSectionBonus,
     opponentState,
+    isChatVisible,
+    gameMode,
+    setIsChatVisible,
     handleNewGame,
     handleLogout: () => handleLogout(navigate),
     handleRollDice: handleDiceRoll,

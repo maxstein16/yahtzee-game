@@ -2,6 +2,7 @@ import React from 'react';
 import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../Dice';
+import Chat from '../../components/Chat/Chat';
 import '../../styles/Lobby.css';
 import PropTypes from 'prop-types';
 
@@ -21,10 +22,24 @@ const LoadingView = () => (
   </Layout>
 );
 
-const GameHeader = ({ currentPlayer, handleNewGame, handleLogout }) => (
+const GameHeader = ({ currentPlayer, handleNewGame, handleLogout, setIsChatVisible, gameMode }) => (
   <Header className="top-nav">
     <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-      <Button onClick={handleNewGame}>New Game</Button>
+      <Space>
+        <Button onClick={() => handleNewGame('singleplayer')} 
+                type={gameMode === 'singleplayer' ? 'primary' : 'default'}>
+          Single Player
+        </Button>
+        <Button onClick={() => handleNewGame('multiplayer')}
+                type={gameMode === 'multiplayer' ? 'primary' : 'default'}>
+          Multiplayer
+        </Button>
+        {gameMode === 'multiplayer' && (
+          <Button onClick={() => setIsChatVisible(true)}>
+            Chat
+          </Button>
+        )}
+      </Space>
       <Space>
         <span style={{ color: 'white' }}>
           {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
@@ -280,6 +295,8 @@ const LobbyView = (props) => {
         currentPlayer={props.currentPlayer}
         handleNewGame={props.handleNewGame}
         handleLogout={props.handleLogout}
+        setIsChatVisible={props.setIsChatVisible}
+        gameMode={props.gameMode}
       />
 
       <Content className="game-container">
@@ -307,6 +324,23 @@ const LobbyView = (props) => {
           opponentState={props.opponentState}
         />
       </Content>
+
+      {props.gameMode === 'multiplayer' && (
+        <Modal
+          title="Game Chat"
+          visible={props.isChatVisible}
+          onCancel={() => props.setIsChatVisible(false)}
+          footer={null}
+          width={400}
+        >
+          {props.gameId && props.currentPlayer && (
+            <Chat
+              gameId={props.gameId}
+              playerId={props.currentPlayer.player_id}
+            />
+          )}
+        </Modal>
+      )}
     </Layout>
   );
 };
@@ -340,6 +374,9 @@ LobbyView.propTypes = {
     lastCategory: PropTypes.string,
     turnScore: PropTypes.number
   }).isRequired,
+  gameMode: PropTypes.string.isRequired,
+  isChatVisible: PropTypes.bool.isRequired,
+  setIsChatVisible: PropTypes.func.isRequired,
 };
 
 export default LobbyView;
