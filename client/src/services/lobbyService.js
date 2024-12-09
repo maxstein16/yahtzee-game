@@ -60,15 +60,11 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
 
 export const initializeDefaultCategories = async (playerId) => {
   try {
-    // Fetch existing categories for the player
     const existingCategories = await API.getPlayerCategories(playerId);
 
-    if (existingCategories && existingCategories.length > 0) {
-      // Return existing categories if they are already initialized
-      return existingCategories;
-    }
+    // Filter out categories that already exist
+    const existingCategoryNames = existingCategories.map(cat => cat.name);
 
-    // Proceed to create default categories if none exist
     const defaultCategories = [
       { name: 'ones', section: 'upper', maxScore: 5 },
       { name: 'twos', section: 'upper', maxScore: 10 },
@@ -85,8 +81,13 @@ export const initializeDefaultCategories = async (playerId) => {
       { name: 'chance', section: 'lower', maxScore: 30 },
     ];
 
-    const categories = await Promise.all(
-      defaultCategories.map(async (category) => {
+    // Filter out categories that are already initialized
+    const categoriesToCreate = defaultCategories.filter(
+      cat => !existingCategoryNames.includes(cat.name)
+    );
+
+    const createdCategories = await Promise.all(
+      categoriesToCreate.map(async (category) => {
         try {
           const newCategory = await API.initializePlayerCategories(
             playerId,
@@ -102,7 +103,7 @@ export const initializeDefaultCategories = async (playerId) => {
       })
     );
 
-    return categories.filter((cat) => cat !== null);
+    return [...existingCategories, ...createdCategories.filter(cat => cat !== null)];
   } catch (error) {
     console.error('Error initializing default categories:', error);
     throw new Error('Failed to initialize game categories');
