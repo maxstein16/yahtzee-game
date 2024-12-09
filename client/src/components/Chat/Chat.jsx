@@ -22,8 +22,8 @@ export default function Chat({ gameId, playerId, playerName }) {
 
     const messageHandler = (msg) => {
       console.log('Received message:', msg); // Debug log
-      setMessages(prev => [...prev, msg]);
-      setParticipants(prev => new Set(prev).add(msg.playerName));
+      setMessages((prev) => [...prev, msg]);
+      setParticipants((prev) => new Set([...prev, msg.playerName]));
     };
 
     const connectionHandler = (status) => {
