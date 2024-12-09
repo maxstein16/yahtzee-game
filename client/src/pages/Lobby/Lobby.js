@@ -300,7 +300,18 @@ function Lobby() {
     try {
       setIsLoading(true);
   
-      // End the current game if exists
+      // Reset opponent turn immediately to stop ongoing dice roll and submission
+      setOpponentState((prevState) => ({
+        ...prevState,
+        isOpponentTurn: false,
+        rollCount: 0,
+        dice: INITIAL_DICE_VALUES,
+        score: 0,
+        lastCategory: null,
+        turnScore: 0,
+      }));
+  
+      // End the current game if it exists
       if (gameId) {
         try {
           await API.endGame(gameId);
