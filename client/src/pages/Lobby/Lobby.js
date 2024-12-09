@@ -309,19 +309,27 @@ function Lobby() {
         }
       }
   
-      // Avoid redundant initialization
-      const result = await initializeGame(currentPlayer, mode, setGameId, () => {});
-      if (result.success) {
-        message.success(result.message);
-  
-        const categories = await API.getPlayerCategories(currentPlayer.player_id);
-        setPlayerCategories(categories);
-        const scores = calculateAllScores(categories);
+      // Reset player categories
+      try {
+        await API.resetPlayerCategories(currentPlayer.player_id);
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Ensure the reset completes
+        const playerCategories = await initializeDefaultCategories(currentPlayer.player_id);
+        setPlayerCategories(playerCategories);
+        const scores = calculateAllScores(playerCategories);
         updatePlayerScores(scores);
+      } catch (resetError) {
+        console.error('Error resetting player categories:', resetError);
+        message.error('Failed to reset player categories');
+        return;
+      }
   
-        // Reset opponent state for a new game
+      // Reset opponent categories
+      try {
+        await API.resetPlayerCategories('9'); // Assuming '9' is the opponent's ID
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Ensure the reset completes
         const opponentCategories = await initializeDefaultCategories('9');
-        setOpponentState({
+        setOpponentState((prevState) => ({
+          ...prevState,
           categories: opponentCategories,
           dice: INITIAL_DICE_VALUES,
           score: 0,
@@ -329,7 +337,17 @@ function Lobby() {
           isOpponentTurn: false,
           lastCategory: null,
           turnScore: 0,
-        });
+        }));
+      } catch (resetError) {
+        console.error('Error resetting opponent categories:', resetError);
+        message.error('Failed to reset opponent categories');
+        return;
+      }
+  
+      // Avoid redundant initialization
+      const result = await initializeGame(currentPlayer, mode, setGameId, () => {});
+      if (result.success) {
+        message.success(result.message);
       } else {
         throw new Error(result.message);
       }
