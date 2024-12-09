@@ -298,7 +298,7 @@ function Lobby() {
   // Handle new game
   const handleNewGame = async (mode = "singleplayer") => {
     setGameMode(mode);
-
+  
     if (!currentPlayer?.player_id) {
       message.error('No player found');
       return;
@@ -307,7 +307,7 @@ function Lobby() {
     try {
       setIsLoading(true);
   
-      // End current game if exists
+      // End current game if it exists
       if (gameId) {
         try {
           await API.endGame(gameId);
@@ -316,16 +316,28 @@ function Lobby() {
         }
       }
   
-      // Reset opponent categories first
+      // Reset player categories
+      try {
+        await resetPlayerCategories({
+          currentPlayer,
+          setPlayerCategories,
+          setPlayerTotal
+        });
+      } catch (resetError) {
+        console.error('Error resetting player categories:', resetError);
+        message.error('Failed to reset player categories');
+        return;
+      }
+  
+      // Reset opponent categories
       try {
         await API.resetPlayerCategories('9');
-        // Wait a bit to ensure the reset completes
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (resetError) {
         console.error('Error resetting opponent categories:', resetError);
       }
   
-      // Create new game
+      // Create a new game
       let newGame;
       try {
         newGame = await API.createGame('pending', 0, currentPlayer.player_id);
@@ -345,8 +357,12 @@ function Lobby() {
       // Initialize new game
       setGameId(newGame.game_id);
       await API.startGame(newGame.game_id);
-      
-      // Reset player state
+  
+      // Reinitialize categories for player
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(categories);
+  
+      // Reset game state
       resetTurnState({
         setDiceValues: (values) => {
           setDiceValues(values);
@@ -357,23 +373,14 @@ function Lobby() {
         setScores: setCurrentScores
       });
   
-      // Reset player categories and reinitialize
-      await resetPlayerCategories({
-        currentPlayer,
-        setPlayerCategories,
-        setPlayerTotal
-      });
-  
-      // Reset game state
+      // Reset other game variables
       setHasYahtzee(false);
       setYahtzeeBonus(0);
       setUpperSectionTotal(0);
       setUpperSectionBonus(0);
   
-      // Initialize new categories for opponent
+      // Reset opponent categories
       const opponentCategories = await initializeDefaultCategories('9');
-      
-      // Reset all opponent state
       setOpponentState({
         categories: opponentCategories,
         dice: INITIAL_DICE_VALUES,
@@ -384,28 +391,23 @@ function Lobby() {
         turnScore: 0
       });
   
-      // Force scoreboard reset
       setShouldResetScores(true);
-      
-      // Get fresh categories for player
-      const categories = await API.getPlayerCategories(currentPlayer.player_id);
-      setPlayerCategories(categories);
   
       // Reset shouldResetScores after a delay
       setTimeout(() => {
         setShouldResetScores(false);
       }, 100);
   
-      message.success('New game started successfully!');
+      message.success('New single-player game started successfully!');
     } catch (error) {
       console.error('Error during game initialization:', error);
-      message.error('Failed to start new game');
+      message.error('Failed to start a new game');
       setIsNewGame(true);
       setGameId(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  };  
 
   // Handle score submission
   const handleScoreCategoryClick = async (categoryName) => {
