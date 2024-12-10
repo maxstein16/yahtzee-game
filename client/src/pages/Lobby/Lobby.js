@@ -8,7 +8,6 @@ import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
-import { chatService } from '../../services/websocketService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
 
