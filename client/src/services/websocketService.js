@@ -5,9 +5,6 @@ class WebSocketService {
     this.socket = null;
     this.messageHandlers = new Set();
     this.connectionHandlers = new Set();
-    this.playerJoinHandlers = new Set();
-    this.playerLeaveHandlers = new Set();
-    this.messages = []; // Store messages locally
   }
 
   connect(gameId, playerId, playerName) {
@@ -27,63 +24,38 @@ class WebSocketService {
       reconnectionDelay: 1000
     });
 
-    // Handle connection events
     this.socket.on('connect', () => {
       console.log('Connected to WebSocket server');
       this.connectionHandlers.forEach(handler => handler(true));
+    });
+
+    this.socket.on('chat_history', (messages) => {
+      console.log('Received chat history:', messages);
+      this.messageHandlers.forEach(handler => 
+        messages.forEach(msg => handler(msg))
+      );
+    });
+
+    this.socket.on('chat_message', (message) => {
+      console.log('Received new message:', message);
+      this.messageHandlers.forEach(handler => handler(message));
     });
 
     this.socket.on('disconnect', () => {
       console.log('Disconnected from WebSocket server');
       this.connectionHandlers.forEach(handler => handler(false));
     });
-
-    // Handle chat history
-    this.socket.on('chat_history', (messages) => {
-      console.log('Received chat history:', messages);
-      this.messages = messages; // Store messages locally
-      messages.forEach(message => {
-        this.messageHandlers.forEach(handler => handler(message));
-      });
-    });
-
-    // Handle new messages
-    this.socket.on('chat_message', (message) => {
-      console.log('Received message:', message);
-      this.messages.push(message); // Add to local storage
-      this.messageHandlers.forEach(handler => handler(message));
-    });
-
-    // Handle player events
-    this.socket.on('player_joined', (data) => {
-      console.log('Player joined:', data);
-      this.playerJoinHandlers.forEach(handler => handler(data));
-    });
-
-    this.socket.on('player_left', (data) => {
-      console.log('Player left:', data);
-      this.playerLeaveHandlers.forEach(handler => handler(data));
-    });
-
-    this.socket.on('error', (error) => {
-      console.error('WebSocket error:', error);
-    });
   }
 
   sendMessage(message) {
     if (this.socket?.connected) {
+      console.log('Sending message:', message);
       this.socket.emit('chat_message', message);
       return true;
     }
     return false;
   }
 
-  // Get all messages for current game
-  getMessages() {
-    return this.messages;
-  }
-
-  // Event handlers
   onMessage(handler) {
     this.messageHandlers.add(handler);
     return () => this.messageHandlers.delete(handler);
@@ -94,26 +66,13 @@ class WebSocketService {
     return () => this.connectionHandlers.delete(handler);
   }
 
-  onPlayerJoined(handler) {
-    this.playerJoinHandlers.add(handler);
-    return () => this.playerJoinHandlers.delete(handler);
-  }
-
-  onPlayerLeft(handler) {
-    this.playerLeaveHandlers.add(handler);
-    return () => this.playerLeaveHandlers.delete(handler);
-  }
-
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    this.messages = []; // Clear stored messages
     this.messageHandlers.clear();
     this.connectionHandlers.clear();
-    this.playerJoinHandlers.clear();
-    this.playerLeaveHandlers.clear();
   }
 }
 
