@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message, Layout } from 'antd';
-import SinglePlayer from '../components/SinglePlayer/SinglePlayer';
+import Singleplayer from '../components/SinglePlayer/SinglePlayer';
 import GameHeader from '../components/GameHeader/GameHeader';
 import { handleLogout, fetchCurrentPlayer } from '../services/authService';
 import API from '../utils/api';
@@ -94,7 +94,7 @@ function SinglePlayerPage() {
         handleNewGame={handleNewGame}
         handleLogout={() => handleLogout(navigate)}
       />
-      <SinglePlayer
+      <Singleplayer
         currentPlayer={currentPlayer}
         gameId={gameId}
         onGameEnd={handleGameEnd}
