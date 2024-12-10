@@ -26,23 +26,19 @@ const LobbyChat = ({ currentPlayer }) => {
           name: currentPlayer.name
         });
 
-        // Listen for player updates and filter out current player
+        // Listen for player updates and filter out current player and invalid entries
         socketConnection.on('playersUpdate', (players) => {
-          console.log('Received players:', players);
           const filteredPlayers = players.filter(p => 
-            p.id && p.id.toString() !== currentPlayer.player_id.toString()
+            p.id && 
+            p.name && 
+            p.id.toString() !== currentPlayer.player_id.toString()
           );
-          console.log('Filtered players:', filteredPlayers);
           setOnlinePlayers(filteredPlayers);
         });
 
         // Listen for chat messages
         socketConnection.on('chatMessage', (message) => {
-          console.log('Received message:', message);
-          setMessages(prev => [...prev, {
-            ...message,
-            sender: message.sender || currentPlayer.name // Fallback to current player if sender is missing
-          }]);
+          setMessages(prev => [...prev, message]);
           setTimeout(scrollToBottom, 100);
         });
 
@@ -68,13 +64,10 @@ const LobbyChat = ({ currentPlayer }) => {
   const sendMessage = () => {
     if (!messageInput.trim() || !socket) return;
 
-    const messageData = {
+    socket.emit('chatMessage', {
       content: messageInput.trim(),
-      sender: currentPlayer.name,
       timestamp: new Date().toISOString()
-    };
-
-    socket.emit('chatMessage', messageData);
+    });
     setMessageInput('');
   };
 
@@ -82,7 +75,7 @@ const LobbyChat = ({ currentPlayer }) => {
     <div className="flex flex-col h-full">
       <Card className="mb-4" title={`Other Players Online (${onlinePlayers.length})`}>
         <List
-          dataSource={onlinePlayers}
+          dataSource={onlinePlayers.filter(player => player.name)}
           renderItem={player => (
             <List.Item>
               <List.Item.Meta
@@ -116,9 +109,9 @@ const LobbyChat = ({ currentPlayer }) => {
             >
               <div className="text-xs text-gray-500">
                 {new Date(msg.timestamp).toLocaleTimeString()}
-                {msg.sender && ` - ${msg.sender}`}
               </div>
               <div className={`mt-1 ${msg.sender === currentPlayer.name ? 'text-blue-600' : 'text-gray-800'}`}>
+                <strong>{msg.sender}: </strong>
                 {msg.content}
               </div>
             </div>

@@ -13,31 +13,45 @@ const io = new Server(server, {
   }
 });
 
+// Store player data with both socket ID and player ID mapping
 const connectedPlayers = new Map();
+const socketToPlayer = new Map();
 
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
 
   socket.on('playerJoined', (playerData) => {
-    console.log('Player joined:', playerData);
-    
-    // Store player information with socket ID as key
-    connectedPlayers.set(socket.id, {
+    if (!playerData.id || !playerData.name) {
+      console.log('Invalid player data:', playerData);
+      return;
+    }
+
+    // Store player data
+    const playerInfo = {
       id: playerData.id,
       name: playerData.name,
       socketId: socket.id
-    });
+    };
+    
+    connectedPlayers.set(playerData.id, playerInfo);
+    socketToPlayer.set(socket.id, playerData.id);
 
-    // Send current players list to all clients
-    const players = Array.from(connectedPlayers.values());
+    // Send current players list
+    const players = Array.from(connectedPlayers.values())
+      .filter(p => p.id && p.name); // Filter out invalid entries
+    
     io.emit('playersUpdate', players);
   });
 
   socket.on('chatMessage', (messageData) => {
-    const player = connectedPlayers.get(socket.id);
-    if (!player) return;
+    const playerId = socketToPlayer.get(socket.id);
+    const player = connectedPlayers.get(playerId);
+    
+    if (!player) {
+      console.log('Player not found for message:', socket.id);
+      return;
+    }
 
-    // Ensure the message has all required fields
     const messageToSend = {
       content: messageData.content,
       sender: player.name,
@@ -49,14 +63,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Disconnection:', socket.id);
-    
-    // Remove the disconnected player
-    connectedPlayers.delete(socket.id);
-    
-    // Update all clients with new player list
-    const players = Array.from(connectedPlayers.values());
-    io.emit('playersUpdate', players);
+    const playerId = socketToPlayer.get(socket.id);
+    if (playerId) {
+      connectedPlayers.delete(playerId);
+      socketToPlayer.delete(socket.id);
+
+      // Update player list
+      const players = Array.from(connectedPlayers.values())
+        .filter(p => p.id && p.name);
+      
+      io.emit('playersUpdate', players);
+    }
   });
 });
 
