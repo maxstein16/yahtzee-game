@@ -34,6 +34,12 @@ function Lobby() {
   const [shouldResetScores, setShouldResetScores] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Scoring and bonus state
+  const [hasYahtzee, setHasYahtzee] = useState(false);
+  const [yahtzeeBonus, setYahtzeeBonus] = useState(0);
+  const [upperSectionTotal, setUpperSectionTotal] = useState(0);
+  const [upperSectionBonus, setUpperSectionBonus] = useState(0);
+
   // Game play state
   const [diceValues, setDiceValues] = useState(INITIAL_DICE_VALUES);
   const [selectedDice, setSelectedDice] = useState([]);
@@ -150,7 +156,124 @@ function Lobby() {
     }
   };
 
-  // [Rest of the game logic functions remain the same...]
+  const handleScoreCategoryClick = async (categoryName) => {
+    if (!gameId || !currentPlayer?.player_id) {
+      message.error('Game or player information missing');
+      return;
+    }
+  
+    if (!categoryName) {
+      message.error('No category selected');
+      return;
+    }
+  
+    try {
+      // Calculate scores with current dice
+      const calculatedScores = calculateScores(diceValues);
+      
+      // Debug log
+      console.log('Submitting score for category:', categoryName);
+      console.log('Current dice:', diceValues);
+      console.log('Calculated scores:', calculatedScores);
+  
+      // Verify we have a valid category and score
+      if (!calculatedScores.hasOwnProperty(categoryName)) {
+        throw new Error(`Invalid category: ${categoryName}`);
+      }
+      
+      const categoryScore = calculatedScores[categoryName];
+      if (typeof categoryScore !== 'number') {
+        throw new Error('Invalid score calculation');
+      }  
+
+      console.log('Submitting score:', {
+        categoryName,
+        categoryScore,
+        diceValues,
+        rollCount
+      });
+
+      // Handle Yahtzee scoring
+      if (categoryName === 'yahtzee' && categoryScore === 50) {
+        setHasYahtzee(true);
+      } else if (hasYahtzee && checkForYahtzeeBonus(diceValues)) {
+        const newBonus = yahtzeeBonus + 100;
+        setYahtzeeBonus(newBonus);
+        await API.submitYahtzeeBonus(gameId, currentPlayer.player_id, newBonus);
+        message.success('Yahtzee Bonus! +100 points');
+      }
+
+      // Create turn record first
+      await API.createTurn(
+        gameId, 
+        currentPlayer.player_id, 
+        diceValues, 
+        rollCount, 
+        categoryScore, 
+        false
+      );
+
+      // Submit score with verified data
+      await API.submitGameScore(
+        gameId,
+        currentPlayer.player_id,
+        categoryName,
+        categoryScore
+      );
+
+      // Update categories and scores
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(updatedCategories);
+      
+      const scores = calculateAllScores(updatedCategories);
+      setUpperSectionTotal(scores.upperTotal);
+      setUpperSectionBonus(scores.upperBonus);
+      setPlayerTotal(scores.total + yahtzeeBonus);
+
+      // Reset turn state
+      setDiceValues(INITIAL_DICE_VALUES);
+      setRollCount(0);
+      setSelectedDice([]);
+      setCurrentScores({});
+      
+      // Start opponent turn
+      setOpponentState(prev => ({
+        ...prev,
+        isOpponentTurn: true
+      }));
+
+      message.success(`Scored ${categoryScore} points in ${categoryName}!`);
+    } catch (error) {
+      console.error('Error submitting score:', error);
+      message.error(`Failed to submit score: ${error.message}`);
+    }
+  };
+
+  // Handle dice rolling
+  const handleDiceRoll = async () => {
+    if (rollCount >= 3) {
+      message.warning('Maximum rolls reached for this turn.');
+      return;
+    }
+
+    setIsRolling(true);
+    try {
+      const result = await rollDice(gameId, currentPlayer, diceValues, selectedDice);
+      if (result.success) {
+        setDiceValues(result.dice);
+        const newScores = calculateScores(result.dice);
+        setCurrentScores(newScores);
+        setRollCount(prevCount => prevCount + 1);
+      } else {
+        message.error(result.message);
+      }
+    } catch (error) {
+      console.error('Roll dice error:', error);
+      message.error('Failed to roll dice');
+    } finally {
+      setIsRolling(false);
+    }
+  };
 
   // Prepare shared props
   const sharedProps = {
