@@ -139,22 +139,21 @@ async function getAllPlayers() {
 }
 
 // Get available players (not in an active game)
-async function getAvailablePlayers() {
+const getAvailablePlayers = async (currentPlayerId) => {
   const query = `
-    SELECT p.player_id, p.username, p.name, p.score
-    FROM player p
-    LEFT JOIN gameplayer gp ON p.player_id = gp.player_id
-    LEFT JOIN game g ON gp.game_id = g.game_id AND g.status = 'in_progress'
-    WHERE g.game_id IS NULL;
+    SELECT player_id, username, name, score
+    FROM player
+    WHERE player_id != ?;
   `;
   try {
-    const result = await runSQL(query);
+    const result = await runSQL(query, [currentPlayerId]);
     return result;
   } catch (error) {
     console.error("Error fetching available players:", error.message);
     throw error;
   }
-}
+};
+
 
 // Update player profile
 async function updatePlayerProfile(playerId, name, password) {

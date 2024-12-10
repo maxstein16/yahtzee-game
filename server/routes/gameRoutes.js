@@ -14,16 +14,25 @@ const {
 
 // POST route for creating a new game
 router.post('/game', async (req, res) => {
-  console.log('Game creation request received:', req.body);
+  const { status, round, player1Id, player2Id } = req.body;
 
-  const { status, round, playerId } = req.body;
-  if (!playerId) {
-    return res.status(400).json({ error: 'Player ID is required' });
+  // Ensure both players are provided
+  if (!player1Id || !player2Id) {
+    return res.status(400).json({ error: 'Both player1Id and player2Id are required' });
   }
 
   try {
-    const newGame = await createGame(status, round, playerId);
-    res.status(201).json(newGame);
+    // Create the game
+    const newGame = await createGame(status || 'pending', round || 0, player1Id);
+
+    // Add both players to the game
+    await addPlayerToGame(newGame.game_id, player1Id);
+    await addPlayerToGame(newGame.game_id, player2Id);
+
+    res.status(201).json({
+      message: 'Game created successfully',
+      game: newGame,
+    });
   } catch (error) {
     console.error('Error creating game:', error);
     res.status(500).json({ error: error.message });
