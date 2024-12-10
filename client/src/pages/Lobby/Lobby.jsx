@@ -390,7 +390,7 @@ const LobbyView = (props) => {
 
       <MultiplayerLobby
         isVisible={props.showMultiplayerLobby}
-        onClose={props.onCloseMultiplayerLobby}
+        onClose={() => props.setShowMultiplayerLobby(false)}
         availablePlayers={props.availablePlayers}
         pendingRequests={props.pendingRequests}
         onRequestGame={props.onRequestGame}
