@@ -1,74 +1,57 @@
-const chatRooms = new Map(); // Store chat rooms and their messages
+const chatRooms = new Map();
 
 function initializeWebSocket(io) {
   io.on('connection', (socket) => {
     const { gameId, playerId, playerName } = socket.handshake.query;
     
-    console.log(`Player ${playerName} (${playerId}) connected to game ${gameId}`);
-    
-    // Join chat room for this game
+    // Join the game's room
     socket.join(`game:${gameId}`);
     
-    // Initialize chat room if it doesn't exist
+    // Initialize or get chat room
     if (!chatRooms.has(gameId)) {
       chatRooms.set(gameId, {
         messages: [],
         participants: new Map()
       });
     }
-
-    // Add player to participants
     const room = chatRooms.get(gameId);
+    
+    // Add participant
     room.participants.set(playerId, {
       name: playerName,
       socketId: socket.id
     });
-    
-    // Send chat history to newly connected player
-    socket.emit('chat_history', room.messages);
-    
-    // Notify room about new player
-    io.to(`game:${gameId}`).emit('player_joined', {
-      playerId,
-      playerName,
-      timestamp: new Date().toISOString()
-    });
 
-    // Handle new messages
+    // Send existing messages to newly connected user
+    socket.emit('chat_history', room.messages);
+
+    // Broadcast new messages to ALL clients in the room
     socket.on('chat_message', (message) => {
+      console.log(`Broadcasting message in game ${gameId}:`, message);
+      
       const enhancedMessage = {
         ...message,
-        messageId: Date.now(), // Add unique ID for message
+        id: Date.now(),
         timestamp: new Date().toISOString()
       };
       
-      // Store message in room history
+      // Store message
       room.messages.push(enhancedMessage);
       
-      // Broadcast to all clients in the room, including sender
+      // Broadcast to ALL clients in the room (including sender)
       io.to(`game:${gameId}`).emit('chat_message', enhancedMessage);
     });
 
-    // Handle client disconnect
     socket.on('disconnect', () => {
-      console.log(`Player ${playerName} disconnected from game ${gameId}`);
-      
-      // Remove player from participants
       room.participants.delete(playerId);
-      
-      // Remove room if empty
       if (room.participants.size === 0) {
         chatRooms.delete(gameId);
       }
       
-      // Notify room about player leaving
       io.to(`game:${gameId}`).emit('player_left', {
         playerId,
-        playerName,
-        timestamp: new Date().toISOString()
+        playerName
       });
     });
   });
 }
-
-module.exports = { initializeWebSocket };
