@@ -69,16 +69,6 @@ function Lobby() {
     };
   }, [currentPlayer?.player_id]);
 
-  const handleNewGame = async (gameType = 'singleplayer') => {
-    // We'll implement this later
-    console.log('New game:', gameType);
-  };
-
-  const handlePlayerSelect = async (selectedPlayer) => {
-    // We'll implement this later
-    console.log('Selected player:', selectedPlayer);
-  };
-
   if (isLoading) {
     return (
       <Layout style={{ height: '100vh' }}>
