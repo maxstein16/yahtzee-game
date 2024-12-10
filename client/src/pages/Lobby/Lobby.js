@@ -1,4 +1,4 @@
-// src/components/Lobby/Lobby.js
+// src/pages/Lobby/Lobby.js
 import React, { useState, useEffect } from 'react';
 import { message, Layout } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -7,24 +7,16 @@ import initializeWebSocket from '../../services/websocketService';
 import LobbyChat from './LobbyChat';
 import GameHeader from '../../components/GameHeader/GameHeader';
 
-const VIEW_STATES = {
-  LOBBY: 'lobby',
-  GAME: 'game'
-};
-
 function Lobby() {
   const navigate = useNavigate();
 
   // Basic state
-  const [currentView, setCurrentView] = useState(VIEW_STATES.LOBBY);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [messages, setMessages] = useState([]);
 
   // Socket state
   const [socket, setSocket] = useState(null);
   const [availablePlayers, setAvailablePlayers] = useState([]);
-  const [isMultiplayerModalVisible, setIsMultiplayerModalVisible] = useState(false);
 
   // Initialize player
   useEffect(() => {
@@ -63,10 +55,6 @@ function Lobby() {
           socketConnection.on('playersUpdate', (players) => {
             setAvailablePlayers(players);
           });
-
-          socketConnection.on('chatMessage', (message) => {
-            setMessages(prev => [...prev, message]);
-          });
         })
         .catch(error => {
           console.error('WebSocket connection error:', error);
@@ -82,17 +70,13 @@ function Lobby() {
   }, [currentPlayer?.player_id]);
 
   const handleNewGame = async (gameType = 'singleplayer') => {
-    if (gameType === 'multiplayer') {
-      setIsMultiplayerModalVisible(true);
-      setCurrentView(VIEW_STATES.LOBBY);
-    } else {
-      setCurrentView(VIEW_STATES.GAME);
-    }
+    // We'll implement this later
+    console.log('New game:', gameType);
   };
 
   const handlePlayerSelect = async (selectedPlayer) => {
-    setCurrentView(VIEW_STATES.GAME);
-    message.success('Multiplayer game started!');
+    // We'll implement this later
+    console.log('Selected player:', selectedPlayer);
   };
 
   if (isLoading) {
@@ -111,8 +95,6 @@ function Lobby() {
         currentPlayer={currentPlayer}
         handleNewGame={handleNewGame}
         handleLogout={() => handleLogout(navigate)}
-        setIsMultiplayerModalVisible={setIsMultiplayerModalVisible}
-        setCurrentView={setCurrentView}
       />
       
       <Layout.Content className="p-6">
@@ -121,7 +103,6 @@ function Lobby() {
           socket={socket}
           availablePlayers={availablePlayers}
           onPlayerSelect={handlePlayerSelect}
-          messages={messages}
         />
       </Layout.Content>
     </Layout>
