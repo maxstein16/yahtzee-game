@@ -4,6 +4,10 @@ import Dice from '../../pages/Dice';
 import Scoreboard from '../ScoreBoard/ScoreBoard';
 import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
 import { calculateScores } from '../../services/scoreTurnService';
+import { initializeWebSocket } from '../../services/websocketService';
+import { Modal } from 'antd';
+import API from '../../utils/api';
+import { useNavigate } from 'react-router-dom';
 
 const { Content } = Layout;
 
@@ -22,11 +26,16 @@ const Multiplayer = ({
   const [scores, setScores] = useState({});
   const [playerCategories, setPlayerCategories] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(true);
+  const [socket, setSocket] = useState(null);
+  const [gameId, setGameId] = useState(null);
+  const [opponent, setOpponent] = useState(null);
 
   // Opponent state
   const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
   const [opponentCategories, setOpponentCategories] = useState([]);
   
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (!socket) return;
 
