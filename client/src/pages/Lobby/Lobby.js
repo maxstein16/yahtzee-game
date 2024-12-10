@@ -8,6 +8,7 @@ import { resetTurnState } from '../../services/gameStateService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
+import { setCurrentScores } from '../../services/scoreTurnService';
 import { chatService } from '../../services/websocketService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
