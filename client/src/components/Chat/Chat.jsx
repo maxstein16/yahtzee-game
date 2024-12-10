@@ -14,21 +14,21 @@ export default function Chat({ gameId, playerId, playerName }) {
     // Connect to WebSocket
     chatService.connect(gameId, playerId, playerName);
 
-    // Handle incoming messages
+    // Single message handler for both new messages and history
     const messageHandler = (msg) => {
-      console.log('Received message:', msg);
-      setMessages(prev => [...prev, msg]);
-    };
-
-    // Handle chat history
-    const historyHandler = (history) => {
-      console.log('Received chat history:', history);
-      setMessages(history);
+      if (Array.isArray(msg)) {
+        // This is chat history
+        console.log('Received chat history:', msg);
+        setMessages(msg);
+      } else {
+        // This is a new message
+        console.log('Received message:', msg);
+        setMessages(prev => [...prev, msg]);
+      }
     };
 
     // Set up event listeners
     chatService.onMessage(messageHandler);
-    chatService.onChatHistory(historyHandler);
     chatService.onConnectionChange(setIsConnected);
 
     // Cleanup
@@ -37,7 +37,7 @@ export default function Chat({ gameId, playerId, playerName }) {
     };
   }, [gameId, playerId, playerName]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Rest of your component remains the same
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
