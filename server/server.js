@@ -20,7 +20,6 @@ const socketToPlayer = new Map();
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
 
-  // Handle player joining
   socket.on('playerJoined', (playerData) => {
     if (!playerData.id || !playerData.name) {
       console.log('Invalid player data:', playerData);
@@ -33,7 +32,7 @@ io.on('connection', (socket) => {
       name: playerData.name,
       socketId: socket.id
     };
-
+    
     connectedPlayers.set(playerData.id, playerInfo);
     socketToPlayer.set(socket.id, playerData.id);
 
@@ -44,42 +43,6 @@ io.on('connection', (socket) => {
     io.emit('playersUpdate', players);
   });
 
-  // Handle challengePlayer event
-  socket.on('challengePlayer', ({ challengerId, challengerName, opponentId }) => {
-    console.log('Challenge initiated:', { challengerId, challengerName, opponentId });
-
-    const opponent = connectedPlayers.get(opponentId);
-    if (opponent) {
-      // Notify the challenged player
-      io.to(opponent.socketId).emit('challengeReceived', {
-        challenger: { id: challengerId, name: challengerName },
-      });
-    } else {
-      console.log(`Opponent with ID ${opponentId} not found or not connected.`);
-    }
-  });
-
-  socket.on('acceptChallenge', ({ challengerId, challengerName, acceptorId }) => {
-    console.log('Challenge accepted:', { challengerId, challengerName, acceptorId });
-
-    const game = createGame(acceptorId, challengerId);
-    io.to(socketToPlayer.get(challengerId)).emit('challengeAccepted', game);
-    io.to(socketToPlayer.get(acceptorId)).emit('challengeAccepted', game);
-  });
-
-  socket.on('rejectChallenge', ({ challengerId }) => {
-    console.log('Challenge rejected:', { challengerId });
-
-    io.to(socketToPlayer.get(challengerId)).emit('challengeRejected', challengerId);
-  });
-
-  socket.on('rejectChallenge', ({ challengerId }) => {
-    console.log('Challenge rejected:', { challengerId });
-
-    io.to(socketToPlayer.get(challengerId)).emit('challengeRejected', challengerId);
-  });
-
-  // Handle chat messages
   socket.on('chatMessage', (messageData) => {
     const playerId = socketToPlayer.get(socket.id);
     const player = connectedPlayers.get(playerId);
@@ -99,7 +62,6 @@ io.on('connection', (socket) => {
     io.emit('chatMessage', messageToSend);
   });
 
-  // Handle disconnect
   socket.on('disconnect', () => {
     const playerId = socketToPlayer.get(socket.id);
     if (playerId) {

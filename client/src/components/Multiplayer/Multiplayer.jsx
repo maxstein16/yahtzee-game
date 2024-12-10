@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Space, Button, message, Modal } from 'antd';
+import { Layout, Space, Button, message } from 'antd';
 import Dice from '../../pages/Dice';
 import Scoreboard from '../ScoreBoard/ScoreBoard';
 import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
 import { calculateScores } from '../../services/scoreTurnService';
-import { initializeWebSocket } from '../../services/websocketService';
-import API from '../../utils/api';
-import { useNavigate } from 'react-router-dom';
 
 const { Content } = Layout;
 
-const Multiplayer = ({ currentPlayer, onGameEnd }) => {
+const Multiplayer = ({ 
+  currentPlayer,
+  gameId,
+  onGameEnd,
+  socket,
+  opponent
+}) => {
   // Game state
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
   const [selectedDice, setSelectedDice] = useState([]);
@@ -20,17 +23,10 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
   const [playerCategories, setPlayerCategories] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(true);
 
-  // WebSocket and game state
-  const [socket, setSocket] = useState(null);
-  const [gameId, setGameId] = useState(null);
-  const [opponent, setOpponent] = useState(null);
-
   // Opponent state
   const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
   const [opponentCategories, setOpponentCategories] = useState([]);
-
-  const navigate = useNavigate();
-
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -79,58 +75,6 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
     });
   };
 
-  useEffect(() => {
-    if (!currentPlayer?.player_id) return;
-
-    const connectSocket = async () => {
-      try {
-        const socketConnection = await initializeWebSocket(currentPlayer.player_id);
-        setSocket(socketConnection);
-
-        socketConnection.on('gameRequest', async ({ gameId, opponentId }) => {
-          Modal.confirm({
-            title: 'Game Invitation',
-            content: 'You have been invited to a game. Do you accept?',
-            onOk: async () => {
-              try {
-                await API.updateGame(gameId, 'active', 0);
-                const opponentData = await API.getPlayerById(opponentId);
-                setGameId(gameId);
-                setOpponent(opponentData);
-                message.success('Game started!');
-              } catch (error) {
-                console.error('Error accepting game request:', error);
-                message.error('Failed to join game');
-              }
-            },
-          });
-        });
-
-        socketConnection.on('gameStart', async ({ gameId, opponentId }) => {
-          setGameId(gameId);
-          const opponentData = await API.getPlayerById(opponentId);
-          setOpponent(opponentData);
-        });
-
-        socketConnection.on('gameEnd', () => {
-          message.info('Game ended');
-          navigate('/lobby');
-        });
-      } catch (error) {
-        console.error('WebSocket connection error:', error);
-        message.error('Failed to connect to game server');
-      }
-    };
-
-    connectSocket();
-
-    return () => {
-      if (socket) {
-        socket.disconnect();
-      }
-    };
-  }, [currentPlayer, navigate]);
-
   const handleCategoryClick = async (categoryName) => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");
@@ -154,6 +98,7 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
       setSelectedDice([]);
       setDiceValues([1, 1, 1, 1, 1]);
       setIsMyTurn(false);
+
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error('Failed to submit score');
@@ -175,15 +120,18 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
                   key={index}
                   value={value}
                   isSelected={selectedDice.includes(index)}
-                  onClick={() =>
-                    toggleDiceSelection(index, isRolling, !isMyTurn, setSelectedDice)
-                  }
+                  onClick={() => toggleDiceSelection(
+                    index,
+                    isRolling,
+                    !isMyTurn,
+                    setSelectedDice
+                  )}
                   isRolling={isRolling}
                 />
               ))}
             </div>
             <Space className="w-full justify-center">
-              <Button
+              <Button 
                 type="primary"
                 onClick={handleDiceRoll}
                 disabled={rollCount >= 3 || !isMyTurn}

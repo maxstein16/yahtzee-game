@@ -1,14 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getAllPlayers,
-  getAvailablePlayers,
-  createPlayer,
-  loginPlayer,
-  getPlayerById,
-  updatePlayerProfile,
-  deletePlayer
-} = require('../db/playerQueries');
+const { createPlayer, loginPlayer, getPlayerById, updatePlayerProfile } = require('../db/playerQueries');
 const bcrypt = require('bcrypt');
 const pool = require('../db');
 
@@ -76,36 +68,6 @@ router.put('/players/:id', async (req, res) => {
     const { name, password } = req.body;
     const updatedPlayer = await updatePlayerProfile(req.params.id, name, password);
     res.json(updatedPlayer);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get all players
-router.get('/players', async (req, res) => {
-  try {
-    const players = await getAllPlayers();
-    res.json(players);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get available players
-router.get('/players/available', async (req, res) => {
-  try {
-    const players = await getAvailablePlayers();
-    res.json(players);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Delete a player
-router.delete('/players/:id', async (req, res) => {
-  try {
-    const deletedPlayer = await deletePlayer(req.params.id);
-    res.json({ message: "Player deleted successfully", player: deletedPlayer });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

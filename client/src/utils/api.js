@@ -60,12 +60,15 @@ export const login = async (credentials) => apiRequest('/players/login', 'POST',
 export const register = async (userData) => apiRequest('/players/register', 'POST', userData);
 
 // Game Management
-export const createGame = (player1Id, player2Id) => {
+export const createGame = (status, round, playerId) => {
+  if (!playerId) {
+    throw new Error('Player ID is required to create a game');
+  }
+  
   return apiRequest('/game', 'POST', {
-    status: 'in_progress',
-    round: 1,
-    player1Id,
-    player2Id,
+    status: status || 'pending',
+    round: Number(round) || 0,
+    playerId: playerId
   });
 };
 
@@ -210,13 +213,6 @@ export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompl
 export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);
 
 export const getPlayerById = (playerId) => apiRequest(`/players/${playerId}`);
-
-export const getAvailablePlayers = () => apiRequest('/players/available', 'GET');
-
-export const registerPlayer = (userData) => apiRequest('/players/register', 'POST', userData);
-
-export const updatePlayer = (playerId, updatedData) =>
-  apiRequest(`/players/${playerId}`, 'PUT', updatedData);
 
 const API = {
   login,
