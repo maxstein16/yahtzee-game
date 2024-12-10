@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Space, Button, message } from 'antd';
+import { Layout, Space, Button, message, Modal } from 'antd';
 import Dice from '../../pages/Dice';
 import Scoreboard from '../ScoreBoard/ScoreBoard';
 import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
 import { calculateScores } from '../../services/scoreTurnService';
 import { initializeWebSocket } from '../../services/websocketService';
-import { Modal } from 'antd';
 import API from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -82,12 +81,12 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
 
   useEffect(() => {
     if (!currentPlayer?.player_id) return;
-  
+
     const connectSocket = async () => {
       try {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
-  
+
         socketConnection.on('gameRequest', async ({ gameId, opponentId }) => {
           Modal.confirm({
             title: 'Game Invitation',
@@ -106,13 +105,13 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
             },
           });
         });
-  
+
         socketConnection.on('gameStart', async ({ gameId, opponentId }) => {
           setGameId(gameId);
           const opponentData = await API.getPlayerById(opponentId);
           setOpponent(opponentData);
         });
-  
+
         socketConnection.on('gameEnd', () => {
           message.info('Game ended');
           navigate('/lobby');
@@ -122,15 +121,15 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
         message.error('Failed to connect to game server');
       }
     };
-  
+
     connectSocket();
-  
+
     return () => {
       if (socket) {
         socket.disconnect();
       }
     };
-  }, [currentPlayer, navigate]);  
+  }, [currentPlayer, navigate]);
 
   const handleCategoryClick = async (categoryName) => {
     if (!isMyTurn) {
@@ -155,7 +154,6 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
       setSelectedDice([]);
       setDiceValues([1, 1, 1, 1, 1]);
       setIsMyTurn(false);
-
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error('Failed to submit score');
@@ -177,18 +175,15 @@ const Multiplayer = ({ currentPlayer, onGameEnd }) => {
                   key={index}
                   value={value}
                   isSelected={selectedDice.includes(index)}
-                  onClick={() => toggleDiceSelection(
-                    index,
-                    isRolling,
-                    !isMyTurn,
-                    setSelectedDice
-                  )}
+                  onClick={() =>
+                    toggleDiceSelection(index, isRolling, !isMyTurn, setSelectedDice)
+                  }
                   isRolling={isRolling}
                 />
               ))}
             </div>
             <Space className="w-full justify-center">
-              <Button 
+              <Button
                 type="primary"
                 onClick={handleDiceRoll}
                 disabled={rollCount >= 3 || !isMyTurn}
