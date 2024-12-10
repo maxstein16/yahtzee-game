@@ -8,7 +8,6 @@ import { resetTurnState } from '../../services/gameStateService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
-import { setCurrentScores } from '../../services/scoreTurnService';
 import { chatService } from '../../services/websocketService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
@@ -24,6 +23,7 @@ function Lobby() {
   const [gameMode, setGameMode] = useState('singleplayer');
   const [isLoading, setIsLoading] = useState(true);
   const [isChatVisible, setIsChatVisible] = useState(false);
+  const [currentScores, setCurrentScores] = useState({});
   
   // Multiplayer State
   const [showMultiplayerLobby, setShowMultiplayerLobby] = useState(false);
