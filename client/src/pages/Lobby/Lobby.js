@@ -1,12 +1,17 @@
+// src/components/Lobby/Lobby.js
 import React, { useState, useEffect } from 'react';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
+import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
+import { resetTurnState } from '../../services/gameStateService';
 import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { resetTurnState } from '../../services/gameStateService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
+import { chatService } from '../../services/websocketService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
 
@@ -95,7 +100,6 @@ function Lobby() {
   // Initialize player
   useEffect(() => {
     const initializePlayer = async () => {
-      setIsLoading(true);
       try {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
