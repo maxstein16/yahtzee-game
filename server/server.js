@@ -80,35 +80,18 @@ io.on('connection', (socket) => {
   });
 
   // Challenge accepted event
-  socket.on('challengeAccepted', async ({ challengerId, challengedId }) => {
+  socket.on('challengeAccepted', async ({ challengerId, gameId }) => {
     const challenger = connectedPlayers.get(challengerId);
-    const challenged = connectedPlayers.get(challengedId);
-
-    if (!challenger || !challenged) {
-      console.log('Challenger or challenged player not found:', challengerId, challengedId);
+  
+    if (!challenger) {
+      console.log('Challenger not found:', challengerId);
       return;
     }
-
-    try {
-      // Create a new game
-      const newGame = await createGame('in_progress', 0, challenger.id, challenged.id);
-      const gameId = newGame.game_id;
-
-      // Notify both players to start the game
-      io.to(challenger.socketId).emit('gameStart', { gameId, opponent: {
-        id: challenged.id,
-        name: challenged.name
-      }});
-      io.to(challenged.socketId).emit('gameStart', { gameId, opponent: {
-        id: challenger.id,
-        name: challenger.name
-      }});
-
-      console.log(`Game started between ${challenger.name} and ${challenged.name}`);
-    } catch (error) {
-      console.error('Error starting game:', error);
-      io.to(challenger.socketId).emit('challengeFailed', { message: 'Failed to start the game.' });
-    }
+  
+    // Notify the challenger with the game ID
+    io.to(challenger.socketId).emit('challengeAccepted', { 
+      gameId 
+    });
   });
 
   // Challenge rejected event

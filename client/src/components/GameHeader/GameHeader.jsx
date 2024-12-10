@@ -18,9 +18,11 @@ const GameHeader = ({
 
   const handleChallenge = (opponent) => {
     if (socket) {
-      // Emit a game challenge to the selected opponent
       socket.emit('gameChallenge', {
-        challenger: { id: currentPlayer.player_id, name: currentPlayer.name },
+        challenger: { 
+          id: currentPlayer.player_id, 
+          name: currentPlayer.name 
+        },
         opponentId: opponent.id
       });
       message.info(`Challenge sent to ${opponent.name}`);
@@ -38,11 +40,36 @@ const GameHeader = ({
       socket.on('challengeRequest', ({ challenger }) => {
         Modal.confirm({
           title: `${challenger.name} has challenged you to a game!`,
-          onOk: () => {
-            socket.emit('challengeAccepted', { challengerId: challenger.id });
-            message.success('Challenge accepted! Starting game...');
-            setIsChallengePending(false);
-            navigate('/multiplayer');
+          onOk: async () => {
+            try {
+              // Create a new game for both players
+              const response = await API.createGame(
+                'pending', 
+                0, 
+                challenger.id, 
+                currentPlayer.player_id
+              );
+              
+              // Accept the challenge with the new game ID
+              socket.emit('challengeAccepted', { 
+                challengerId: challenger.id,
+                gameId: response.game.game_id 
+              });
+              
+              message.success('Challenge accepted! Starting game...');
+              setIsChallengePending(false);
+              
+              // Navigate to multiplayer with game info
+              navigate('/multiplayer', { 
+                state: { 
+                  gameId: response.game.game_id,
+                  isChallenger: false 
+                }
+              });
+            } catch (error) {
+              console.error('Error creating game:', error);
+              message.error('Failed to start game');
+            }
           },
           onCancel: () => {
             socket.emit('challengeRejected', { challengerId: challenger.id });
@@ -55,11 +82,16 @@ const GameHeader = ({
       });
 
       // Handle challenge accepted
-      socket.on('challengeAccepted', () => {
+      socket.on('challengeAccepted', ({ gameId }) => {
         message.success('Challenge accepted! Starting game...');
         setPendingChallenge(null);
         setIsChallengePending(false);
-        navigate('/multiplayer');
+        navigate('/multiplayer', { 
+          state: { 
+            gameId,
+            isChallenger: true 
+          }
+        });
       });
 
       // Handle challenge rejected
