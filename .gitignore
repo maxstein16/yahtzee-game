@@ -3,3 +3,6 @@ node_modules
 deployService.sh
 cloud-sql-proxy
 .vercel
+
+# Local Netlify folder
+.netlify

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Space, Button, Divider, Modal, List, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import API from '../../utils/api';
 
 const { Header } = Layout;
 
 const GameHeader = ({
   currentPlayer,
-  handleNewGame,
   handleLogout,
   socket,
   availablePlayers
@@ -33,7 +33,7 @@ const GameHeader = ({
       message.error('Unable to send challenge. No connection to server.');
     }
   };
-  
+
 
   useEffect(() => {
     if (socket) {
@@ -109,7 +109,7 @@ const GameHeader = ({
         socket.off('challengeRejected');
       };
     }
-  }, [socket, navigate]);
+  }, [socket, navigate, currentPlayer.player_id]);
 
   return (
     <Header className="flex items-center justify-between px-6 bg-white shadow">
@@ -131,7 +131,6 @@ const GameHeader = ({
         </Button>
         <Divider type="vertical" />
         <Button
-          onClick={handleNewGame}
           className="bg-yellow-500 text-white hover:bg-yellow-600"
         >
           New Game

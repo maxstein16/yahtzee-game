@@ -83,7 +83,6 @@ function Lobby() {
     <Layout style={{ height: '100vh' }}>
       <GameHeader
         currentPlayer={currentPlayer}
-        handleNewGame={handleNewGame}
         handleLogout={() => handleLogout(navigate)}
         socket={socket}
         availablePlayers={availablePlayers}
