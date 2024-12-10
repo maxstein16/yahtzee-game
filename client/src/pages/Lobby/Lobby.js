@@ -98,12 +98,7 @@ function Lobby() {
       />
       
       <Layout.Content className="p-6">
-        <LobbyChat
-          currentPlayer={currentPlayer}
-          socket={socket}
-          availablePlayers={availablePlayers}
-          onPlayerSelect={handlePlayerSelect}
-        />
+        <LobbyChat currentPlayer={currentPlayer} />
       </Layout.Content>
     </Layout>
   );

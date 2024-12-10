@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, List, Input, Button, Avatar, Badge, Space, message } from 'antd';
-import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
+import { UserOutlined } from '@ant-design/icons';
 import initializeWebSocket from '../../services/websocketService';
 
 const { TextArea } = Input;
@@ -9,98 +9,74 @@ const LobbyChat = ({ currentPlayer }) => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [onlinePlayers, setOnlinePlayers] = useState([]);
-  const [isConnected, setIsConnected] = useState(false);
   const [socket, setSocket] = useState(null);
   const messagesEndRef = useRef(null);
 
+  // Initialize WebSocket connection
   useEffect(() => {
-    let mounted = true;
-    
-    const connectWebSocket = async () => {
+    if (!currentPlayer?.player_id) return;
+
+    const connectSocket = async () => {
       try {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
-        
-        if (!mounted) return;
-        
         setSocket(socketConnection);
-        setIsConnected(true);
-        
+
+        // Announce player joining
+        socketConnection.emit('playerJoined', {
+          id: currentPlayer.player_id,
+          name: currentPlayer.name
+        });
+
         // Listen for player updates
         socketConnection.on('playersUpdate', (players) => {
-          if (!mounted) return;
           const otherPlayers = players.filter(p => p.id !== currentPlayer.player_id);
           setOnlinePlayers(otherPlayers);
         });
 
         // Listen for chat messages
         socketConnection.on('chatMessage', (message) => {
-          if (!mounted) return;
           setMessages(prev => [...prev, message]);
-          scrollToBottom();
-        });
-
-        // Listen for connection state
-        socketConnection.on('disconnect', () => {
-          if (!mounted) return;
-          setIsConnected(false);
-          message.error('Disconnected from chat server');
-        });
-
-        socketConnection.on('reconnect', () => {
-          if (!mounted) return;
-          setIsConnected(true);
-          message.success('Reconnected to chat server');
+          setTimeout(scrollToBottom, 100);
         });
 
       } catch (error) {
-        if (!mounted) return;
-        console.error('Failed to connect to chat:', error);
-        message.error('Failed to connect to chat server');
+        console.error('Socket connection error:', error);
+        message.error('Failed to connect to chat');
       }
     };
 
-    if (currentPlayer?.player_id) {
-      connectWebSocket();
-    }
+    connectSocket();
 
+    // Cleanup on unmount
     return () => {
-      mounted = false;
       if (socket) {
         socket.disconnect();
       }
     };
   }, [currentPlayer]);
 
+  // Auto-scroll chat to bottom
   const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Send message handler
   const sendMessage = () => {
-    if (!messageInput.trim() || !socket || !isConnected) {
-      if (!isConnected) {
-        message.error('Not connected to chat server');
-      }
-      return;
-    }
+    if (!messageInput.trim() || !socket) return;
 
-    // Send the message
-    socket.sendMessage(messageInput.trim());
+    const messageData = {
+      content: messageInput.trim(),
+      timestamp: new Date().toISOString()
+    };
+
+    socket.emit('chatMessage', messageData);
     setMessageInput('');
   };
 
   return (
     <div className="flex flex-col h-full">
-      <Card 
-        className="mb-4" 
-        title={
-          <div className="flex items-center">
-            <span>Online Players ({onlinePlayers.length})</span>
-            {!isConnected && <LoadingOutlined className="ml-2" />}
-          </div>
-        }
-      >
+      {/* Online Players List */}
+      <Card className="mb-4" title={`Online Players (${onlinePlayers.length})`}>
         <List
           dataSource={onlinePlayers}
           renderItem={player => (
@@ -115,10 +91,11 @@ const LobbyChat = ({ currentPlayer }) => {
               />
             </List.Item>
           )}
-          locale={{ emptyText: isConnected ? 'No other players online' : 'Connecting...' }}
+          locale={{ emptyText: 'No other players online' }}
         />
       </Card>
 
+      {/* Chat Area */}
       <Card 
         title="Game Chat" 
         className="flex-grow"
@@ -143,7 +120,7 @@ const LobbyChat = ({ currentPlayer }) => {
           ))}
           <div ref={messagesEndRef} />
         </div>
-        
+
         <div className="mt-auto">
           <Space.Compact style={{ width: '100%' }}>
             <TextArea
@@ -155,14 +132,12 @@ const LobbyChat = ({ currentPlayer }) => {
                   sendMessage();
                 }
               }}
-              placeholder={isConnected ? "Type your message..." : "Connecting..."}
-              disabled={!isConnected}
+              placeholder="Type your message..."
               autoSize={{ minRows: 1, maxRows: 4 }}
             />
             <Button 
               type="primary"
               onClick={sendMessage}
-              disabled={!isConnected}
             >
               Send
             </Button>
