@@ -24,6 +24,7 @@ const GameHeader = ({
       });
       message.info(`Challenge sent to ${opponent.name}`);
       setPendingChallenge(opponent);
+      setIsChallengePending(true);
       setIsModalVisible(false);
     } else {
       message.error('Unable to send challenge. No connection to server.');
@@ -32,21 +33,44 @@ const GameHeader = ({
 
   useEffect(() => {
     if (socket) {
+      // Handle challenge request
+      socket.on('challengeRequest', ({ challenger }) => {
+        Modal.confirm({
+          title: `${challenger.name} has challenged you to a game!`,
+          onOk: () => {
+            socket.emit('challengeAccepted', { challengerId: challenger.id });
+            message.success('Challenge accepted! Starting game...');
+            setIsChallengePending(false);
+            navigate('/multiplayer');
+          },
+          onCancel: () => {
+            socket.emit('challengeRejected', { challengerId: challenger.id });
+            message.warning('Challenge declined.');
+            setIsChallengePending(false);
+          },
+          okText: 'Accept',
+          cancelText: 'Decline'
+        });
+      });
+
       // Handle challenge accepted
       socket.on('challengeAccepted', () => {
         message.success('Challenge accepted! Starting game...');
         setPendingChallenge(null);
-        navigate('/multiplayer'); // Navigate to the multiplayer game screen
+        setIsChallengePending(false);
+        navigate('/multiplayer');
       });
 
       // Handle challenge rejected
       socket.on('challengeRejected', ({ message: rejectMessage }) => {
         message.warning(rejectMessage || 'Challenge declined.');
         setPendingChallenge(null);
+        setIsChallengePending(false);
       });
 
       // Cleanup listeners on component unmount
       return () => {
+        socket.off('challengeRequest');
         socket.off('challengeAccepted');
         socket.off('challengeRejected');
       };
@@ -106,7 +130,7 @@ const GameHeader = ({
                   <Button
                     type="primary"
                     onClick={() => handleChallenge(player)}
-                    disabled={!!pendingChallenge} // Disable while a challenge is pending
+                    disabled={!!pendingChallenge || isChallengePending} // Disable if a challenge is pending
                   >
                     Challenge
                   </Button>
