@@ -16,31 +16,30 @@ const GameHeader = ({
     onStartMultiplayerGame(selectedPlayer);
   };
 
-  const menuItems = {
-    items: [
-      {
-        key: 'single',
-        label: 'Single Player',
-        onClick: () => handleNewGame('single')
-      },
-      {
-        key: 'multi',
-        label: 'Multiplayer',
-        onClick: () => setIsMultiplayerModalVisible(true)
-      }
-    ]
-  };
+  // Define menu items
+  const dropdownItems = [
+    {
+      key: '1',
+      label: 'Single Player',
+      onClick: () => handleNewGame('single')
+    },
+    {
+      key: '2',
+      label: 'Multiplayer',
+      onClick: () => setIsMultiplayerModalVisible(true)
+    }
+  ];
 
   return (
     <div className="w-full px-4 py-2 bg-red-500 flex justify-between items-center">
       <Space>
         <Dropdown
-          menu={menuItems}
-          trigger={['click']}
+          menu={{ items: dropdownItems }}
+          placement="bottomLeft"
         >
-          <Button className="flex items-center gap-2">
+          <Button type="default" className="flex items-center gap-2">
             <Menu className="w-4 h-4" />
-            New Game
+            <span>New Game</span>
           </Button>
         </Dropdown>
       </Space>
@@ -54,13 +53,15 @@ const GameHeader = ({
         </Button>
       </Space>
 
-      <MultiplayerModal
-        visible={isMultiplayerModalVisible}
-        onClose={() => setIsMultiplayerModalVisible(false)}
-        onPlayerSelect={handlePlayerSelect}
-        currentPlayerId={currentPlayer?.player_id}
-        socket={socket}
-      />
+      {isMultiplayerModalVisible && (
+        <MultiplayerModal
+          visible={isMultiplayerModalVisible}
+          onClose={() => setIsMultiplayerModalVisible(false)}
+          onPlayerSelect={handlePlayerSelect}
+          currentPlayerId={currentPlayer?.player_id}
+          socket={socket}
+        />
+      )}
     </div>
   );
 };
