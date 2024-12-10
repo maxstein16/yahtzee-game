@@ -1,28 +1,59 @@
+// src/components/GameHeader/GameHeader.jsx
 import React, { useState, useEffect } from 'react';
 import { Layout, Button, Modal, List, message } from 'antd';
-import { getAvailablePlayers, createGame } from '../../utils/api';
+import { createGame } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
+import initializeWebSocket from '../../services/websocketService';
 
 const { Header } = Layout;
 
 const GameHeader = ({ currentPlayer }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [socket, setSocket] = useState(null);
   const navigate = useNavigate();
 
-  const fetchPlayers = async () => {
-    try {
-      const players = await getAvailablePlayers();
-      setAvailablePlayers(players.filter(player => player.player_id !== currentPlayer.player_id));
-    } catch (error) {
-      console.error('Error fetching players:', error);
-      message.error('Failed to fetch available players');
-    }
-  };
+  useEffect(() => {
+    if (!currentPlayer?.player_id) return;
+
+    const connectSocket = async () => {
+      try {
+        const socketConnection = await initializeWebSocket(currentPlayer.player_id);
+        setSocket(socketConnection);
+
+        // Announce player joining with complete player info
+        socketConnection.emit('playerJoined', {
+          id: currentPlayer.player_id,
+          name: currentPlayer.name
+        });
+
+        // Listen for player updates and filter out current player and invalid entries
+        socketConnection.on('playersUpdate', (players) => {
+          const filteredPlayers = players.filter(p => 
+            p.id && 
+            p.name && 
+            p.id.toString() !== currentPlayer.player_id.toString()
+          );
+          setAvailablePlayers(filteredPlayers);
+        });
+      } catch (error) {
+        console.error('Socket connection error:', error);
+        message.error('Failed to connect to game server');
+      }
+    };
+
+    connectSocket();
+
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [currentPlayer]);
 
   const handleChallenge = async (opponentId) => {
     try {
-      const game = await createGame('pending', 0, currentPlayer.player_id);
+      const game = await createGame(currentPlayer.player_id, opponentId);
       message.success('Game created! Waiting for the opponent...');
       setIsModalVisible(false);
 
@@ -40,7 +71,6 @@ const GameHeader = ({ currentPlayer }) => {
       <Button
         onClick={() => {
           setIsModalVisible(true);
-          fetchPlayers();
         }}
       >
         Multiplayer
@@ -58,7 +88,7 @@ const GameHeader = ({ currentPlayer }) => {
           renderItem={(player) => (
             <List.Item>
               {player.name}
-              <Button onClick={() => handleChallenge(player.player_id)}>Challenge</Button>
+              <Button onClick={() => handleChallenge(player.id)}>Challenge</Button>
             </List.Item>
           )}
         />
