@@ -63,10 +63,16 @@ const MultiplayerModal = ({
     // Cleanup function
     return () => {
       try {
-        // Remove event listeners using removeListener
-        socket.removeListener('playersUpdate', handlePlayersUpdate);
-        socket.removeListener('gameRequest', handleGameRequest);
-        socket.removeListener('gameRequestResponse', handleGameRequestResponse);
+        // Check if removeListener exists, and use off() if not
+        if (typeof socket.removeListener === 'function') {
+          socket.removeListener('playersUpdate', handlePlayersUpdate);
+          socket.removeListener('gameRequest', handleGameRequest);
+          socket.removeListener('gameRequestResponse', handleGameRequestResponse);
+        } else {
+          socket.off('playersUpdate', handlePlayersUpdate);
+          socket.off('gameRequest', handleGameRequest);
+          socket.off('gameRequestResponse', handleGameRequestResponse);
+        }
       } catch (error) {
         console.error('Error cleaning up socket listeners:', error);
       }
