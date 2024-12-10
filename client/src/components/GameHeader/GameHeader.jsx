@@ -11,6 +11,7 @@ const GameHeader = ({ currentPlayer }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [isChallengeSent, setIsChallengeSent] = useState(false);
+  const [opponent, setOpponent] = useState(null);
   const [socket, setSocket] = useState(null);
   const navigate = useNavigate();
 
