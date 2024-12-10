@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, List, Input, Button, Avatar, Badge, Space, Divider } from 'antd';
-import { UserOutlined } from 'lucide-react';
+import { UserOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 
