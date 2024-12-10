@@ -8,7 +8,7 @@ import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
-import { chatService } from '../../services/websocketService';
+import initializeWebSocket from '../../services/websocketService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
 
@@ -39,6 +39,45 @@ function Lobby() {
   const [currentScores, setCurrentScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
+
+  // socket state
+  const [socket, setSocket] = useState(null);
+  const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [isMultiplayerModalVisible, setIsMultiplayerModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (currentPlayer?.player_id) {
+      initializeWebSocket(gameId, currentPlayer.player_id)
+        .then(socketConnection => {
+          setSocket(socketConnection);
+          
+          // Set up socket event listeners
+          socketConnection.on('connect', () => {
+            console.log('Connected to game server');
+            socketConnection.emit('playerJoined', {
+              id: currentPlayer.player_id,
+              name: currentPlayer.name,
+              score: playerTotal
+            });
+          });
+
+          socketConnection.on('playersUpdate', (players) => {
+            console.log('Received players update:', players);
+            setAvailablePlayers(players);
+          });
+        })
+        .catch(error => {
+          console.error('WebSocket connection error:', error);
+          message.error('Failed to connect to game server');
+        });
+    }
+
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [currentPlayer?.player_id]);
 
   // Opponent-specific state
   const [opponentState, setOpponentState] = useState({
@@ -292,9 +331,14 @@ function Lobby() {
   }, [opponentState.isOpponentTurn, gameId, calculateScores]);
 
   // Handle new game
-  const handleNewGame = async () => {
+  const handleNewGame = async (gameType = 'singleplayer') => {
     if (!currentPlayer?.player_id) {
       message.error('No player found');
+      return;
+    }
+
+    if (gameType === 'multiplayer') {
+      setIsMultiplayerModalVisible(true);
       return;
     }
   
@@ -396,6 +440,26 @@ function Lobby() {
       message.error('Failed to start new game');
       setIsNewGame(true);
       setGameId(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePlayerSelect = async (selectedPlayer) => {
+    try {
+      setIsLoading(true);
+      // Create a new multiplayer game
+      const result = await initializeGame(currentPlayer, 'multiplayer', setGameId);
+      if (result.success) {
+        socket.emit('gameStarted', {
+          gameId: result.gameId,
+          players: [currentPlayer.player_id, selectedPlayer.id]
+        });
+        message.success('Multiplayer game started!');
+      }
+    } catch (error) {
+      console.error('Error starting multiplayer game:', error);
+      message.error('Failed to start multiplayer game');
     } finally {
       setIsLoading(false);
     }
@@ -537,6 +601,11 @@ function Lobby() {
     upperSectionTotal,
     upperSectionBonus,
     opponentState,
+    socket,
+    isMultiplayerModalVisible,
+    availablePlayers,
+    setIsMultiplayerModalVisible,
+    onPlayerSelect: handlePlayerSelect,
     handleNewGame,
     handleLogout: () => handleLogout(navigate),
     handleRollDice: handleDiceRoll,
