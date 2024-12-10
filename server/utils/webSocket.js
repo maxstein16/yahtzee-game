@@ -1,59 +1,72 @@
-const messages = new Map();
-const activeUsers = new Map(); // Track active users per game
+const chatRooms = new Map(); // Store chat rooms and their messages
 
 function initializeWebSocket(io) {
   io.on('connection', (socket) => {
     const { gameId, playerId, playerName } = socket.handshake.query;
-
+    
     console.log(`Player ${playerName} (${playerId}) connected to game ${gameId}`);
-
-    if (!activeUsers.has(gameId)) {
-      activeUsers.set(gameId, new Map());
-    }
-    activeUsers.get(gameId).set(playerId, { playerName, socketId: socket.id });
-
+    
+    // Join chat room for this game
     socket.join(`game:${gameId}`);
+    
+    // Initialize chat room if it doesn't exist
+    if (!chatRooms.has(gameId)) {
+      chatRooms.set(gameId, {
+        messages: [],
+        participants: new Map()
+      });
+    }
 
-    io.in(`game:${gameId}`).emit('player_joined', {
+    // Add player to participants
+    const room = chatRooms.get(gameId);
+    room.participants.set(playerId, {
+      name: playerName,
+      socketId: socket.id
+    });
+    
+    // Send chat history to newly connected player
+    socket.emit('chat_history', room.messages);
+    
+    // Notify room about new player
+    io.to(`game:${gameId}`).emit('player_joined', {
       playerId,
       playerName,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     });
 
-    const gameMessages = messages.get(gameId) || [];
-    socket.emit('chat_history', gameMessages);
-
+    // Handle new messages
     socket.on('chat_message', (message) => {
       const enhancedMessage = {
         ...message,
-        playerName,
-        timestamp: new Date().toISOString(),
+        messageId: Date.now(), // Add unique ID for message
+        timestamp: new Date().toISOString()
       };
-
-      if (!messages.has(gameId)) {
-        messages.set(gameId, []);
-      }
-      messages.get(gameId).push(enhancedMessage);
-
-      io.in(`game:${gameId}`).emit('chat_message', enhancedMessage);
+      
+      // Store message in room history
+      room.messages.push(enhancedMessage);
+      
+      // Broadcast to all clients in the room, including sender
+      io.to(`game:${gameId}`).emit('chat_message', enhancedMessage);
     });
 
+    // Handle client disconnect
     socket.on('disconnect', () => {
-      activeUsers.get(gameId).delete(playerId);
-      if (activeUsers.get(gameId).size === 0) {
-        activeUsers.delete(gameId);
+      console.log(`Player ${playerName} disconnected from game ${gameId}`);
+      
+      // Remove player from participants
+      room.participants.delete(playerId);
+      
+      // Remove room if empty
+      if (room.participants.size === 0) {
+        chatRooms.delete(gameId);
       }
-
-      io.in(`game:${gameId}`).emit('player_left', {
+      
+      // Notify room about player leaving
+      io.to(`game:${gameId}`).emit('player_left', {
         playerId,
         playerName,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       });
-    });
-
-    socket.on('error', (error) => {
-      console.error('Socket error:', error);
-      socket.emit('error', 'An error occurred');
     });
   });
 }

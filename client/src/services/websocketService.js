@@ -7,6 +7,7 @@ class WebSocketService {
     this.connectionHandlers = new Set();
     this.playerJoinHandlers = new Set();
     this.playerLeaveHandlers = new Set();
+    this.messages = []; // Store messages locally
   }
 
   connect(gameId, playerId, playerName) {
@@ -26,6 +27,7 @@ class WebSocketService {
       reconnectionDelay: 1000
     });
 
+    // Handle connection events
     this.socket.on('connect', () => {
       console.log('Connected to WebSocket server');
       this.connectionHandlers.forEach(handler => handler(true));
@@ -36,18 +38,23 @@ class WebSocketService {
       this.connectionHandlers.forEach(handler => handler(false));
     });
 
-    this.socket.on('chat_message', (message) => {
-      console.log('Received message:', message);
-      this.messageHandlers.forEach(handler => handler(message));
-    });
-
+    // Handle chat history
     this.socket.on('chat_history', (messages) => {
       console.log('Received chat history:', messages);
+      this.messages = messages; // Store messages locally
       messages.forEach(message => {
         this.messageHandlers.forEach(handler => handler(message));
       });
     });
 
+    // Handle new messages
+    this.socket.on('chat_message', (message) => {
+      console.log('Received message:', message);
+      this.messages.push(message); // Add to local storage
+      this.messageHandlers.forEach(handler => handler(message));
+    });
+
+    // Handle player events
     this.socket.on('player_joined', (data) => {
       console.log('Player joined:', data);
       this.playerJoinHandlers.forEach(handler => handler(data));
@@ -71,6 +78,12 @@ class WebSocketService {
     return false;
   }
 
+  // Get all messages for current game
+  getMessages() {
+    return this.messages;
+  }
+
+  // Event handlers
   onMessage(handler) {
     this.messageHandlers.add(handler);
     return () => this.messageHandlers.delete(handler);
@@ -96,6 +109,7 @@ class WebSocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.messages = []; // Clear stored messages
     this.messageHandlers.clear();
     this.connectionHandlers.clear();
     this.playerJoinHandlers.clear();
