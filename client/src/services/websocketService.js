@@ -1,3 +1,4 @@
+import io from 'socket.io-client';
 class WebSocketService {
   constructor() {
     this.socket = null;
