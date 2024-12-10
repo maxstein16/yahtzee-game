@@ -8,10 +8,9 @@ const MultiplayerModal = ({
   onClose, 
   onPlayerSelect, 
   currentPlayerId,
-  socket,
-  availablePlayers
+  socket 
 }) => {
-  const [players, setPlayers] = useState(availablePlayers);
+  const [players, setPlayers] = useState([]);
   const [pendingRequests, setPendingRequests] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -48,10 +47,6 @@ const MultiplayerModal = ({
       message.error('Player declined your game request');
     }
   };
-
-  useEffect(() => {
-    setPlayers(availablePlayers);
-  }, [availablePlayers]);
 
   useEffect(() => {
     if (!socket || !visible) {
