@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, List, Button, Avatar, Badge, message, Spin } from 'antd';
 import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
+import PropTypes from 'prop-types';
 
 const MultiplayerModal = ({ 
   visible, 
@@ -14,55 +15,70 @@ const MultiplayerModal = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (socket && visible) {
-      // Listen for available players updates
-      socket.on('playersUpdate', (connectedPlayers) => {
-        setPlayers(connectedPlayers.filter(p => p.id !== currentPlayerId));
-        setLoading(false);
-      });
-
-      // Listen for game requests
-      socket.on('gameRequest', (requestingPlayer) => {
-        Modal.confirm({
-          title: 'Game Request',
-          content: `${requestingPlayer.name} wants to play with you!`,
-          onOk: () => {
-            socket.emit('acceptGame', requestingPlayer.id);
-            onPlayerSelect(requestingPlayer);
-            onClose();
-          },
-          onCancel: () => {
-            socket.emit('rejectGame', requestingPlayer.id);
-          }
-        });
-      });
-
-      // Listen for request responses
-      socket.on('gameRequestResponse', ({ playerId, accepted }) => {
-        setPendingRequests(prev => ({ ...prev, [playerId]: false }));
-        if (accepted) {
-          const player = players.find(p => p.id === playerId);
-          onPlayerSelect(player);
-          onClose();
-        } else {
-          message.error('Player declined your game request');
-        }
-      });
-
-      // Request current players list
-      socket.emit('getPlayers');
+    if (!socket || !visible) {
+      return;
     }
 
-    return () => {
-      if (socket) {
-        socket.off('playersUpdate');
-        socket.off('gameRequest');
-        socket.off('gameRequestResponse');
+    const handlePlayersUpdate = (connectedPlayers) => {
+      setPlayers(connectedPlayers.filter(p => p.id !== currentPlayerId));
+      setLoading(false);
+    };
+
+    const handleGameRequest = (requestingPlayer) => {
+      Modal.confirm({
+        title: 'Game Request',
+        content: `${requestingPlayer.name} wants to play with you!`,
+        onOk: () => {
+          socket.emit('acceptGame', requestingPlayer.id);
+          onPlayerSelect(requestingPlayer);
+          onClose();
+        },
+        onCancel: () => {
+          socket.emit('rejectGame', requestingPlayer.id);
+        }
+      });
+    };
+
+    const handleGameRequestResponse = ({ playerId, accepted }) => {
+      setPendingRequests(prev => ({ ...prev, [playerId]: false }));
+      if (accepted) {
+        const player = players.find(p => p.id === playerId);
+        if (player) {
+          onPlayerSelect(player);
+          onClose();
+        }
+      } else {
+        message.error('Player declined your game request');
       }
     };
-  }, [socket, visible, currentPlayerId, players, onPlayerSelect, onClose]);
+
+    // Add event listeners
+    socket.on('playersUpdate', handlePlayersUpdate);
+    socket.on('gameRequest', handleGameRequest);
+    socket.on('gameRequestResponse', handleGameRequestResponse);
+
+    // Request current players list
+    socket.emit('getPlayers');
+
+    // Cleanup function
+    return () => {
+      try {
+        // Remove event listeners using removeListener
+        socket.removeListener('playersUpdate', handlePlayersUpdate);
+        socket.removeListener('gameRequest', handleGameRequest);
+        socket.removeListener('gameRequestResponse', handleGameRequestResponse);
+      } catch (error) {
+        console.error('Error cleaning up socket listeners:', error);
+      }
+    };
+  }, [socket, visible, currentPlayerId, onPlayerSelect, onClose]);
 
   const handleRequestGame = (playerId) => {
+    if (!socket) {
+      message.error('Socket connection not available');
+      return;
+    }
+
     setPendingRequests(prev => ({ ...prev, [playerId]: true }));
     socket.emit('requestGame', playerId);
   };
@@ -90,11 +106,14 @@ const MultiplayerModal = ({
           dataSource={players}
           renderItem={(player) => (
             <List.Item
+              key={player.id}
               actions={[
                 <Button
+                  key="request"
                   type="primary"
                   loading={pendingRequests[player.id]}
                   onClick={() => handleRequestGame(player.id)}
+                  disabled={!socket}
                 >
                   Request Game
                 </Button>
@@ -115,6 +134,14 @@ const MultiplayerModal = ({
       )}
     </Modal>
   );
+};
+
+MultiplayerModal.propTypes = {
+  visible: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onPlayerSelect: PropTypes.func.isRequired,
+  currentPlayerId: PropTypes.string.isRequired,
+  socket: PropTypes.object
 };
 
 export default MultiplayerModal;
