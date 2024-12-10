@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, List, Input, Button, Avatar, Badge, Space, Divider } from 'antd';
+import { Card, List, Input, Button, Avatar, Badge, Space } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 
-const LobbyChat = ({ gameId, currentPlayer, socket, availablePlayers, onPlayerSelect }) => {
+const LobbyChat = ({ currentPlayer, socket, availablePlayers, onPlayerSelect }) => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
+  const [onlinePlayers, setOnlinePlayers] = useState([]);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -16,15 +17,26 @@ const LobbyChat = ({ gameId, currentPlayer, socket, availablePlayers, onPlayerSe
   useEffect(() => {
     if (!socket) return;
 
+    // Listen for chat messages
     socket.on('chatMessage', (message) => {
       setMessages(prev => [...prev, message]);
     });
 
+    // Listen for player updates
+    socket.on('playersUpdate', (players) => {
+      // Filter out current player from the list
+      const otherPlayers = players.filter(p => p.playerId !== currentPlayer.player_id);
+      setOnlinePlayers(otherPlayers);
+    });
+
+    // Clean up listeners on unmount
     return () => {
       socket.off('chatMessage');
+      socket.off('playersUpdate');
     };
-  }, [socket]);
+  }, [socket, currentPlayer]);
 
+  // Scroll to bottom whenever messages update
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -33,8 +45,6 @@ const LobbyChat = ({ gameId, currentPlayer, socket, availablePlayers, onPlayerSe
     if (!messageInput.trim() || !socket) return;
 
     const messageData = {
-      gameId,
-      sender: currentPlayer.name,
       content: messageInput.trim(),
       timestamp: new Date().toISOString()
     };
@@ -48,7 +58,7 @@ const LobbyChat = ({ gameId, currentPlayer, socket, availablePlayers, onPlayerSe
       {/* Players List */}
       <Card className="mb-4" title="Online Players">
         <List
-          dataSource={availablePlayers}
+          dataSource={onlinePlayers}
           renderItem={player => (
             <List.Item
               actions={[
@@ -71,7 +81,7 @@ const LobbyChat = ({ gameId, currentPlayer, socket, availablePlayers, onPlayerSe
               />
             </List.Item>
           )}
-          locale={{ emptyText: 'No players online' }}
+          locale={{ emptyText: 'No other players online' }}
         />
       </Card>
 
@@ -91,6 +101,9 @@ const LobbyChat = ({ gameId, currentPlayer, socket, availablePlayers, onPlayerSe
               key={idx} 
               className={`mb-2 ${msg.sender === currentPlayer.name ? 'text-right' : ''}`}
             >
+              <div className="text-xs text-gray-500">
+                {new Date(msg.timestamp).toLocaleTimeString()}
+              </div>
               <span className="font-bold text-blue-600">{msg.sender}: </span>
               <span>{msg.content}</span>
             </div>
