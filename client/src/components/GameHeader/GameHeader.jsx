@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Button, Modal, List, message } from 'antd';
+import { Layout, Button, Modal, List, message, Avatar, Badge } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import initializeWebSocket from '../../services/websocketService';
 
 const { Header } = Layout;
 
 const GameHeader = ({ currentPlayer }) => {
+  const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [availablePlayers, setAvailablePlayers] = useState([]);
-  const [isChallengeSent, setIsChallengeSent] = useState(false);
-  const [challengedPlayer, setChallengedPlayer] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [challengedPlayer, setChallengedPlayer] = useState(null);
+  const [isChallengeSent, setIsChallengeSent] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,28 +22,33 @@ const GameHeader = ({ currentPlayer }) => {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
 
+        // Announce player joining
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
           name: currentPlayer.name,
         });
 
+        // Update online players
         socketConnection.on('playersUpdate', (players) => {
           const filteredPlayers = players.filter(
-            (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
+            (p) => p.id && p.name && String(p.id) !== String(currentPlayer.player_id)
           );
-          setAvailablePlayers(filteredPlayers);
-        });        
+          setOnlinePlayers(filteredPlayers);
+        });
 
+        // Handle challenge received
         socketConnection.on('challengeReceived', ({ challenger }) => {
           setChallengedPlayer(challenger);
           message.info(`${challenger.name} has challenged you!`);
         });
 
+        // Handle challenge accepted
         socketConnection.on('challengeAccepted', (game) => {
           message.success('Challenge accepted! Game started.');
           navigate(`/game/${game.game_id}`);
         });
 
+        // Handle challenge rejected
         socketConnection.on('challengeRejected', (challengerId) => {
           if (challengerId === currentPlayer.player_id) {
             message.info('Your challenge was rejected.');
@@ -64,9 +70,8 @@ const GameHeader = ({ currentPlayer }) => {
   }, [currentPlayer, navigate]);
 
   const handleChallenge = async (opponent) => {
-    console.log('Challenging player:', opponent);
     if (!socket || !currentPlayer?.player_id || !opponent.id) return;
-  
+
     try {
       await socket.emit('challengePlayer', {
         challengerId: currentPlayer.player_id,
@@ -80,7 +85,7 @@ const GameHeader = ({ currentPlayer }) => {
       console.error('Error sending challenge:', error);
       message.error('Failed to send challenge');
     }
-  };  
+  };
 
   const handleAcceptChallenge = () => {
     if (!socket || !challengedPlayer) return;
@@ -106,16 +111,23 @@ const GameHeader = ({ currentPlayer }) => {
 
       {/* Multiplayer Modal */}
       <Modal
-        title="Available Players"
+        title={`Other Players Online (${onlinePlayers.length})`}
         visible={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
       >
         <List
-          dataSource={availablePlayers}
+          dataSource={onlinePlayers}
           renderItem={(player) => (
             <List.Item>
-              {player.name}
+              <List.Item.Meta
+                avatar={
+                  <Badge status="success" dot>
+                    <Avatar icon={<UserOutlined />} />
+                  </Badge>
+                }
+                title={player.name}
+              />
               <Button
                 onClick={() => handleChallenge(player)}
                 disabled={isChallengeSent && challengedPlayer?.id === player.id}
@@ -126,6 +138,7 @@ const GameHeader = ({ currentPlayer }) => {
               </Button>
             </List.Item>
           )}
+          locale={{ emptyText: 'No other players online' }}
         />
       </Modal>
 
