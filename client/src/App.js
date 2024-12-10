@@ -30,6 +30,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/multiplayer"
+          element={
+            <ProtectedRoute>
+              <MultiplayerPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/singleplayer"
+          element={
+            <ProtectedRoute>
+              <SingleplayerPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
