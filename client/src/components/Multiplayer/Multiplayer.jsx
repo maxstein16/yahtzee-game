@@ -26,8 +26,6 @@ const Multiplayer = ({
   const [scores, setScores] = useState({});
   const [playerCategories, setPlayerCategories] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(true);
-  const [socket, setSocket] = useState(null);
-  const [opponent, setOpponent] = useState(null);
 
   // Opponent state
   const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
