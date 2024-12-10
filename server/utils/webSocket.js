@@ -1,61 +1,47 @@
-const messages = new Map();
-const activeUsers = new Map(); // Track active users per game
+const io = require('./server').io;
 
-function initializeWebSocket(io) {
-  io.on('connection', (socket) => {
-    const { gameId, playerId, playerName } = socket.handshake.query;
+const activePlayers = {}; // Track connected players
 
-    console.log(`Player ${playerName} (${playerId}) connected to game ${gameId}`);
+io.on('connection', (socket) => {
+  const { playerId, playerName } = socket.handshake.query;
 
-    if (!activeUsers.has(gameId)) {
-      activeUsers.set(gameId, new Map());
+  // Add player to the active list
+  activePlayers[playerId] = { id: playerId, name: playerName, socketId: socket.id };
+  io.emit('update_players', activePlayers);
+
+  console.log(`${playerName} connected (${playerId})`);
+
+  // Handle game request
+  socket.on('game_request', ({ toPlayerId, fromPlayer }) => {
+    const targetPlayer = activePlayers[toPlayerId];
+    if (targetPlayer) {
+      io.to(targetPlayer.socketId).emit('game_request', { fromPlayer });
     }
-    activeUsers.get(gameId).set(playerId, { playerName, socketId: socket.id });
-
-    socket.join(`game:${gameId}`);
-
-    io.in(`game:${gameId}`).emit('player_joined', {
-      playerId,
-      playerName,
-      timestamp: new Date().toISOString(),
-    });
-
-    const gameMessages = messages.get(gameId) || [];
-    socket.emit('chat_history', gameMessages);
-
-    socket.on('chat_message', (message) => {
-      const enhancedMessage = {
-        ...message,
-        playerName,
-        timestamp: new Date().toISOString(),
-      };
-
-      if (!messages.has(gameId)) {
-        messages.set(gameId, []);
-      }
-      messages.get(gameId).push(enhancedMessage);
-
-      io.in(`game:${gameId}`).emit('chat_message', enhancedMessage);
-    });
-
-    socket.on('disconnect', () => {
-      activeUsers.get(gameId).delete(playerId);
-      if (activeUsers.get(gameId).size === 0) {
-        activeUsers.delete(gameId);
-      }
-
-      io.in(`game:${gameId}`).emit('player_left', {
-        playerId,
-        playerName,
-        timestamp: new Date().toISOString(),
-      });
-    });
-
-    socket.on('error', (error) => {
-      console.error('Socket error:', error);
-      socket.emit('error', 'An error occurred');
-    });
   });
-}
 
-module.exports = { initializeWebSocket };
+  // Handle game request response
+  socket.on('game_response', ({ accepted, fromPlayer, toPlayerId }) => {
+    const targetPlayer = activePlayers[fromPlayer.id];
+    if (targetPlayer) {
+      io.to(targetPlayer.socketId).emit('game_response', { accepted, toPlayerId });
+      if (accepted) {
+        // Notify both players to start the game
+        const gameId = `${fromPlayer.id}-${toPlayerId}-${Date.now()}`;
+        io.to(targetPlayer.socketId).emit('start_game', { gameId });
+        io.to(socket.id).emit('start_game', { gameId });
+      }
+    }
+  });
+
+  // Handle chat message
+  socket.on('chat_message', ({ gameId, message, sender }) => {
+    io.to(`game:${gameId}`).emit('chat_message', { message, sender, timestamp: new Date().toISOString() });
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    delete activePlayers[playerId];
+    io.emit('update_players', activePlayers);
+    console.log(`${playerName} disconnected (${playerId})`);
+  });
+});
