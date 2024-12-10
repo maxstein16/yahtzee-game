@@ -1,9 +1,9 @@
 import React from 'react';
 import { Layout } from 'antd';
 import PropTypes from 'prop-types';
-import GameHeader from '../GameHeader';
-import GameBoard from '../GameBoard';
-import ScoreboardContainer from '../ScoreboardContainer';
+import GameHeader from '../../components/GameHeader/GameHeader';
+import GameBoard from '../../components/GameBoard/GameBoard';
+import ScoreBoard from '../../components/Scoreboard/ScoreBoard';
 
 const { Content } = Layout;
 
@@ -67,7 +67,7 @@ const LobbyView = ({
           opponentState={opponentState}
         />
 
-        <ScoreboardContainer
+        <ScoreBoard
           gameId={gameId}
           currentPlayer={currentPlayer}
           playerCategories={playerCategories}
