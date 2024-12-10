@@ -33,6 +33,7 @@ const GameHeader = ({
       message.error('Unable to send challenge. No connection to server.');
     }
   };
+  
 
   useEffect(() => {
     if (socket) {
