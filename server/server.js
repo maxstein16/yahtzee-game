@@ -20,6 +20,7 @@ const socketToPlayer = new Map();
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
 
+  // Handle player joining
   socket.on('playerJoined', (playerData) => {
     if (!playerData.id || !playerData.name) {
       console.log('Invalid player data:', playerData);
@@ -32,7 +33,7 @@ io.on('connection', (socket) => {
       name: playerData.name,
       socketId: socket.id
     };
-    
+
     connectedPlayers.set(playerData.id, playerInfo);
     socketToPlayer.set(socket.id, playerData.id);
 
@@ -43,6 +44,20 @@ io.on('connection', (socket) => {
     io.emit('playersUpdate', players);
   });
 
+  // Handle challengePlayer event
+  socket.on('challengePlayer', ({ challenger, opponentId }) => {
+    console.log('Challenge initiated:', { challenger, opponentId });
+
+    const opponent = connectedPlayers.get(opponentId);
+    if (opponent) {
+      // Notify the challenged player
+      io.to(opponent.socketId).emit('challengeReceived', { challenger });
+    } else {
+      console.log(`Opponent with ID ${opponentId} not found or not connected.`);
+    }
+  });
+
+  // Handle chat messages
   socket.on('chatMessage', (messageData) => {
     const playerId = socketToPlayer.get(socket.id);
     const player = connectedPlayers.get(playerId);
@@ -62,6 +77,7 @@ io.on('connection', (socket) => {
     io.emit('chatMessage', messageToSend);
   });
 
+  // Handle disconnect
   socket.on('disconnect', () => {
     const playerId = socketToPlayer.get(socket.id);
     if (playerId) {

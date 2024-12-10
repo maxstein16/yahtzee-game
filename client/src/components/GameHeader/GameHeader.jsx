@@ -34,23 +34,27 @@ const GameHeader = ({ currentPlayer }) => {
         });
   
         socketConnection.on('challengeReceived', ({ challenger }) => {
+          console.log('Received challenge from:', challenger);
+        
           Modal.confirm({
             title: `${challenger.name} has challenged you!`,
             content: 'Do you accept the challenge?',
             onOk: async () => {
+              console.log('Challenge accepted');
               socketConnection.emit('challengeResponse', {
                 challengerId: challenger.id,
                 response: 'accepted',
               });
             },
             onCancel: () => {
+              console.log('Challenge rejected');
               socketConnection.emit('challengeResponse', {
                 challengerId: challenger.id,
                 response: 'rejected',
               });
             },
           });
-        });
+        });        
   
         socketConnection.on('gameStarted', (game) => {
           navigate(`/game/${game.game_id}`);
