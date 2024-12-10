@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Space, Button, Dropdown } from 'antd';
-import { Menu } from 'lucide-react';
-import MultiplayerModal from '../Multiplayer/MultiplayerModal';
+import { Layout, Space, Button, Dropdown } from 'antd';
+import { DownOutlined } from '@ant-design/icons';
+import MultiplayerModal from '../../components/Multiplayer/MultiplayerModal';
+
+const { Header } = Layout;
 
 const GameHeader = ({ 
   currentPlayer, 
@@ -16,41 +18,39 @@ const GameHeader = ({
     onStartMultiplayerGame(selectedPlayer);
   };
 
-  // Define menu items
-  const dropdownItems = [
+  const items = [
     {
-      key: '1',
+      key: 'single',
       label: 'Single Player',
-      onClick: () => handleNewGame('single')
+      onClick: () => handleNewGame('singleplayer')
     },
     {
-      key: '2',
+      key: 'multi',
       label: 'Multiplayer',
       onClick: () => setIsMultiplayerModalVisible(true)
     }
   ];
 
   return (
-    <div className="w-full px-4 py-2 bg-red-500 flex justify-between items-center">
-      <Space>
-        <Dropdown
-          menu={{ items: dropdownItems }}
-          placement="bottomLeft"
+    <Header className="top-nav">
+      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Dropdown 
+          menu={{ items }}
+          trigger={['click']}
         >
-          <Button type="default" className="flex items-center gap-2">
-            <Menu className="w-4 h-4" />
-            <span>New Game</span>
+          <Button>
+            New Game <DownOutlined />
           </Button>
         </Dropdown>
-      </Space>
-
-      <Space>
-        <span className="text-white">
-          {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
-        </span>
-        <Button onClick={handleLogout} type="primary" danger>
-          Logout
-        </Button>
+        
+        <Space>
+          <span style={{ color: 'white' }}>
+            {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
+          </span>
+          <Button onClick={handleLogout} type="primary" danger>
+            Logout
+          </Button>
+        </Space>
       </Space>
 
       {isMultiplayerModalVisible && (
@@ -62,7 +62,7 @@ const GameHeader = ({
           socket={socket}
         />
       )}
-    </div>
+    </Header>
   );
 };
 
