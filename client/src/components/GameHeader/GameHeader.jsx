@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Space, Button, Dropdown } from 'antd';
 import { Menu } from 'lucide-react';
-import MultiplayerModal from './MultiplayerModal';
+import MultiplayerModal from '../Multiplayer/MultiplayerModal';
 
 const GameHeader = ({ 
   currentPlayer, 
