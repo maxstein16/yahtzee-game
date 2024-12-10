@@ -59,12 +59,18 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('acceptChallenge', async ({ challengerId, challengerName, acceptorId }) => {
+  socket.on('acceptChallenge', ({ challengerId, challengerName, acceptorId }) => {
     console.log('Challenge accepted:', { challengerId, challengerName, acceptorId });
 
-    const game = await createGame(acceptorId, challengerId);
+    const game = createGame(acceptorId, challengerId);
     io.to(socketToPlayer.get(challengerId)).emit('challengeAccepted', game);
     io.to(socketToPlayer.get(acceptorId)).emit('challengeAccepted', game);
+  });
+
+  socket.on('rejectChallenge', ({ challengerId }) => {
+    console.log('Challenge rejected:', { challengerId });
+
+    io.to(socketToPlayer.get(challengerId)).emit('challengeRejected', challengerId);
   });
 
   socket.on('rejectChallenge', ({ challengerId }) => {

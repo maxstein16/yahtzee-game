@@ -65,15 +65,22 @@ const GameHeader = ({ currentPlayer }) => {
     };
   }, [currentPlayer, navigate]);
 
-  const handleChallenge = (opponent) => {
-    if (!socket) return;
-    socket.emit('challengePlayer', {
-      challengerId: currentPlayer.player_id,
-      challengerName: currentPlayer.name,
-      opponentId: opponent.id,
-    });
-    setIsChallengeSent(true);
-    setChallengedPlayer(opponent);
+  const handleChallenge = async (opponent) => {
+    if (!socket || !currentPlayer?.player_id || !opponent.id) return;
+
+    try {
+      await socket.emit('challengePlayer', {
+        challengerId: currentPlayer.player_id,
+        challengerName: currentPlayer.name,
+        opponentId: opponent.id,
+      });
+      setIsChallengeSent(true);
+      setChallengedPlayer(opponent);
+      message.success(`Challenge sent to ${opponent.name}`);
+    } catch (error) {
+      console.error('Error sending challenge:', error);
+      message.error('Failed to send challenge');
+    }
   };
 
   const handleAcceptChallenge = () => {
