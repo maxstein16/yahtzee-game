@@ -20,7 +20,7 @@ const GameHeader = ({
       // Emit a game challenge to the selected opponent
       socket.emit('gameChallenge', {
         challenger: { id: currentPlayer.player_id, name: currentPlayer.name },
-        opponentId: opponent.id,
+        opponentId: opponent.id
       });
       message.info(`Challenge sent to ${opponent.name}`);
       setPendingChallenge(opponent);
@@ -99,12 +99,12 @@ const GameHeader = ({
       >
         {availablePlayers.length > 0 ? (
           <List
-            dataSource={availablePlayers}
+            dataSource={availablePlayers.filter(player => player.id !== currentPlayer.player_id)}
             renderItem={(player) => (
               <List.Item
                 actions={[
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     onClick={() => handleChallenge(player)}
                     disabled={!!pendingChallenge} // Disable while a challenge is pending
                   >
