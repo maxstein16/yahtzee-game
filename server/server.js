@@ -45,16 +45,32 @@ io.on('connection', (socket) => {
   });
 
   // Handle challengePlayer event
-  socket.on('challengePlayer', ({ challenger, opponentId }) => {
-    console.log('Challenge initiated:', { challenger, opponentId });
+  socket.on('challengePlayer', ({ challengerId, challengerName, opponentId }) => {
+    console.log('Challenge initiated:', { challengerId, challengerName, opponentId });
 
     const opponent = connectedPlayers.get(opponentId);
     if (opponent) {
       // Notify the challenged player
-      io.to(opponent.socketId).emit('challengeReceived', { challenger });
+      io.to(opponent.socketId).emit('challengeReceived', {
+        challenger: { id: challengerId, name: challengerName },
+      });
     } else {
       console.log(`Opponent with ID ${opponentId} not found or not connected.`);
     }
+  });
+
+  socket.on('acceptChallenge', async ({ challengerId, challengerName, acceptorId }) => {
+    console.log('Challenge accepted:', { challengerId, challengerName, acceptorId });
+
+    const game = await createGame(acceptorId, challengerId);
+    io.to(socketToPlayer.get(challengerId)).emit('challengeAccepted', game);
+    io.to(socketToPlayer.get(acceptorId)).emit('challengeAccepted', game);
+  });
+
+  socket.on('rejectChallenge', ({ challengerId }) => {
+    console.log('Challenge rejected:', { challengerId });
+
+    io.to(socketToPlayer.get(challengerId)).emit('challengeRejected', challengerId);
   });
 
   // Handle chat messages

@@ -11,7 +11,7 @@ const GameHeader = ({ currentPlayer }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [isChallengeSent, setIsChallengeSent] = useState(false);
-  const [opponent, setOpponent] = useState(null);
+  const [challengedPlayer, setChallengedPlayer] = useState(null);
   const [socket, setSocket] = useState(null);
   const navigate = useNavigate();
 
@@ -35,14 +35,21 @@ const GameHeader = ({ currentPlayer }) => {
           setAvailablePlayers(filteredPlayers);
         });
 
-        socketConnection.on('challengeResponse', ({ response }) => {
-          if (response === 'accepted') {
-            console.log('Challenge accepted');
-            // Create the game and navigate to the game page
-            createGameAndNavigate(socketConnection);
-          } else {
-            console.log('Challenge rejected');
+        socketConnection.on('challengeReceived', ({ challenger }) => {
+          setChallengedPlayer(challenger);
+          message.info(`${challenger.name} has challenged you!`);
+        });
+
+        socketConnection.on('challengeAccepted', (game) => {
+          message.success('Challenge accepted! Game started.');
+          navigate(`/game/${game.game_id}`);
+        });
+
+        socketConnection.on('challengeRejected', (challengerId) => {
+          if (challengerId === currentPlayer.player_id) {
+            message.info('Your challenge was rejected.');
             setIsChallengeSent(false);
+            setChallengedPlayer(null);
           }
         });
       } catch (error) {
@@ -56,26 +63,34 @@ const GameHeader = ({ currentPlayer }) => {
     return () => {
       if (socket) socket.disconnect();
     };
-  }, [currentPlayer]);
+  }, [currentPlayer, navigate]);
 
   const handleChallenge = (opponent) => {
     if (!socket) return;
     socket.emit('challengePlayer', {
-      challenger: { id: currentPlayer.player_id, name: currentPlayer.name },
+      challengerId: currentPlayer.player_id,
+      challengerName: currentPlayer.name,
       opponentId: opponent.id,
     });
     setIsChallengeSent(true);
+    setChallengedPlayer(opponent);
   };
 
-  const createGameAndNavigate = async (socketConnection) => {
-    try {
-      const game = await createGame(currentPlayer.player_id, opponent.id);
-      message.success('Game started!');
-      navigate(`/game/${game.game_id}`);
-    } catch (error) {
-      console.error('Error creating game:', error);
-      message.error('Failed to start a new game');
-    }
+  const handleAcceptChallenge = () => {
+    if (!socket || !challengedPlayer) return;
+    socket.emit('acceptChallenge', {
+      challengerId: challengedPlayer.id,
+      challengerName: challengedPlayer.name,
+      acceptorId: currentPlayer.player_id,
+    });
+  };
+
+  const handleRejectChallenge = () => {
+    if (!socket || !challengedPlayer) return;
+    socket.emit('rejectChallenge', {
+      challengerId: challengedPlayer.id,
+    });
+    setChallengedPlayer(null);
   };
 
   return (
@@ -103,13 +118,32 @@ const GameHeader = ({ currentPlayer }) => {
               {player.name}
               <Button
                 onClick={() => handleChallenge(player)}
-                disabled={isChallengeSent}
+                disabled={isChallengeSent && challengedPlayer?.id === player.id}
               >
-                {isChallengeSent ? 'Challenge Sent' : 'Challenge'}
+                {isChallengeSent && challengedPlayer?.id === player.id
+                  ? 'Challenge Sent'
+                  : 'Challenge'}
               </Button>
             </List.Item>
           )}
         />
+      </Modal>
+
+      {/* Challenge Received Modal */}
+      <Modal
+        title="Challenge Received"
+        visible={!!challengedPlayer}
+        onCancel={handleRejectChallenge}
+        footer={[
+          <Button key="reject" onClick={handleRejectChallenge}>
+            Reject
+          </Button>,
+          <Button key="accept" type="primary" onClick={handleAcceptChallenge}>
+            Accept
+          </Button>,
+        ]}
+      >
+        <p>{challengedPlayer?.name} has challenged you. Do you want to accept?</p>
       </Modal>
     </Header>
   );
