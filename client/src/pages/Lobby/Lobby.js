@@ -91,10 +91,12 @@ function Lobby() {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <GameHeader 
+      <GameHeader
         currentPlayer={currentPlayer}
         handleNewGame={handleNewGame}
         handleLogout={() => handleLogout(navigate)}
+        socket={socket}
+        availablePlayers={availablePlayers}
       />
       
       <Layout.Content className="p-6">
