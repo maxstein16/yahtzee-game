@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Space, Button, Dropdown, Menu as AntMenu } from 'antd';
+import { Space, Button, Dropdown } from 'antd';
 import { Menu } from 'lucide-react';
 import MultiplayerModal from '../Multiplayer/MultiplayerModal';
 
@@ -16,21 +16,28 @@ const GameHeader = ({
     onStartMultiplayerGame(selectedPlayer);
   };
 
-  const menu = (
-    <AntMenu>
-      <AntMenu.Item key="single" onClick={() => handleNewGame('single')}>
-        Single Player
-      </AntMenu.Item>
-      <AntMenu.Item key="multi" onClick={() => setIsMultiplayerModalVisible(true)}>
-        Multiplayer
-      </AntMenu.Item>
-    </AntMenu>
-  );
+  const menuItems = {
+    items: [
+      {
+        key: 'single',
+        label: 'Single Player',
+        onClick: () => handleNewGame('single')
+      },
+      {
+        key: 'multi',
+        label: 'Multiplayer',
+        onClick: () => setIsMultiplayerModalVisible(true)
+      }
+    ]
+  };
 
   return (
     <div className="w-full px-4 py-2 bg-red-500 flex justify-between items-center">
       <Space>
-        <Dropdown overlay={menu} trigger={['click']}>
+        <Dropdown
+          menu={menuItems}
+          trigger={['click']}
+        >
           <Button className="flex items-center gap-2">
             <Menu className="w-4 h-4" />
             New Game
