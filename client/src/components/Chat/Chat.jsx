@@ -11,6 +11,14 @@ export default function Chat({ gameId, playerId, playerName }) {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
+    console.log('[Chat] Component mounted:', {
+      gameId,
+      playerId,
+      playerName
+    });
+  }, []);
+
+  useEffect(() => {
     // Connect to WebSocket
     chatService.connect(gameId, playerId, playerName);
 
