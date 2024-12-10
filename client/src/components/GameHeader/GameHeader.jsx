@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Layout, Space, Button, Dropdown } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import MultiplayerModal from '../../components/Multiplayer/MultiplayerModal';
+import PropTypes from 'prop-types';
 
 const { Header } = Layout;
 
@@ -10,14 +11,10 @@ const GameHeader = ({
   handleNewGame, 
   handleLogout,
   socket,
-  onStartMultiplayerGame 
+  isMultiplayerModalVisible,
+  setIsMultiplayerModalVisible,
+  onPlayerSelect
 }) => {
-  const [isMultiplayerModalVisible, setIsMultiplayerModalVisible] = useState(false);
-
-  const handlePlayerSelect = (selectedPlayer) => {
-    onStartMultiplayerGame(selectedPlayer);
-  };
-
   const items = [
     {
       key: 'single',
@@ -35,14 +32,15 @@ const GameHeader = ({
     <Header className="top-nav">
       <Space style={{ width: '100%', justifyContent: 'space-between' }}>
         <Dropdown 
-          menu={{ items }}
+          menu={{ items }} 
           trigger={['click']}
         >
-          <Button>
-            New Game <DownOutlined />
-          </Button>
+          <span onClick={e => e.stopPropagation()}>
+            <Button>
+              New Game <DownOutlined />
+            </Button>
+          </span>
         </Dropdown>
-        
         <Space>
           <span style={{ color: 'white' }}>
             {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
@@ -53,17 +51,28 @@ const GameHeader = ({
         </Space>
       </Space>
 
-      {isMultiplayerModalVisible && (
-        <MultiplayerModal
-          visible={isMultiplayerModalVisible}
-          onClose={() => setIsMultiplayerModalVisible(false)}
-          onPlayerSelect={handlePlayerSelect}
-          currentPlayerId={currentPlayer?.player_id}
-          socket={socket}
-        />
-      )}
+      <MultiplayerModal
+        visible={isMultiplayerModalVisible}
+        onClose={() => setIsMultiplayerModalVisible(false)}
+        onPlayerSelect={onPlayerSelect}
+        currentPlayerId={currentPlayer?.player_id}
+        socket={socket}
+      />
     </Header>
   );
+};
+
+GameHeader.propTypes = {
+  currentPlayer: PropTypes.shape({
+    name: PropTypes.string,
+    player_id: PropTypes.string
+  }),
+  handleNewGame: PropTypes.func.isRequired,
+  handleLogout: PropTypes.func.isRequired,
+  socket: PropTypes.object,
+  isMultiplayerModalVisible: PropTypes.bool,
+  setIsMultiplayerModalVisible: PropTypes.func,
+  onPlayerSelect: PropTypes.func
 };
 
 export default GameHeader;

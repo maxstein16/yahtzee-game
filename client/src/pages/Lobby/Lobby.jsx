@@ -72,14 +72,15 @@ const GameHeader = ({
   );
 };
 
-GameHeader.propTypes = {
-  currentPlayer: PropTypes.shape({
-    name: PropTypes.string,
-    player_id: PropTypes.string
-  }),
-  handleNewGame: PropTypes.func.isRequired,
-  handleLogout: PropTypes.func.isRequired
-};
+<GameHeader 
+  currentPlayer={props.currentPlayer}
+  handleNewGame={props.handleNewGame}
+  handleLogout={props.handleLogout}
+  socket={props.socket}
+  isMultiplayerModalVisible={props.isMultiplayerModalVisible}
+  setIsMultiplayerModalVisible={props.setIsMultiplayerModalVisible}
+  onPlayerSelect={props.onPlayerSelect}
+/>
 
 const PlayerSection = ({ 
   isOpponent,
