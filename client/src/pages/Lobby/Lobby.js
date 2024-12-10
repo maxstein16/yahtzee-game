@@ -2,12 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { message, Modal } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
-import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { resetTurnState } from '../../services/gameStateService';
 import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
-import { resetTurnState } from '../../services/gameStateService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
