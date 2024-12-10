@@ -14,6 +14,7 @@ const GameHeader = ({
   const navigate = useNavigate();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [pendingChallenge, setPendingChallenge] = useState(null);
+  const [isChallengePending, setIsChallengePending] = useState(false);
 
   const handleChallenge = (opponent) => {
     if (socket) {
