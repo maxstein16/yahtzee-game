@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Space, Button, message } from 'antd';
-import Dice from '../Dice';
+import Dice from '../../pages/Dice';
 import Scoreboard from '../Scoreboard/ScoreBoard';
 import { handleRollDice, toggleDiceSelection } from '../../services/diceService';
 import { calculateScores } from '../../services/scoreTurnService';
