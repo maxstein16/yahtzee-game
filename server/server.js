@@ -1,6 +1,7 @@
 const http = require('http');
 const { app } = require('./app');
 const { Server } = require('socket.io');
+const API = require('./routes/index');
 
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
@@ -79,7 +80,7 @@ io.on('connection', (socket) => {
   });
 
   // Challenge accepted event
-  socket.on('challengeAccepted', ({ challengerId }) => {
+  socket.on('challengeAccepted', async ({ challengerId }) => {
     const challenger = connectedPlayers.get(challengerId);
 
     if (!challenger) {
@@ -87,10 +88,24 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Notify both players to start the game
-    io.to(challenger.socketId).emit('challengeAccepted');
-    io.to(socket.id).emit('challengeAccepted');
-    console.log(`Game started between ${challenger.name} and ${socketToPlayer.get(socket.id)}`);
+    try {
+      // Create a new game
+      const newGame = await API.createGame('active', 0, challenger.id);
+      const gameId = newGame.game.game_id;
+
+      // Add both players to the game
+      await API.addPlayerToGame(gameId, challenger.id);
+      await API.addPlayerToGame(gameId, socket.id);
+
+      // Notify both players to start the game
+      io.to(challenger.socketId).emit('gameStart', { gameId, opponentId: socket.id });
+      io.to(socket.id).emit('gameStart', { gameId, opponentId: challenger.id });
+
+      console.log(`Game started between ${challenger.name} and ${socketToPlayer.get(socket.id)}`);
+    } catch (error) {
+      console.error('Error starting game:', error);
+      io.to(challenger.socketId).emit('challengeFailed', { message: 'Failed to start the game.' });
+    }
   });
 
   // Challenge rejected event
@@ -106,20 +121,53 @@ io.on('connection', (socket) => {
     io.to(challenger.socketId).emit('challengeRejected', { message: 'Your challenge was declined.' });
   });
 
-  // Disconnect event
-  socket.on('disconnect', () => {
-    const playerId = socketToPlayer.get(socket.id);
-    if (playerId) {
-      connectedPlayers.delete(playerId);
-      socketToPlayer.delete(socket.id);
+  // Dice roll event
+  socket.on('diceRoll', ({ dice, gameId }) => {
+    // Broadcast the dice values to the opponent
+    io.to(socket.id).emit('opponentRoll', { dice });
+  });
 
-      // Update player list
-      const players = Array.from(connectedPlayers.values())
-        .filter(p => p.id && p.name);
-      
-      io.emit('playersUpdate', players);
+  // Score submission event
+  socket.on('scoreCategory', async ({ gameId, categoryName, score }) => {
+    const playerId = socketToPlayer.get(socket.id);
+
+    try {
+      // Submit the score to the server
+      await API.submitGameScore(gameId, playerId, categoryName, score);
+
+      // Broadcast the updated categories to the opponent
+      const categories = await API.getPlayerCategories(playerId);
+      io.to(socket.id).emit('opponentScore', { categories });
+
+      // Get the opponent's player ID
+      const game = await API.getGameById(gameId);
+      const opponentId = game.players.find(p => p !== playerId);
+
+      // Broadcast the updated categories to the opponent
+      const opponentCategories = await API.getPlayerCategories(opponentId);
+      io.to(connectedPlayers.get(opponentId).socketId).emit('opponentScore', { categories: opponentCategories });
+
+      // Change the turn to the opponent
+      io.emit('turnChange', { nextPlayer: opponentId });
+    } catch (error) {
+      console.error('Error submitting score:', error);
     }
   });
+
+// Disconnect event
+socket.on('disconnect', () => {
+  const playerId = socketToPlayer.get(socket.id);
+  if (playerId) {
+    connectedPlayers.delete(playerId);
+    socketToPlayer.delete(socket.id);
+
+    // Update player list
+    const players = Array.from(connectedPlayers.values())
+      .filter(p => p.id && p.name);
+    
+    io.emit('playersUpdate', players);
+  }
+});
 });
 
 server.listen(port, () => {

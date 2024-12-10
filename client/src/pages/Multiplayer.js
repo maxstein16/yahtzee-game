@@ -125,6 +125,8 @@ function MultiplayerPage() {
         currentPlayer={currentPlayer}
         handleNewGame={handleNewGame}
         handleLogout={() => handleLogout(navigate)}
+        socket={socket}
+        availablePlayers={[]} // Pass an empty array for now, we'll update this later
       />
       <Multiplayer
         currentPlayer={currentPlayer}
