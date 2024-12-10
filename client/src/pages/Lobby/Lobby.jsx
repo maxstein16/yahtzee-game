@@ -54,9 +54,30 @@ const LobbyView = ({
         </div>
       </Content>
 
-      {isChatVisible && (
-        <Modal visible footer={null}>
-          <Chat />
+      <MultiplayerLobby
+        isVisible={props.showMultiplayerLobby}
+        onClose={props.onCloseMultiplayerLobby}
+        availablePlayers={props.availablePlayers}
+        pendingRequests={props.pendingRequests}
+        onRequestGame={props.onRequestGame}
+        currentPlayer={props.currentPlayer}
+      />
+
+      {props.gameMode === 'multiplayer' && (
+        <Modal
+          title="Game Chat"
+          open={props.isChatVisible}
+          onCancel={() => props.setIsChatVisible(false)}
+          footer={null}
+          width={400}
+        >
+          {props.gameId && props.currentPlayer && (
+            <Chat
+              gameId={props.gameId}
+              playerId={props.currentPlayer.player_id}
+              playerName={props.currentPlayer.name}
+            />
+          )}
         </Modal>
       )}
     </Layout>
