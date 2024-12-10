@@ -10,10 +10,8 @@ const { Content } = Layout;
 
 const Multiplayer = ({ 
   currentPlayer,
-  gameId,
   onGameEnd,
   socket,
-  opponent
 }) => {
   // Game state
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
@@ -27,7 +25,9 @@ const Multiplayer = ({
   // Opponent state
   const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
   const [opponentCategories, setOpponentCategories] = useState([]);
-  
+  const [gameId, setGameId] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -46,7 +46,7 @@ const Multiplayer = ({
 
     socket.on('gameStart', ({ gameId, opponentId }) => {
       setGameId(gameId);
-      setOpponent(connectedPlayers.get(opponentId));
+      setOpponent(API.getPlayerById(opponentId));
     });
 
     return () => {
@@ -55,7 +55,7 @@ const Multiplayer = ({
       socket.off('turnChange');
       socket.off('gameStart');
     };
-  }, [socket, currentPlayer, connectedPlayers]);
+  }, [socket, currentPlayer, API]);
 
   const handleDiceRoll = async () => {
     if (!isMyTurn) {
