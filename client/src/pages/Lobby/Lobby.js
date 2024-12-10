@@ -6,7 +6,7 @@ import { initializeWebSocket } from '../../services/websocketService';
 import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
-import { calculateScores } from '../../services/scoreTurnService';
+import { calculateScores } from '../../services/scoreTurnService.js';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
