@@ -1,3 +1,20 @@
+import React from 'react';
+import { Layout } from 'antd';
+import PropTypes from 'prop-types';
+import GameHeader from '../GameHeader';
+import GameBoard from '../GameBoard';
+import ScoreboardContainer from '../ScoreboardContainer';
+
+const { Content } = Layout;
+
+const LoadingView = () => (
+  <Layout style={{ height: '100vh' }}>
+    <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div>Loading...</div>
+    </Content>
+  </Layout>
+);
+
 const LobbyView = ({
   currentPlayer,
   gameId,
@@ -16,7 +33,7 @@ const LobbyView = ({
   onTurnComplete,
   isLoading,
   opponentState,
-  // Add new props for multiplayer functionality
+  // Multiplayer props
   socket,
   isMultiplayerModalVisible,
   setIsMultiplayerModalVisible,
@@ -67,7 +84,6 @@ const LobbyView = ({
   );
 };
 
-// Update LobbyView PropTypes to include new props
 LobbyView.propTypes = {
   currentPlayer: PropTypes.shape({
     name: PropTypes.string,
@@ -97,7 +113,7 @@ LobbyView.propTypes = {
     lastCategory: PropTypes.string,
     turnScore: PropTypes.number
   }).isRequired,
-  // Add new prop types
+  // Multiplayer prop types
   socket: PropTypes.object,
   isMultiplayerModalVisible: PropTypes.bool,
   setIsMultiplayerModalVisible: PropTypes.func,
