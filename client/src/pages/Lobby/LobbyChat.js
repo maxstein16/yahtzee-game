@@ -12,7 +12,6 @@ const LobbyChat = ({ currentPlayer }) => {
   const [socket, setSocket] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // Initialize WebSocket connection
   useEffect(() => {
     if (!currentPlayer?.player_id) return;
 
@@ -21,21 +20,29 @@ const LobbyChat = ({ currentPlayer }) => {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
 
-        // Announce player joining
+        // Announce player joining with complete player info
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
           name: currentPlayer.name
         });
 
-        // Listen for player updates
+        // Listen for player updates and filter out current player
         socketConnection.on('playersUpdate', (players) => {
-          const otherPlayers = players.filter(p => p.id !== currentPlayer.player_id);
-          setOnlinePlayers(otherPlayers);
+          console.log('Received players:', players);
+          const filteredPlayers = players.filter(p => 
+            p.id && p.id.toString() !== currentPlayer.player_id.toString()
+          );
+          console.log('Filtered players:', filteredPlayers);
+          setOnlinePlayers(filteredPlayers);
         });
 
         // Listen for chat messages
         socketConnection.on('chatMessage', (message) => {
-          setMessages(prev => [...prev, message]);
+          console.log('Received message:', message);
+          setMessages(prev => [...prev, {
+            ...message,
+            sender: message.sender || currentPlayer.name // Fallback to current player if sender is missing
+          }]);
           setTimeout(scrollToBottom, 100);
         });
 
@@ -47,7 +54,6 @@ const LobbyChat = ({ currentPlayer }) => {
 
     connectSocket();
 
-    // Cleanup on unmount
     return () => {
       if (socket) {
         socket.disconnect();
@@ -55,17 +61,16 @@ const LobbyChat = ({ currentPlayer }) => {
     };
   }, [currentPlayer]);
 
-  // Auto-scroll chat to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Send message handler
   const sendMessage = () => {
     if (!messageInput.trim() || !socket) return;
 
     const messageData = {
       content: messageInput.trim(),
+      sender: currentPlayer.name,
       timestamp: new Date().toISOString()
     };
 
@@ -75,8 +80,7 @@ const LobbyChat = ({ currentPlayer }) => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Online Players List */}
-      <Card className="mb-4" title={`Online Players (${onlinePlayers.length})`}>
+      <Card className="mb-4" title={`Other Players Online (${onlinePlayers.length})`}>
         <List
           dataSource={onlinePlayers}
           renderItem={player => (
@@ -95,7 +99,6 @@ const LobbyChat = ({ currentPlayer }) => {
         />
       </Card>
 
-      {/* Chat Area */}
       <Card 
         title="Game Chat" 
         className="flex-grow"
@@ -113,9 +116,11 @@ const LobbyChat = ({ currentPlayer }) => {
             >
               <div className="text-xs text-gray-500">
                 {new Date(msg.timestamp).toLocaleTimeString()}
+                {msg.sender && ` - ${msg.sender}`}
               </div>
-              <span className="font-bold text-blue-600">{msg.sender}: </span>
-              <span>{msg.content}</span>
+              <div className={`mt-1 ${msg.sender === currentPlayer.name ? 'text-blue-600' : 'text-gray-800'}`}>
+                {msg.content}
+              </div>
             </div>
           ))}
           <div ref={messagesEndRef} />
