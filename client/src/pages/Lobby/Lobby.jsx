@@ -1,5 +1,8 @@
 import React from 'react';
-import { Layout, Typography, Button, Space, Spin, Divider, message } from 'antd';
+import { Layout, Typography, Button, Space, Spin, Dropdown, Modal, List, Avatar } from 'antd';
+import { DownOutlined, UserOutlined } from '@ant-design/icons';
+import { Menu } from '@ant-design/icons';
+import { useState } from 'react';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../Dice';
 import '../../styles/Lobby.css';
@@ -21,21 +24,69 @@ const LoadingView = () => (
   </Layout>
 );
 
-const GameHeader = ({ currentPlayer, handleNewGame, handleLogout }) => (
-  <Header className="top-nav">
-    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-      <Button onClick={handleNewGame}>New Game</Button>
-      <Space>
-        <span style={{ color: 'white' }}>
-          {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
-        </span>
-        <Button onClick={handleLogout} type="primary" danger>
-          Logout
-        </Button>
+const GameHeader = ({ currentPlayer, handleNewGame, handleLogout }) => {
+  const [isMultiplayerModalVisible, setIsMultiplayerModalVisible] = useState(false);
+
+  const menu = (
+    <Menu>
+      <Menu.Item key="single" onClick={() => handleNewGame('singleplayer')}>
+        Single Player
+      </Menu.Item>
+      <Menu.Item key="multi" onClick={() => setIsMultiplayerModalVisible(true)}>
+        Multiplayer
+      </Menu.Item>
+    </Menu>
+  );
+
+  return (
+    <Header className="top-nav">
+      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Dropdown overlay={menu} trigger={['click']}>
+          <Button>
+            New Game <DownOutlined />
+          </Button>
+        </Dropdown>
+        <Space>
+          <span style={{ color: 'white' }}>
+            {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
+          </span>
+          <Button onClick={handleLogout} type="primary" danger>
+            Logout
+          </Button>
+        </Space>
       </Space>
-    </Space>
-  </Header>
-);
+
+      <Modal
+        title="Available Players"
+        open={isMultiplayerModalVisible}
+        onCancel={() => setIsMultiplayerModalVisible(false)}
+        footer={null}
+      >
+        <List
+          className="player-list"
+          itemLayout="horizontal"
+          dataSource={[]} // This would be populated with actual online players
+          loading={true}
+          renderItem={(player) => (
+            <List.Item
+              actions={[
+                <Button type="primary" key="request">
+                  Request Game
+                </Button>
+              ]}
+            >
+              <List.Item.Meta
+                avatar={<Avatar icon={<UserOutlined />} />}
+                title={player.name}
+                description={`Score: ${player.score}`}
+              />
+            </List.Item>
+          )}
+        />
+      </Modal>
+    </Header>
+  );
+};
 
 GameHeader.propTypes = {
   currentPlayer: PropTypes.shape({
