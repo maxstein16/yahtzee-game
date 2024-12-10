@@ -7,20 +7,24 @@ export const initializeWebSocket = (playerId, playerName) => {
   return new Promise((resolve, reject) => {
     try {
       const socket = io(WS_BASE_URL, {
+        path: '/socket.io',
         query: { 
           playerId,
           playerName
         },
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'], // Allow fallback to polling
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        timeout: 10000, // Increase timeout
+        forceNew: true,
+        withCredentials: true, // Enable CORS credentials
       });
 
-      // Basic connection events
+      // Connection event handlers
       socket.on('connect', () => {
         console.log('WebSocket connected successfully');
-        socket.emit('playerConnected', { playerId, playerName });
+        resolve(socket);
       });
 
       socket.on('connect_error', (error) => {
@@ -28,52 +32,29 @@ export const initializeWebSocket = (playerId, playerName) => {
         reject(error);
       });
 
-      // Game-specific events
-      socket.on('gameStarted', (gameData) => {
-        console.log('Game started:', gameData);
-      });
-
-      socket.on('playerTurn', (turnData) => {
-        console.log('Player turn:', turnData);
-      });
-
-      socket.on('gameEnded', (gameData) => {
-        console.log('Game ended:', gameData);
-      });
-
-      // Create a wrapper with common socket methods
-      const socketWrapper = {
-        // Basic socket methods
-        emit: (event, data) => socket.emit(event, data),
-        on: (event, callback) => socket.on(event, callback),
-        off: (event, callback) => socket.off(event, callback),
-        disconnect: () => socket.disconnect(),
-
-        // Game-specific methods
-        sendRoll: (gameId, dice) => {
-          socket.emit('diceRoll', { gameId, dice });
-        },
-        
-        submitScore: (gameId, category, score) => {
-          socket.emit('submitScore', { gameId, category, score });
-        },
-        
-        // Player management
-        getConnectedPlayers: () => {
-          socket.emit('getConnectedPlayers');
-        },
-        
-        sendGameRequest: (toPlayerId) => {
-          socket.emit('sendGameRequest', { toPlayerId });
-        },
-        
-        respondToGameRequest: (requestId, accepted) => {
-          socket.emit('respondToGameRequest', { requestId, accepted });
+      socket.on('disconnect', (reason) => {
+        console.log('WebSocket disconnected:', reason);
+        if (reason === 'io server disconnect') {
+          // Server disconnected, try to reconnect
+          socket.connect();
         }
-      };
+      });
 
-      resolve(socketWrapper);
+      socket.on('reconnect', (attemptNumber) => {
+        console.log('WebSocket reconnected after', attemptNumber, 'attempts');
+      });
+
+      socket.on('reconnect_error', (error) => {
+        console.error('WebSocket reconnection error:', error);
+      });
+
+      socket.on('reconnect_failed', () => {
+        console.error('WebSocket reconnection failed');
+        reject(new Error('Failed to reconnect to server'));
+      });
+
     } catch (error) {
+      console.error('Error initializing WebSocket:', error);
       reject(error);
     }
   });

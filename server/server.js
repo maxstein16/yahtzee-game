@@ -1,84 +1,64 @@
+// server/server.js
+const express = require('express');
 const http = require('http');
-const { app } = require('./app');
 const { Server } = require('socket.io');
+const cors = require('cors');
 
-const port = process.env.PORT || 8080;
+const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.IO
+// Configure CORS
+const corsOptions = {
+  origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+// Configure Socket.IO
 const io = new Server(server, {
+  path: '/socket.io',
   cors: {
     origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
     methods: ['GET', 'POST'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   },
+  allowEIO3: true, // Allow Engine.IO version 3
+  pingTimeout: 60000, // Increase ping timeout
+  pingInterval: 25000, // Increase ping interval
 });
 
-// In-memory storage for player matchmaking and games
-const waitingPlayers = [];
-const activeGames = {};
-
-// Handle WebSocket connections
+// Socket.IO connection handler
 io.on('connection', (socket) => {
-  console.log(`Player connected: ${socket.id}`);
+  console.log('Client connected:', socket.id);
+  const { playerId, playerName } = socket.handshake.query;
 
-  // Handle player requesting to join a multiplayer game
-  socket.on('joinGame', () => {
-    if (waitingPlayers.length > 0) {
-      const opponent = waitingPlayers.pop();
+  // Add player to connected players list
+  socket.playerId = playerId;
+  socket.playerName = playerName;
 
-      // Create a new game session
-      const gameId = `${socket.id}-${opponent.id}`;
-      activeGames[gameId] = {
-        players: [socket.id, opponent.id],
-        gameState: {
-          scores: {},
-          currentPlayer: socket.id,
-          dice: [1, 1, 1, 1, 1],
-        },
-      };
-
-      // Notify players
-      socket.emit('gameStart', { gameId, opponentId: opponent.id });
-      opponent.emit('gameStart', { gameId, opponentId: socket.id });
-    } else {
-      // Add player to waiting list
-      waitingPlayers.push(socket);
-      socket.emit('waitingForPlayer');
-    }
+  // Handle disconnection
+  socket.on('disconnect', (reason) => {
+    console.log('Client disconnected:', socket.id, 'Reason:', reason);
   });
 
-  // Handle dice rolls
-  socket.on('rollDice', ({ gameId }) => {
-    const game = activeGames[gameId];
-    if (!game || !game.players.includes(socket.id)) return;
-
-    // Update dice rolls for the game
-    game.gameState.dice = Array.from({ length: 5 }, () => Math.ceil(Math.random() * 6));
-    io.to(game.players[0]).emit('diceUpdate', { dice: game.gameState.dice });
-    io.to(game.players[1]).emit('diceUpdate', { dice: game.gameState.dice });
+  // Handle errors
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
   });
 
-  // Handle score submission
-  socket.on('submitScore', ({ gameId, score }) => {
-    const game = activeGames[gameId];
-    if (!game || !game.players.includes(socket.id)) return;
-
-    // Update scores
-    game.gameState.scores[socket.id] = score;
-    io.to(game.players[0]).emit('scoreUpdate', { scores: game.gameState.scores });
-    io.to(game.players[1]).emit('scoreUpdate', { scores: game.gameState.scores });
-  });
-
-  // Handle player disconnection
-  socket.on('disconnect', () => {
-    console.log(`Player disconnected: ${socket.id}`);
-
-    // Remove player from waiting list
-    const index = waitingPlayers.findIndex((player) => player.id === socket.id);
-    if (index !== -1) waitingPlayers.splice(index, 1);
-  });
+  // Your existing socket event handlers go here
 });
 
-server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Error handling for the server
+server.on('error', (error) => {
+  console.error('Server error:', error);
+});
+
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
