@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, List, Input, Button, Avatar, Badge, Space } from 'antd';
+import { Card, List, Input, Button, Avatar, Badge, Space, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 
-const LobbyChat = ({ currentPlayer, socket, availablePlayers, onPlayerSelect }) => {
+const LobbyChat = ({ currentPlayer, socket, onPlayerSelect }) => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [onlinePlayers, setOnlinePlayers] = useState([]);
+  const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -17,32 +18,70 @@ const LobbyChat = ({ currentPlayer, socket, availablePlayers, onPlayerSelect }) 
   useEffect(() => {
     if (!socket) return;
 
-    // Listen for chat messages
-    socket.on('chatMessage', (message) => {
-      setMessages(prev => [...prev, message]);
+    // Connection acknowledgment
+    socket.on('connectionAck', () => {
+      setIsConnected(true);
+      // Immediately announce presence
+      socket.emit('playerJoined', {
+        id: currentPlayer.player_id,
+        name: currentPlayer.name
+      });
     });
 
-    // Listen for player updates
+    // Player updates
     socket.on('playersUpdate', (players) => {
-      // Filter out current player from the list
       const otherPlayers = players.filter(p => p.playerId !== currentPlayer.player_id);
       setOnlinePlayers(otherPlayers);
     });
 
-    // Clean up listeners on unmount
+    // Chat messages
+    socket.on('chatMessage', (msg) => {
+      setMessages(prev => [...prev, msg]);
+    });
+
+    // Player notifications
+    socket.on('playerJoinedNotification', (data) => {
+      setMessages(prev => [
+        ...prev,
+        {
+          content: `${data.name} has joined the chat`,
+          timestamp: data.timestamp,
+          type: 'notification'
+        }
+      ]);
+    });
+
+    socket.on('playerLeftNotification', (data) => {
+      setMessages(prev => [
+        ...prev,
+        {
+          content: `${data.name} has left the chat`,
+          timestamp: data.timestamp,
+          type: 'notification'
+        }
+      ]);
+    });
+
     return () => {
-      socket.off('chatMessage');
+      socket.off('connectionAck');
       socket.off('playersUpdate');
+      socket.off('chatMessage');
+      socket.off('playerJoinedNotification');
+      socket.off('playerLeftNotification');
     };
   }, [socket, currentPlayer]);
 
-  // Scroll to bottom whenever messages update
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const sendMessage = () => {
-    if (!messageInput.trim() || !socket) return;
+    if (!messageInput.trim() || !socket || !isConnected) {
+      if (!isConnected) {
+        message.error('Not connected to chat server');
+      }
+      return;
+    }
 
     const messageData = {
       content: messageInput.trim(),
@@ -55,8 +94,7 @@ const LobbyChat = ({ currentPlayer, socket, availablePlayers, onPlayerSelect }) 
 
   return (
     <div className="flex flex-col h-full">
-      {/* Players List */}
-      <Card className="mb-4" title="Online Players">
+      <Card className="mb-4" title={`Online Players (${onlinePlayers.length})`}>
         <List
           dataSource={onlinePlayers}
           renderItem={player => (
@@ -85,7 +123,6 @@ const LobbyChat = ({ currentPlayer, socket, availablePlayers, onPlayerSelect }) 
         />
       </Card>
 
-      {/* Chat Area */}
       <Card 
         title="Game Chat" 
         className="flex-grow"
@@ -99,13 +136,25 @@ const LobbyChat = ({ currentPlayer, socket, availablePlayers, onPlayerSelect }) 
           {messages.map((msg, idx) => (
             <div 
               key={idx} 
-              className={`mb-2 ${msg.sender === currentPlayer.name ? 'text-right' : ''}`}
+              className={`mb-2 ${
+                msg.type === 'notification' 
+                  ? 'text-center text-gray-500 text-sm italic' 
+                  : msg.sender === currentPlayer.name 
+                    ? 'text-right' 
+                    : ''
+              }`}
             >
-              <div className="text-xs text-gray-500">
-                {new Date(msg.timestamp).toLocaleTimeString()}
-              </div>
-              <span className="font-bold text-blue-600">{msg.sender}: </span>
-              <span>{msg.content}</span>
+              {msg.type === 'notification' ? (
+                <div>{msg.content}</div>
+              ) : (
+                <>
+                  <div className="text-xs text-gray-500">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </div>
+                  <span className="font-bold text-blue-600">{msg.sender}: </span>
+                  <span>{msg.content}</span>
+                </>
+              )}
             </div>
           ))}
           <div ref={messagesEndRef} />
@@ -123,10 +172,12 @@ const LobbyChat = ({ currentPlayer, socket, availablePlayers, onPlayerSelect }) 
               }}
               placeholder="Type your message..."
               autoSize={{ minRows: 1, maxRows: 4 }}
+              disabled={!isConnected}
             />
             <Button 
               type="primary"
               onClick={sendMessage}
+              disabled={!isConnected}
             >
               Send
             </Button>

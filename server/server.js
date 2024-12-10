@@ -1,4 +1,3 @@
-// server/server.js
 const http = require('http');
 const { app } = require('./app');
 const { Server } = require('socket.io');
@@ -12,58 +11,79 @@ const io = new Server(server, {
     origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  pingTimeout: 5000, // Reduce ping timeout
+  pingInterval: 10000 // Reduce ping interval
 });
 
-// Store connected players
+// Store connected players with playerId as key for faster lookups
 const connectedPlayers = new Map();
 
-// Handle WebSocket connections
+// Helper function to broadcast player list
+const broadcastPlayerList = () => {
+  const playersList = Array.from(connectedPlayers.values());
+  io.emit('playersUpdate', playersList);
+};
+
 io.on('connection', (socket) => {
   console.log(`New connection: ${socket.id}`);
 
-  // Handle player joining
+  // Immediately acknowledge connection
+  socket.emit('connectionAck', { connected: true });
+
   socket.on('playerJoined', (player) => {
     console.log('Player joined:', player);
     
-    // Store player information
-    connectedPlayers.set(socket.id, {
+    // Store player information using playerId as key
+    const playerInfo = {
       socketId: socket.id,
       playerId: player.id,
       name: player.name
-    });
+    };
+    
+    connectedPlayers.set(player.id, playerInfo);
 
-    // Broadcast updated player list to all connected clients
-    const playersList = Array.from(connectedPlayers.values());
-    io.emit('playersUpdate', playersList);
+    // Immediately send current player list to the newly connected player
+    socket.emit('playersUpdate', Array.from(connectedPlayers.values()));
+    
+    // Then broadcast to everyone else
+    socket.broadcast.emit('playersUpdate', Array.from(connectedPlayers.values()));
+    
+    // Broadcast new player notification
+    socket.broadcast.emit('playerJoinedNotification', {
+      name: player.name,
+      timestamp: new Date().toISOString()
+    });
   });
 
-  // Handle chat messages
   socket.on('chatMessage', (message) => {
-    // Get sender info
-    const sender = connectedPlayers.get(socket.id);
+    // Find player by socket ID
+    const sender = Array.from(connectedPlayers.values()).find(p => p.socketId === socket.id);
     if (!sender) return;
 
-    // Broadcast message to all connected clients
     const formattedMessage = {
       ...message,
       sender: sender.name,
       timestamp: new Date().toISOString()
     };
     
+    // Broadcast immediately
     io.emit('chatMessage', formattedMessage);
   });
 
-  // Handle disconnection
   socket.on('disconnect', () => {
-    console.log(`Player disconnected: ${socket.id}`);
-    
-    // Remove player from connected players
-    connectedPlayers.delete(socket.id);
-
-    // Broadcast updated player list
-    const playersList = Array.from(connectedPlayers.values());
-    io.emit('playersUpdate', playersList);
+    // Find and remove the disconnected player
+    const disconnectedPlayer = Array.from(connectedPlayers.values()).find(p => p.socketId === socket.id);
+    if (disconnectedPlayer) {
+      connectedPlayers.delete(disconnectedPlayer.playerId);
+      
+      // Broadcast updated list and disconnection notification
+      broadcastPlayerList();
+      socket.broadcast.emit('playerLeftNotification', {
+        name: disconnectedPlayer.name,
+        timestamp: new Date().toISOString()
+      });
+    }
   });
 });
 
