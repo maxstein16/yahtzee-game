@@ -15,60 +15,65 @@ const GameHeader = ({ currentPlayer }) => {
 
   useEffect(() => {
     if (!currentPlayer?.player_id) return;
-
+  
     const connectSocket = async () => {
       try {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
-
-        // Announce player joining with complete player info
+  
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
-          name: currentPlayer.name
+          name: currentPlayer.name,
         });
-
-        // Listen for player updates and filter out current player and invalid entries
+  
         socketConnection.on('playersUpdate', (players) => {
-          const filteredPlayers = players.filter(p => 
-            p.id && 
-            p.name && 
-            p.id.toString() !== currentPlayer.player_id.toString()
+          const filteredPlayers = players.filter(
+            (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
           );
           setAvailablePlayers(filteredPlayers);
+        });
+  
+        socketConnection.on('challengeReceived', ({ challenger }) => {
+          Modal.confirm({
+            title: `${challenger.name} has challenged you!`,
+            content: 'Do you accept the challenge?',
+            onOk: async () => {
+              socketConnection.emit('challengeResponse', {
+                challengerId: challenger.id,
+                response: 'accepted',
+              });
+            },
+            onCancel: () => {
+              socketConnection.emit('challengeResponse', {
+                challengerId: challenger.id,
+                response: 'rejected',
+              });
+            },
+          });
+        });
+  
+        socketConnection.on('gameStarted', (game) => {
+          navigate(`/game/${game.game_id}`);
         });
       } catch (error) {
         console.error('Socket connection error:', error);
         message.error('Failed to connect to game server');
       }
     };
-
+  
     connectSocket();
-
+  
     return () => {
-      if (socket) {
-        socket.disconnect();
-      }
+      if (socket) socket.disconnect();
     };
   }, [currentPlayer]);
 
-  const handleChallenge = async (opponentId) => {
-    if (!currentPlayer?.player_id || !opponentId) {
-      console.error('Missing player IDs');
-      message.error('Failed to start a new game');
-      return;
-    }
-  
-    try {
-      const game = await createGame(currentPlayer.player_id, opponentId);
-      message.success('Game created! Waiting for the opponent...');
-      setIsModalVisible(false);
-  
-      // Navigate to the game page or trigger socket connection for real-time updates
-      navigate(`/game/${game.game.game_id}`);
-    } catch (error) {
-      console.error('Error creating game:', error);
-      message.error('Failed to start a new game');
-    }
+  const handleChallenge = (opponent) => {
+    if (!socket) return;
+    socket.emit('challengePlayer', {
+      challenger: currentPlayer,
+      opponentId: opponent.id,
+    });
   };
 
   return (
@@ -94,7 +99,7 @@ const GameHeader = ({ currentPlayer }) => {
           renderItem={(player) => (
             <List.Item>
               {player.name}
-              <Button onClick={() => handleChallenge(player.id)}>Challenge</Button>
+              <Button onClick={() => handleChallenge(player)}>Challenge</Button>
             </List.Item>
           )}
         />
