@@ -61,10 +61,6 @@ export const register = async (userData) => apiRequest('/players/register', 'POS
 
 // Game Management
 export const createGame = (player1Id, player2Id) => {
-  if (!playerId) {
-    throw new Error('Player ID is required to create a game');
-  }
-  
   return apiRequest('/game', 'POST', {
     status: 'in_progress',
     round: 1,
