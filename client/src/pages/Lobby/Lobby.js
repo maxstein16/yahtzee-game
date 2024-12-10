@@ -1,13 +1,14 @@
 // src/components/Lobby/Lobby.js
 import React, { useState, useEffect } from 'react';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { initializeWebSocket } from '../../services/websocketService';
+import { resetTurnState } from '../../services/gameStateService';
 import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
-import { calculateScores } from '../../services/scoreTurnService.js';
+import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
+import { chatService } from '../../services/websocketService';
 import LobbyView from './Lobby.jsx';
 import API from '../../utils/api';
 
@@ -19,7 +20,7 @@ function Lobby() {
   // Basic game state
   const [gameId, setGameId] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
-  const [setIsNewGame] = useState(false);
+  const [isNewGame, setIsNewGame] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [shouldResetScores, setShouldResetScores] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,12 +39,6 @@ function Lobby() {
   const [currentScores, setCurrentScores] = useState({});
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
-
-  // Add new multiplayer-specific state
-  const [websocket, setWebsocket] = useState(null);
-  const [gameMode, setGameMode] = useState('single');
-  const [opponent, setOpponent] = useState(null);
-  const [isMyTurn, setIsMyTurn] = useState(true);
 
   // Opponent-specific state
   const [opponentState, setOpponentState] = useState({
@@ -98,80 +93,6 @@ function Lobby() {
       total
     };
   };
-
-  const resetGameState = () => {
-    // Reset dice and turn state
-    setDiceValues(INITIAL_DICE_VALUES);
-    setSelectedDice([]);
-    setRollCount(0);
-    setIsRolling(false);
-    setCurrentScores({});
-  
-    // Reset scoring state
-    setHasYahtzee(false);
-    setYahtzeeBonus(0);
-    setUpperSectionTotal(0);
-    setUpperSectionBonus(0);
-    setPlayerTotal(0);
-  
-    // Reset opponent state
-    setOpponentState({
-      categories: [],
-      dice: INITIAL_DICE_VALUES,
-      score: 0,
-      rollCount: 0,
-      isOpponentTurn: false,
-      lastCategory: null,
-      turnScore: 0
-    });
-  
-    // Reset multiplayer-specific state if needed
-    if (gameMode === 'multiplayer') {
-      setIsMyTurn(true);
-    }
-  
-    // Force scoreboard reset
-    setShouldResetScores(true);
-    // Reset shouldResetScores after a brief delay
-    setTimeout(() => {
-      setShouldResetScores(false);
-    }, 100);
-  };
-
-  useEffect(() => {
-    if (currentPlayer) {
-      initializeWebSocket(currentPlayer.player_id, currentPlayer.name)
-        .then(socket => {
-          setWebsocket(socket);
-          
-          // Set up game event listeners
-          socket.on('turnChanged', ({ currentTurn, lastScore }) => {
-            setIsMyTurn(currentTurn === currentPlayer.player_id);
-            if (lastScore) {
-              message.info(`${lastScore.playerId === currentPlayer.player_id ? 'You' : 'Opponent'} scored ${lastScore.score} in ${lastScore.category}`);
-            }
-          });
-
-          socket.on('opponentRoll', ({ dice }) => {
-            setOpponentState(prev => ({
-              ...prev,
-              dice,
-              rollCount: prev.rollCount + 1
-            }));
-          });
-        })
-        .catch(error => {
-          console.error('WebSocket connection failed:', error);
-          message.error('Failed to connect to game server');
-        });
-    }
-
-    return () => {
-      if (websocket) {
-        websocket.disconnect();
-      }
-    };
-  }, [currentPlayer, websocket]);
 
   // Initialize player
   useEffect(() => {
@@ -242,7 +163,7 @@ function Lobby() {
     };
 
     initializeGameSession();
-  }, [currentPlayer, isInitializing, isLoading]);
+  }, [currentPlayer, isLoading]);
 
   useEffect(() => {
     const executeOpponentTurn = async () => {
@@ -276,14 +197,6 @@ function Lobby() {
           let bestMove = calculateOptimalMove(currentDice, availableCategories, calculateScores);
           
           // Do 1-2 more rolls if beneficial
-          const updateOpponentState = (dice, roll) => {
-            setOpponentState(prev => ({
-              ...prev,
-              dice,
-              rollCount: roll
-            }));
-          };
-
           for (let roll = 2; roll <= 3; roll++) {
             if (bestMove.expectedScore < getThresholdForCategory(bestMove.category.name)) {
               // Roll again, keeping optimal dice
@@ -300,7 +213,11 @@ function Lobby() {
 
               currentDice = rollResult.dice;
               
-              updateOpponentState(currentDice, roll);
+              setOpponentState(prev => ({
+                ...prev,
+                dice: currentDice,
+                rollCount: roll
+              }));
               
               message.info(`Opponent Roll ${roll}: ${currentDice.join(', ')}`, 1);
               await new Promise(resolve => setTimeout(resolve, 1500));
@@ -372,52 +289,113 @@ function Lobby() {
     };
 
     executeOpponentTurn();
-  }, [opponentState.isOpponentTurn, gameId, opponentState.categories, opponentState.rollCount]);
+  }, [opponentState.isOpponentTurn, gameId, calculateScores]);
 
   // Handle new game
-  const handleNewGame = async (mode) => {
-    try {
-      setIsLoading(true);
-      setGameMode(mode);
-
-      if (gameId) {
-        await API.endGame(gameId);
-      }
-
-      const result = await initializeGame(currentPlayer, mode);
-      if (!result.success) {
-        throw new Error(result.message);
-      }
-
-      setGameId(result.gameId);
-      resetGameState();
-      message.success(`New ${mode} game started!`);
-    } catch (error) {
-      console.error('Error starting new game:', error);
-      message.error('Failed to start new game');
-    } finally {
-      setIsLoading(false);
+  const handleNewGame = async () => {
+    if (!currentPlayer?.player_id) {
+      message.error('No player found');
+      return;
     }
-  };
-
-  const handleStartMultiplayerGame = async (gameId, opponentId) => {
+  
     try {
       setIsLoading(true);
-      setGameMode('multiplayer');
-      setGameId(gameId);
-
-      // Get opponent info
-      const opponentData = await API.getPlayerById(opponentId);
-      setOpponent(opponentData);
-
+  
+      // End current game if exists
+      if (gameId) {
+        try {
+          await API.endGame(gameId);
+        } catch (endError) {
+          console.log('Previous game already ended or not found:', endError);
+        }
+      }
+  
+      // Reset opponent categories first
+      try {
+        await API.resetPlayerCategories('9');
+        // Wait a bit to ensure the reset completes
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (resetError) {
+        console.error('Error resetting opponent categories:', resetError);
+      }
+  
+      // Create new game
+      let newGame;
+      try {
+        newGame = await API.createGame('pending', 0, currentPlayer.player_id);
+      } catch (createError) {
+        console.error('Error creating game:', createError);
+        setIsNewGame(true);
+        setGameId(null);
+        return;
+      }
+  
+      if (!newGame?.game_id) {
+        setIsNewGame(true);
+        setGameId(null);
+        return;
+      }
+  
+      // Initialize new game
+      setGameId(newGame.game_id);
+      await API.startGame(newGame.game_id);
+      
+      // Reset player state
+      resetTurnState({
+        setDiceValues: (values) => {
+          setDiceValues(values);
+          setCurrentScores(calculateScores(values));
+        },
+        setSelectedDice,
+        setRollCount,
+        setScores: setCurrentScores
+      });
+  
+      // Reset player categories and reinitialize
+      await resetPlayerCategories({
+        currentPlayer,
+        setPlayerCategories,
+        setPlayerTotal
+      });
+  
       // Reset game state
-      resetGameState();
-      setIsMyTurn(true);
-
-      message.success('Multiplayer game started!');
+      setHasYahtzee(false);
+      setYahtzeeBonus(0);
+      setUpperSectionTotal(0);
+      setUpperSectionBonus(0);
+  
+      // Initialize new categories for opponent
+      const opponentCategories = await initializeDefaultCategories('9');
+      
+      // Reset all opponent state
+      setOpponentState({
+        categories: opponentCategories,
+        dice: INITIAL_DICE_VALUES,
+        score: 0,
+        rollCount: 0,
+        isOpponentTurn: false,
+        lastCategory: null,
+        turnScore: 0
+      });
+  
+      // Force scoreboard reset
+      setShouldResetScores(true);
+      
+      // Get fresh categories for player
+      const categories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(categories);
+  
+      // Reset shouldResetScores after a delay
+      setTimeout(() => {
+        setShouldResetScores(false);
+      }, 100);
+  
+      message.success('New game started successfully!');
     } catch (error) {
-      console.error('Error starting multiplayer game:', error);
-      message.error('Failed to start multiplayer game');
+      console.error('Error during game initialization:', error);
+      message.error('Failed to start new game');
+      setIsNewGame(true);
+      setGameId(null);
     } finally {
       setIsLoading(false);
     }
@@ -427,11 +405,6 @@ function Lobby() {
   const handleScoreCategoryClick = async (categoryName) => {
     if (!gameId || !currentPlayer?.player_id) {
       message.error('Game or player information missing');
-      return;
-    }
-
-    if (gameMode === 'multiplayer' && !isMyTurn) {
-      message.warning("It's not your turn!");
       return;
     }
   
@@ -458,11 +431,6 @@ function Lobby() {
       if (typeof categoryScore !== 'number') {
         throw new Error('Invalid score calculation');
       }  
-
-      if (gameMode === 'multiplayer') {
-        websocket.submitScore(gameId, categoryName, calculatedScores[categoryName]);
-        setIsMyTurn(false);
-      }
 
       console.log('Submitting score:', {
         categoryName,
@@ -529,26 +497,27 @@ function Lobby() {
 
   // Handle dice rolling
   const handleDiceRoll = async () => {
-    if (gameMode === 'multiplayer' && !isMyTurn) {
-      message.warning("It's not your turn!");
+    if (rollCount >= 3) {
+      message.warning('Maximum rolls reached for this turn.');
       return;
     }
 
+    setIsRolling(true);
     try {
       const result = await rollDice(gameId, currentPlayer, diceValues, selectedDice);
-      
       if (result.success) {
         setDiceValues(result.dice);
-        setCurrentScores(calculateScores(result.dice));
-        setRollCount(prev => prev + 1);
-
-        if (gameMode === 'multiplayer') {
-          websocket.sendRoll(gameId, result.dice);
-        }
+        const newScores = calculateScores(result.dice);
+        setCurrentScores(newScores);
+        setRollCount(prevCount => prevCount + 1);
+      } else {
+        message.error(result.message);
       }
     } catch (error) {
       console.error('Roll dice error:', error);
       message.error('Failed to roll dice');
+    } finally {
+      setIsRolling(false);
     }
   };
 
@@ -568,12 +537,7 @@ function Lobby() {
     upperSectionTotal,
     upperSectionBonus,
     opponentState,
-    gameMode,
-    isMyTurn,
-    opponent,
-    websocket,
     handleNewGame,
-    handleStartMultiplayerGame,
     handleLogout: () => handleLogout(navigate),
     handleRollDice: handleDiceRoll,
     toggleDiceSelection: (index) => toggleDiceSelection(

@@ -1,57 +1,52 @@
-import React, { useState } from 'react';
-import { Space, Button, Typography } from 'antd';
-import MultiplayerLobby from './MultiplayerLobby';
+import React from 'react';
+import { Space, Button, Dropdown, Menu } from 'antd';
+import { DownOutlined } from '@ant-design/icons';
 
-const GameHeader = ({ 
-  currentPlayer, 
-  handleNewGame, 
-  handleLogout,
-  websocket,
-  onStartMultiplayerGame 
-}) => {
-  const [isMultiplayerModalVisible, setIsMultiplayerModalVisible] = useState(false);
-
-  const handleMultiplayerClick = () => {
-    setIsMultiplayerModalVisible(true);
-  };
-
-  const handleModalClose = () => {
-    setIsMultiplayerModalVisible(false);
-  };
+const GameHeader = ({ currentPlayer, mode, handleNewGame, handleLogout, setIsChatVisible }) => {
+  const menu = (
+    <Menu>
+      <Menu.Item key="single" onClick={() => handleNewGame('singleplayer')}>
+        New Single Player
+      </Menu.Item>
+      <Menu.Item key="multi" onClick={() => handleNewGame('multiplayer')}>
+        New Multiplayer
+      </Menu.Item>
+    </Menu>
+  );
 
   return (
-    <>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Space>
-          <Button onClick={() => handleNewGame('single')} type="primary">
-            New Single Player
+    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+      <Space>
+        <Dropdown overlay={menu} trigger={['click']}>
+          <Button>
+            New Game <DownOutlined />
           </Button>
-          <Button 
-            onClick={handleMultiplayerClick}
-            type="primary"
-            className="bg-blue-500"
-          >
-            Multiplayer
-          </Button>
-        </Space>
-        <Space>
-          <Typography.Text className="text-white">
-            {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
-          </Typography.Text>
-          <Button onClick={handleLogout} type="primary" danger>
-            Logout
-          </Button>
-        </Space>
+        </Dropdown>
+        <Button
+          type={mode === 'singleplayer' ? 'primary' : 'default'}
+          onClick={() => handleNewGame('singleplayer')}
+        >
+          Single Player
+        </Button>
+        <Button
+          type={mode === 'multiplayer' ? 'primary' : 'default'}
+          onClick={() => handleNewGame('multiplayer')}
+        >
+          Multiplayer
+        </Button>
+        {mode === 'multiplayer' && (
+          <Button onClick={() => setIsChatVisible(true)}>Chat</Button>
+        )}
       </Space>
-
-      <MultiplayerLobby
-        visible={isMultiplayerModalVisible}
-        onClose={handleModalClose}
-        currentPlayer={currentPlayer}
-        onStartGame={onStartMultiplayerGame}
-        websocket={websocket}
-      />
-    </>
+      <Space>
+        <span style={{ color: 'white' }}>
+          {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
+        </span>
+        <Button onClick={handleLogout} type="primary" danger>
+          Logout
+        </Button>
+      </Space>
+    </Space>
   );
 };
 

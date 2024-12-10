@@ -1,64 +1,31 @@
-// server/server.js
-const express = require('express');
+// server.js
 const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
+const { app } = require('./app');
 
-const app = express();
+const port = process.env.PORT || 8080;
 const server = http.createServer(app);
 
-// Configure CORS
-const corsOptions = {
-  origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-app.use(cors(corsOptions));
-
-// Configure Socket.IO
-const io = new Server(server, {
-  path: '/socket.io',
-  cors: {
-    origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
-    methods: ['GET', 'POST'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
-  },
-  allowEIO3: true, // Allow Engine.IO version 3
-  pingTimeout: 60000, // Increase ping timeout
-  pingInterval: 25000, // Increase ping interval
-});
-
-// Socket.IO connection handler
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-  const { playerId, playerName } = socket.handshake.query;
-
-  // Add player to connected players list
-  socket.playerId = playerId;
-  socket.playerName = playerName;
-
-  // Handle disconnection
-  socket.on('disconnect', (reason) => {
-    console.log('Client disconnected:', socket.id, 'Reason:', reason);
-  });
-
-  // Handle errors
-  socket.on('error', (error) => {
-    console.error('Socket error:', error);
-  });
-
-  // Your existing socket event handlers go here
-});
-
-// Error handling for the server
+// Error handling for server
 server.on('error', (error) => {
   console.error('Server error:', error);
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  switch (error.code) {
+    case 'EACCES':
+      console.error(`Port ${port} requires elevated privileges`);
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(`Port ${port} is already in use`);
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
 });
 
-const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });

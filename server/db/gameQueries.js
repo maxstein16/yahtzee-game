@@ -1,4 +1,25 @@
-const { runSQL } = require('../db');
+const mysql = require("mysql2/promise");
+const { Connector } = require('@google-cloud/cloud-sql-connector');
+
+// Initialize database pool
+const connector = new Connector();
+const runSQL = async (sql, data) => {
+  const clientOpts = await connector.getOptions({
+    instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME,
+    ipType: "PUBLIC"
+  });
+
+  const pool = await mysql.createPool({
+    ...clientOpts,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  });
+
+  // Execute the query
+  const [result] = await pool.execute(sql, data); // Corrected to use execute()
+  return result;
+}
 
 // Create a new game
 async function createGame(status, round, playerId) {
