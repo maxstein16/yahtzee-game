@@ -123,10 +123,81 @@ async function deletePlayer(playerId) {
   return result[0]; // Return the deleted player data
 }
 
+// Get all players
+async function getAllPlayers() {
+  const query = `
+    SELECT player_id, username, name, score
+    FROM player;
+  `;
+  try {
+    const result = await runSQL(query);
+    return result;
+  } catch (error) {
+    console.error("Error fetching all players:", error.message);
+    throw error;
+  }
+}
+
+// Get available players (not in an active game)
+async function getAvailablePlayers() {
+  const query = `
+    SELECT p.player_id, p.username, p.name, p.score
+    FROM player p
+    LEFT JOIN gameplayer gp ON p.player_id = gp.player_id
+    LEFT JOIN game g ON gp.game_id = g.game_id AND g.status = 'in_progress'
+    WHERE g.game_id IS NULL;
+  `;
+  try {
+    const result = await runSQL(query);
+    return result;
+  } catch (error) {
+    console.error("Error fetching available players:", error.message);
+    throw error;
+  }
+}
+
+// Update player profile
+async function updatePlayerProfile(playerId, name, password) {
+  const updates = [];
+  const values = [];
+  if (name) {
+    updates.push("name = ?");
+    values.push(name);
+  }
+  if (password) {
+    const passwordHash = await bcrypt.hash(password, 10);
+    updates.push("password_hash = ?");
+    values.push(passwordHash);
+  }
+  if (updates.length === 0) {
+    throw new Error("No valid fields to update");
+  }
+
+  const query = `
+    UPDATE player
+    SET ${updates.join(", ")}
+    WHERE player_id = ?;
+  `;
+  values.push(playerId);
+
+  await runSQL(query, values);
+
+  // Retrieve the updated player
+  const selectQuery = `
+    SELECT * FROM player
+    WHERE player_id = ?;
+  `;
+  const [updatedPlayer] = await runSQL(selectQuery, [playerId]);
+  return updatedPlayer;
+}
+
 module.exports = {
   createPlayer,
   loginPlayer,
   getPlayerById,
   updatePlayerScore,
   deletePlayer,
+  getAllPlayers,
+  getAvailablePlayers,
+  updatePlayerProfile
 };

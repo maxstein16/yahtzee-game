@@ -75,6 +75,58 @@ const Multiplayer = ({
     });
   };
 
+  useEffect(() => {
+    if (!currentPlayer?.player_id) return;
+  
+    const connectSocket = async () => {
+      try {
+        const socketConnection = await initializeWebSocket(currentPlayer.player_id);
+        setSocket(socketConnection);
+  
+        socketConnection.on('gameRequest', async ({ gameId, opponentId }) => {
+          Modal.confirm({
+            title: 'Game Invitation',
+            content: 'You have been invited to a game. Do you accept?',
+            onOk: async () => {
+              try {
+                await API.updateGame(gameId, 'active', 0);
+                const opponentData = await API.getPlayerById(opponentId);
+                setGameId(gameId);
+                setOpponent(opponentData);
+                message.success('Game started!');
+              } catch (error) {
+                console.error('Error accepting game request:', error);
+                message.error('Failed to join game');
+              }
+            },
+          });
+        });
+  
+        socketConnection.on('gameStart', async ({ gameId, opponentId }) => {
+          setGameId(gameId);
+          const opponentData = await API.getPlayerById(opponentId);
+          setOpponent(opponentData);
+        });
+  
+        socketConnection.on('gameEnd', () => {
+          message.info('Game ended');
+          navigate('/lobby');
+        });
+      } catch (error) {
+        console.error('WebSocket connection error:', error);
+        message.error('Failed to connect to game server');
+      }
+    };
+  
+    connectSocket();
+  
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [currentPlayer, navigate]);  
+
   const handleCategoryClick = async (categoryName) => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");

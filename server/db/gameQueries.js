@@ -254,6 +254,37 @@ async function getActiveGameForPlayer(playerId) {
   }
 }
 
+// Get all games
+async function getAllGames() {
+  const query = `
+    SELECT * FROM game;
+  `;
+  try {
+    const result = await runSQL(query);
+    return result;
+  } catch (error) {
+    console.error("Error fetching all games:", error.message);
+    throw error;
+  }
+}
+
+// Get games by player ID
+async function getGamesByPlayerId(playerId) {
+  const query = `
+    SELECT g.*
+    FROM game g
+    INNER JOIN gameplayer gp ON g.game_id = gp.game_id
+    WHERE gp.player_id = ?;
+  `;
+  try {
+    const result = await runSQL(query, [playerId]);
+    return result;
+  } catch (error) {
+    console.error("Error fetching games by player ID:", error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   createGame,
   getGameById,
@@ -262,5 +293,7 @@ module.exports = {
   addPlayerToGame,
   getPlayersInGame,
   removePlayerFromGame,
-  getActiveGameForPlayer
+  getActiveGameForPlayer,
+  getAllGames,
+  getGamesByPlayerId
 };

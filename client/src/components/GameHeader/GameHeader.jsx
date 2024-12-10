@@ -1,56 +1,68 @@
-import React from 'react';
-import { Layout, Space, Button, Divider } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Button, Modal, List, message } from 'antd';
+import { getAvailablePlayers, createGame } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 const { Header } = Layout;
 
-const GameHeader = ({ 
-  currentPlayer, 
-  handleNewGame, 
-  handleLogout
-}) => {
+const GameHeader = ({ currentPlayer }) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [availablePlayers, setAvailablePlayers] = useState([]);
   const navigate = useNavigate();
 
-  return (
-    <Header className="flex items-center justify-between px-6 bg-white shadow">
-      <div className="flex items-center gap-4">
-        {/* Left side - Game buttons */}
-        <Button 
-          type="primary" 
-          onClick={() => navigate('/singleplayer')}
-          className="bg-blue-500"
-        >
-          Single Player
-        </Button>
-        <Button 
-          type="primary"
-          onClick={() => navigate('/multiplayer')}
-          className="bg-green-500"
-        >
-          Multiplayer
-        </Button>
-        <Divider type="vertical" />
-        <Button 
-          onClick={handleNewGame}
-          className="bg-yellow-500 text-white hover:bg-yellow-600"
-        >
-          New Game
-        </Button>
-      </div>
+  const fetchPlayers = async () => {
+    try {
+      const players = await getAvailablePlayers();
+      setAvailablePlayers(players.filter(player => player.player_id !== currentPlayer.player_id));
+    } catch (error) {
+      console.error('Error fetching players:', error);
+      message.error('Failed to fetch available players');
+    }
+  };
 
-      {/* Right side - User info and logout */}
-      <Space>
-        <span className="text-gray-700">
-          {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
-        </span>
-        <Button 
-          onClick={handleLogout} 
-          type="primary" 
-          danger
-        >
-          Logout
-        </Button>
-      </Space>
+  const handleChallenge = async (opponentId) => {
+    try {
+      const game = await createGame('pending', 0, currentPlayer.player_id);
+      message.success('Game created! Waiting for the opponent...');
+      setIsModalVisible(false);
+
+      // Navigate to the game page or trigger socket connection for real-time updates
+      navigate(`/game/${game.game.game_id}`);
+    } catch (error) {
+      console.error('Error creating game:', error);
+      message.error('Failed to start a new game');
+    }
+  };
+
+  return (
+    <Header>
+      <Button onClick={() => navigate('/singleplayer')}>Single Player</Button>
+      <Button
+        onClick={() => {
+          setIsModalVisible(true);
+          fetchPlayers();
+        }}
+      >
+        Multiplayer
+      </Button>
+
+      {/* Multiplayer Modal */}
+      <Modal
+        title="Available Players"
+        visible={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+      >
+        <List
+          dataSource={availablePlayers}
+          renderItem={(player) => (
+            <List.Item>
+              {player.name}
+              <Button onClick={() => handleChallenge(player.player_id)}>Challenge</Button>
+            </List.Item>
+          )}
+        />
+      </Modal>
     </Header>
   );
 };

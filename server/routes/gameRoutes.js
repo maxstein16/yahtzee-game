@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer } = require('../db/gameQueries');
+const {
+  getAllGames,
+  getGamesByPlayerId,
+  createGame,
+  getGameById,
+  updateGame,
+  deleteGame,
+  addPlayerToGame,
+  getPlayersInGame,
+  removePlayerFromGame
+} = require('../db/gameQueries');
 
 // POST route for creating a new game
 router.post('/game', async (req, res) => {
@@ -75,6 +85,56 @@ router.get('/game/active/:playerId', async (req, res) => {
   try {
     const activeGame = await getActiveGameForPlayer(req.params.playerId);
     res.json(activeGame);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all games
+router.get('/games', async (req, res) => {
+  try {
+    const games = await getAllGames();
+    res.json(games);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get games by player ID
+router.get('/games/player/:playerId', async (req, res) => {
+  try {
+    const games = await getGamesByPlayerId(req.params.playerId);
+    res.json(games);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a player to a game
+router.post('/game/:gameId/player/:playerId', async (req, res) => {
+  try {
+    const gamePlayer = await addPlayerToGame(req.params.gameId, req.params.playerId);
+    res.json(gamePlayer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get players in a game
+router.get('/game/:gameId/players', async (req, res) => {
+  try {
+    const players = await getPlayersInGame(req.params.gameId);
+    res.json(players);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove a player from a game
+router.delete('/game/:gameId/player/:playerId', async (req, res) => {
+  try {
+    const removedPlayer = await removePlayerFromGame(req.params.gameId, req.params.playerId);
+    res.json({ message: "Player removed successfully", player: removedPlayer });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

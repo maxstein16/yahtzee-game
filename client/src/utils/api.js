@@ -210,9 +210,16 @@ export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompl
   });
   
 // Players in Game
-export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);
+export const getAvailablePlayers = () => apiRequest('/players/available', 'GET');
 
-export const getPlayerById = (playerId) => apiRequest(`/players/${playerId}`);
+export const registerPlayer = (userData) => apiRequest('/players/register', 'POST', userData);
+
+export const updatePlayer = (playerId, updatedData) =>
+  apiRequest(`/players/${playerId}`, 'PUT', updatedData);
+
+export const getPlayersInGame = (gameId) =>
+  apiRequest(`/game/${gameId}/players`, 'GET');
+
 
 const API = {
   login,
