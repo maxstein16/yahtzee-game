@@ -22,7 +22,7 @@ const Scoreboard = ({
   const [upperSectionScore, setUpperSectionScore] = useState(0);
   const [lowerSectionScore, setLowerSectionScore] = useState(0);
   const [upperSectionBaseScore, setUpperSectionBaseScore] = useState(0);
-  const [lowerSectionBaseScore, setLowerSectionBaseScore] = useState(0);
+  const [setLowerSectionBaseScore] = useState(0);
   const [yahtzeeBonus, setYahtzeeBonus] = useState(0);
   const [hasYahtzee, setHasYahtzee] = useState(false);
 
@@ -45,7 +45,7 @@ const Scoreboard = ({
     return specialCases[name] || name;
   };
 
-  const calculateSectionScores = (categories, scoreValues) => {
+  const calculateSectionScores = React.useCallback((categories, scoreValues) => {
     const upperCategories = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'];
     let upperBase = 0;
     let lowerBase = 0;
@@ -72,7 +72,7 @@ const Scoreboard = ({
       lowerTotal,
       upperBonus
     };
-  };
+  }, [yahtzeeBonus]);
 
   // Load scores when component mounts or when categories change
   useEffect(() => {
@@ -110,7 +110,7 @@ const Scoreboard = ({
     };
   
     loadScores();
-  }, [currentPlayer?.player_id, gameId, playerCategories]);
+  }, [calculateSectionScores, currentPlayer.player_id, gameId, playerCategories, setLowerSectionBaseScore]);
 
   useEffect(() => {
     if (!isOpponent && diceValues && diceValues.length > 0 && rollCount > 0) {
