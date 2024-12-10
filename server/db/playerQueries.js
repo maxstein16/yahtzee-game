@@ -1,27 +1,5 @@
-const mysql = require('mysql2/promise');
-const bcrypt = require('bcrypt'); // Import bcrypt
-const { Connector } = require('@google-cloud/cloud-sql-connector');
-
-// Initialize the Cloud SQL connector
-const connector = new Connector();
-
-// Helper function to execute SQL queries
-const runSQL = async (sql, data) => {
-  const clientOpts = await connector.getOptions({
-    instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME,
-    ipType: 'PUBLIC', // Adjust to 'PRIVATE' if using private IPs
-  });
-
-  const pool = await mysql.createPool({
-    ...clientOpts,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  });
-
-  const [result] = await pool.execute(sql, data);
-  return result;
-};
+const bcrypt = require('bcrypt');
+const { runSQL } = require('../db');
 
 // Create a new player
 async function createPlayer(username, password, name) {

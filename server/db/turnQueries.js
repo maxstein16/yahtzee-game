@@ -1,26 +1,4 @@
-const mysql = require('mysql2/promise');
-const { Connector } = require('@google-cloud/cloud-sql-connector');
-
-// Initialize the Cloud SQL connector
-const connector = new Connector();
-
-// Helper function to execute SQL queries
-const runSQL = async (sql, data) => {
-  const clientOpts = await connector.getOptions({
-    instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME,
-    ipType: 'PUBLIC',
-  });
-
-  const pool = await mysql.createPool({
-    ...clientOpts,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  });
-
-  const [result] = await pool.execute(sql, data);
-  return result;
-};
+const { runSQL } = require('../db');
 
 // Create a new turn
 async function createTurn(gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) {
