@@ -103,3 +103,5 @@ LobbyView.propTypes = {
   setIsMultiplayerModalVisible: PropTypes.func,
   onPlayerSelect: PropTypes.func
 };
+
+export default LobbyView;
