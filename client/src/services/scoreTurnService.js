@@ -58,25 +58,51 @@ function isLargeStraight(dice) {
     JSON.stringify(uniqueValues) === JSON.stringify([2, 3, 4, 5, 6]);
 }
 
-export const resetPlayerCategories = async ({ currentPlayer, setPlayerCategories, setPlayerTotal }) => {
-  if (!currentPlayer?.player_id) {
-    throw new Error('Player ID is missing');
-  }
-
+export const resetPlayerCategories = async ({
+  currentPlayer,
+  gameType,
+  setPlayerCategories,
+  setPlayerTotal,
+  setAiCategories,
+  setAiTotal
+}) => {
   try {
-    await API.resetPlayerCategories(currentPlayer.player_id);
-    const categories = await API.getPlayerCategories(currentPlayer.player_id);
-
-    if (!categories || categories.length === 0) {
-      throw new Error('Failed to fetch player categories after reset');
+    await resetHumanPlayerCategories(currentPlayer, setPlayerCategories, setPlayerTotal);
+    
+    if (gameType === 'singleplayer') {
+      await resetAIPlayerCategories(setAiCategories, setAiTotal);
     }
-
-    setPlayerCategories(categories);
-
-    const totalScore = categories.reduce((total, cat) => total + (cat.score || 0), 0);
-    setPlayerTotal(totalScore);
   } catch (error) {
-    console.error('Error resetting player categories:', error);
-    throw error;
+    message.error('Failed to manage categories: ' + error.message);
   }
+};
+
+const resetHumanPlayerCategories = async (currentPlayer, setPlayerCategories, setPlayerTotal) => {
+  const currentCategories = await API.getPlayerCategories(currentPlayer.player_id);
+  const hasStartedPlaying = currentCategories.some(category => category.score !== null);
+
+  if (hasStartedPlaying) {
+    await API.resetPlayerCategories(currentPlayer.player_id);
+  } else if (currentCategories.length === 0) {
+    await API.initializePlayerCategories(currentPlayer.player_id);
+  }
+
+  const categories = await API.getPlayerCategories(currentPlayer.player_id);
+  setPlayerCategories(categories);
+  setPlayerTotal(0);
+};
+
+const resetAIPlayerCategories = async (setAiCategories, setAiTotal) => {
+  const currentAICategories = await API.getPlayerCategories('ai-opponent');
+  const aiHasStartedPlaying = currentAICategories.some(category => category.score !== null);
+
+  if (aiHasStartedPlaying) {
+    await API.resetPlayerCategories('ai-opponent');
+  } else if (currentAICategories.length === 0) {
+    await API.initializePlayerCategories('ai-opponent');
+  }
+
+  const aiCategories = await API.getPlayerCategories('ai-opponent');
+  setAiCategories(aiCategories);
+  setAiTotal(0);
 };

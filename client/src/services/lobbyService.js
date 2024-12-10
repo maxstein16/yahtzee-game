@@ -1,17 +1,8 @@
 import * as API from '../utils/api';
 import { calculateScores } from './scoreTurnService';
 
-let gameCreatingInProgress = false;
-
 export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers) => {
-  if (gameCreatingInProgress) {
-    console.log('Game creation already in progress. Skipping redundant call.');
-    return { success: false, message: 'Game creation already in progress' };
-  }
-
   try {
-    gameCreatingInProgress = true;
-
     // Check for active game
     const activeGame = await API.getActiveGameForPlayer(currentPlayer.player_id);
     let gameId;
@@ -27,20 +18,15 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
           message: 'Resumed existing game',
           gameId: gameId,
           existingGame: true,
-          mode: 'singleplayer',
+          mode: 'singleplayer'
         };
       }
     }
 
-    // Reset categories only if necessary
-    const existingCategories = await API.getPlayerCategories(currentPlayer.player_id);
-    if (!existingCategories || existingCategories.length === 0) {
-      await API.resetPlayerCategories(currentPlayer.player_id);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await initializeDefaultCategories(currentPlayer.player_id);
-    }
+    // Create new game if no active game exists
+    await API.resetPlayerCategories(currentPlayer.player_id);
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Create a new game
     const response = await API.createGame('pending', 0, currentPlayer.player_id);
     gameId = response.game?.game_id;
 
@@ -49,6 +35,7 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
     }
 
     setGameId(gameId);
+    await API.initializePlayerCategories(currentPlayer.player_id);
     await API.startGame(gameId);
 
     return {
@@ -56,52 +43,39 @@ export const initializeGame = async (currentPlayer, mode, setGameId, setPlayers)
       message: 'New game created!',
       gameId: gameId,
       existingGame: false,
-      mode: 'singleplayer',
+      mode: 'singleplayer'
     };
+
   } catch (error) {
-    console.error('Error initializing game:', error);
+    console.error('Full error details:', error);
     return {
       success: false,
       message: `Failed to initialize game: ${error.message}`,
+      error: error
     };
-  } finally {
-    gameCreatingInProgress = false;
   }
 };
 
 export const initializeDefaultCategories = async (playerId) => {
+  const defaultCategories = [
+    { name: 'ones', section: 'upper', maxScore: 5 },
+    { name: 'twos', section: 'upper', maxScore: 10 },
+    { name: 'threes', section: 'upper', maxScore: 15 },
+    { name: 'fours', section: 'upper', maxScore: 20 },
+    { name: 'fives', section: 'upper', maxScore: 25 },
+    { name: 'sixes', section: 'upper', maxScore: 30 },
+    { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
+    { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
+    { name: 'fullHouse', section: 'lower', maxScore: 25 },
+    { name: 'smallStraight', section: 'lower', maxScore: 30 },
+    { name: 'largeStraight', section: 'lower', maxScore: 40 },
+    { name: 'yahtzee', section: 'lower', maxScore: 50 },
+    { name: 'chance', section: 'lower', maxScore: 30 },
+  ];
+
   try {
-    // Fetch existing categories for the player
-    const existingCategories = await API.getPlayerCategories(playerId);
-
-    // Extract existing category names
-    const existingCategoryNames = existingCategories.map(cat => cat.name);
-
-    // Define default categories
-    const defaultCategories = [
-      { name: 'ones', section: 'upper', maxScore: 5 },
-      { name: 'twos', section: 'upper', maxScore: 10 },
-      { name: 'threes', section: 'upper', maxScore: 15 },
-      { name: 'fours', section: 'upper', maxScore: 20 },
-      { name: 'fives', section: 'upper', maxScore: 25 },
-      { name: 'sixes', section: 'upper', maxScore: 30 },
-      { name: 'threeOfAKind', section: 'lower', maxScore: 30 },
-      { name: 'fourOfAKind', section: 'lower', maxScore: 30 },
-      { name: 'fullHouse', section: 'lower', maxScore: 25 },
-      { name: 'smallStraight', section: 'lower', maxScore: 30 },
-      { name: 'largeStraight', section: 'lower', maxScore: 40 },
-      { name: 'yahtzee', section: 'lower', maxScore: 50 },
-      { name: 'chance', section: 'lower', maxScore: 30 },
-    ];
-
-    // Filter out categories that are already created
-    const categoriesToCreate = defaultCategories.filter(
-      (cat) => !existingCategoryNames.includes(cat.name)
-    );
-
-    // Create missing categories
-    const createdCategories = await Promise.all(
-      categoriesToCreate.map(async (category) => {
+    const categories = await Promise.all(
+      defaultCategories.map(async (category) => {
         try {
           const newCategory = await API.initializePlayerCategories(
             playerId,
@@ -117,8 +91,7 @@ export const initializeDefaultCategories = async (playerId) => {
       })
     );
 
-    // Return a combined list of existing and newly created categories
-    return [...existingCategories, ...createdCategories.filter((cat) => cat !== null)];
+    return categories.filter((cat) => cat !== null);
   } catch (error) {
     console.error('Error initializing default categories:', error);
     throw new Error('Failed to initialize game categories');

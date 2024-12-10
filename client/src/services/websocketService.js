@@ -1,41 +1,38 @@
-import { io } from 'socket.io-client';
+import io from 'socket.io-client';
 
-const socket = io(process.env.REACT_APP_BACKEND_URL, {
-  query: {
-    playerId: localStorage.getItem('playerId'),
-    playerName: localStorage.getItem('playerName'),
-  },
-});
+const WS_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app';
 
-export const connect = () => socket.connect();
-export const disconnect = () => socket.disconnect();
+export const initializeWebSocket = (gameId, playerId) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const socket = io(WS_BASE_URL, {
+        query: { 
+          gameId, 
+          playerId 
+        },
+        transports: ['websocket'], // Ensure only WebSocket transport is used
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
 
-export const onUpdatePlayers = (callback) => {
-  socket.on('update_players', callback);
+      socket.on('connect', () => {
+        console.log('WebSocket connected successfully');
+        resolve({
+          on: (event, callback) => socket.on(event, callback),
+          emit: (event, data) => socket.emit(event, data),
+          disconnect: () => socket.disconnect(),
+        });
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        reject(error);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
 };
 
-export const sendGameRequest = (toPlayerId, fromPlayer) => {
-  socket.emit('game_request', { toPlayerId, fromPlayer });
-};
-
-export const onGameRequest = (callback) => {
-  socket.on('game_request', callback);
-};
-
-export const sendGameResponse = (accepted, fromPlayer, toPlayerId) => {
-  socket.emit('game_response', { accepted, fromPlayer, toPlayerId });
-};
-
-export const onGameResponse = (callback) => {
-  socket.on('game_response', callback);
-};
-
-export const sendMessage = (gameId, message, sender) => {
-  socket.emit('chat_message', { gameId, message, sender });
-};
-
-export const onMessage = (callback) => {
-  socket.on('chat_message', callback);
-};
-
-export default socket;
+export default initializeWebSocket;

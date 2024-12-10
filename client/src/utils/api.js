@@ -212,22 +212,7 @@ export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompl
 // Players in Game
 export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);
 
-export const getPlayerById = async (playerId) => {
-  try {
-      const response = await apiRequest(`/players/${playerId}`, 'GET');
-      
-      // Add validation
-      if (!response || !response.name) {
-          console.error('Invalid player data received:', response);
-          throw new Error('Invalid player data received from server');
-      }
-      
-      return response;
-  } catch (error) {
-      console.error('Error fetching player:', error);
-      throw error;
-  }
-};
+export const getPlayerById = (playerId) => apiRequest(`/players/${playerId}`);
 
 const API = {
   login,
