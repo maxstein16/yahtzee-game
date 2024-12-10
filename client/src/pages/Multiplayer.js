@@ -57,14 +57,9 @@ function MultiplayerPage() {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
         
-        socketConnection.on('gameStart', async ({ gameId, opponentId }) => {
+        socketConnection.on('gameStart', async ({ gameId, opponent }) => {
           setGameId(gameId);
-          try {
-            const opponentData = await API.getPlayerById(opponentId);
-            setOpponent(opponentData);
-          } catch (error) {
-            console.error('Error fetching opponent:', error);
-          }
+          setOpponent(opponent);
         });
 
         socketConnection.on('gameEnd', () => {
@@ -91,13 +86,8 @@ function MultiplayerPage() {
     try {
       setIsLoading(true);
       
-      // End current game if exists
-      if (gameId) {
-        await API.endGame(gameId);
-      }
-
-      // Create new game
-      const newGame = await API.createGame('pending', 0, currentPlayer.player_id);
+      // Create a new game
+      const newGame = await API.createGame('in_progress', 0, currentPlayer.player_id);
       setGameId(newGame.game.game_id);
 
       // Initialize categories

@@ -80,28 +80,31 @@ io.on('connection', (socket) => {
   });
 
   // Challenge accepted event
-  socket.on('challengeAccepted', async ({ challengerId }) => {
+  socket.on('challengeAccepted', async ({ challengerId, challengedId }) => {
     const challenger = connectedPlayers.get(challengerId);
+    const challenged = connectedPlayers.get(challengedId);
 
-    if (!challenger) {
-      console.log('Challenger not found:', challengerId);
+    if (!challenger || !challenged) {
+      console.log('Challenger or challenged player not found:', challengerId, challengedId);
       return;
     }
 
     try {
       // Create a new game
-      const newGame = await API.createGame('active', 0, challenger.id);
-      const gameId = newGame.game.game_id;
-
-      // Add both players to the game
-      await API.addPlayerToGame(gameId, challenger.id);
-      await API.addPlayerToGame(gameId, socket.id);
+      const newGame = await createGame('in_progress', 0, challenger.id, challenged.id);
+      const gameId = newGame.game_id;
 
       // Notify both players to start the game
-      io.to(challenger.socketId).emit('gameStart', { gameId, opponentId: socket.id });
-      io.to(socket.id).emit('gameStart', { gameId, opponentId: challenger.id });
+      io.to(challenger.socketId).emit('gameStart', { gameId, opponent: {
+        id: challenged.id,
+        name: challenged.name
+      }});
+      io.to(challenged.socketId).emit('gameStart', { gameId, opponent: {
+        id: challenger.id,
+        name: challenger.name
+      }});
 
-      console.log(`Game started between ${challenger.name} and ${socketToPlayer.get(socket.id)}`);
+      console.log(`Game started between ${challenger.name} and ${challenged.name}`);
     } catch (error) {
       console.error('Error starting game:', error);
       io.to(challenger.socketId).emit('challengeFailed', { message: 'Failed to start the game.' });
