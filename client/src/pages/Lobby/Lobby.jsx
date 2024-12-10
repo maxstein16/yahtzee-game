@@ -3,7 +3,7 @@ import { Layout } from 'antd';
 import PropTypes from 'prop-types';
 import GameHeader from '../../components/GameHeader/GameHeader';
 import GameBoard from '../../components/GameBoard/GameBoard';
-import ScoreBoard from '../../components/Scoreboard/ScoreBoard';
+import ScoreBoard from '../../components/ScoreBoard/ScoreBoard';
 
 const { Content } = Layout;
 
