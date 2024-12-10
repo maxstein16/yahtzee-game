@@ -1,7 +1,6 @@
 import React from 'react';
-import { Layout, Typography, Button, Space, Spin, Dropdown, Modal, List, Avatar } from 'antd';
+import { Layout, Typography, Button, Space, Spin, Dropdown, Modal, List, Avatar, Menu } from 'antd';
 import { DownOutlined, UserOutlined } from '@ant-design/icons';
-import { Menu } from '@ant-design/icons';
 import { useState } from 'react';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../Dice';
