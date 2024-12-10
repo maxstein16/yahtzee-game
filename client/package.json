@@ -2,7 +2,6 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
-  "homepage": "yahtzee.maxstein.info",
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
     "@testing-library/jest-dom": "^5.17.0",
@@ -30,9 +29,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
@@ -54,7 +51,6 @@
   },
   "proxy": "http://localhost:8080",
   "devDependencies": {
-    "gh-pages": "^6.2.0",
     "tailwindcss": "^3.4.15"
   }
 }
