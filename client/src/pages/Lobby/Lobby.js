@@ -9,8 +9,8 @@ import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
 import initializeWebSocket from '../../services/websocketService';
-import LobbyView from './LobbyView';
-import LobbyChat from './LobbyChat';
+import LobbyView from './Lobby.jsx';
+import LobbyChat from './LobbyChat.js';
 import API from '../../utils/api';
 
 const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
