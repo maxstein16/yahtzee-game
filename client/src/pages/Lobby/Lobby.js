@@ -60,10 +60,12 @@ function Lobby() {
               score: playerTotal
             });
           });
-
+  
           socketConnection.on('playersUpdate', (players) => {
             console.log('Received players update:', players);
-            setAvailablePlayers(players);
+            // Filter out the current player from the list
+            const otherPlayers = players.filter(p => p.id !== currentPlayer.player_id);
+            setAvailablePlayers(otherPlayers);
           });
         })
         .catch(error => {
@@ -71,13 +73,13 @@ function Lobby() {
           message.error('Failed to connect to game server');
         });
     }
-
+  
     return () => {
       if (socket) {
         socket.disconnect();
       }
     };
-  }, [currentPlayer?.player_id]);
+  }, [currentPlayer?.player_id, currentPlayer?.name, playerTotal, gameId]);
 
   // Opponent-specific state
   const [opponentState, setOpponentState] = useState({
