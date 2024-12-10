@@ -3,6 +3,7 @@ import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { initializeGame, initializeDefaultCategories } from '../../services/lobbyService';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
+import { resetTurnState } from '../../services/gameStateService';
 import { rollDice, toggleDiceSelection } from '../../services/diceService';
 import { resetPlayerCategories, calculateScores } from '../../services/scoreTurnService';
 import { calculateOptimalMove, getThresholdForCategory } from '../../services/opponentService';
@@ -49,10 +50,6 @@ function Lobby() {
     lastCategory: null,
     turnScore: 0
   });
-
-  const [showMultiplayerLobby, setShowMultiplayerLobby] = useState(false);
-  const [isMyTurn, setIsMyTurn] = useState(false);
-  const [opponent, setOpponent] = useState(null);
 
   const resetOpponentTurn = () => {
     setOpponentState(prev => ({
@@ -291,33 +288,6 @@ function Lobby() {
     executeOpponentTurn();
   }, [opponentState.isOpponentTurn, gameId, calculateScores]);
 
-  const handleGameStart = async (gameData) => {
-    try {
-      const result = await initializeGame(
-        currentPlayer, 
-        'multiplayer', 
-        setGameId, 
-        null, 
-        {
-          opponentId: gameData.opponentId,
-          isFirstPlayer: gameData.isFirstPlayer
-        }
-      );
-  
-      if (result.success) {
-        setGameMode('multiplayer');
-        setIsMyTurn(gameData.isFirstPlayer);
-        setOpponent(gameData.opponent);
-        message.success('Multiplayer game started!');
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      console.error('Error starting multiplayer game:', error);
-      message.error('Failed to start multiplayer game');
-    }
-  };
-  
   // Handle new game
   const handleNewGame = async (mode = "singleplayer") => {
     setGameMode(mode);

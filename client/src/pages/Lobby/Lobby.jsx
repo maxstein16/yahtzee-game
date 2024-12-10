@@ -1,6 +1,5 @@
 import React from 'react';
-import { Layout, Typography, Button, Space, Spin, Modal, List } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { Layout, Typography, Button, Space, Spin, Modal } from 'antd';
 import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
 import Dice from '../Dice';
 import Chat from '../../components/Chat/Chat';
@@ -141,58 +140,6 @@ PlayerSection.propTypes = {
   isOpponentTurn: PropTypes.bool.isRequired,
   lastMove: PropTypes.string
 };
-
-const MultiplayerLobby = ({ 
-  isVisible, 
-  onClose, 
-  availablePlayers, 
-  pendingRequests, 
-  onRequestGame, 
-  currentPlayer 
-}) => (
-  <Modal
-    title="Multiplayer Lobby"
-    open={isVisible}
-    onCancel={onClose}
-    footer={null}
-    width={600}
-  >
-    <Space direction="vertical" style={{ width: '100%' }}>
-      <Title level={5}>Available Players</Title>
-      <List
-        dataSource={availablePlayers}
-        renderItem={player => (
-          <List.Item
-            actions={[
-              <Button
-                type="primary"
-                onClick={() => onRequestGame(player)}
-                disabled={pendingRequests.includes(player.id)}
-              >
-                {pendingRequests.includes(player.id) 
-                  ? 'Request Sent' 
-                  : 'Request Game'}
-              </Button>
-            ]}
-          >
-            <List.Item.Meta
-              avatar={<UserOutlined />}
-              title={player.name}
-              description={`Status: ${player.status || 'Available'}`}
-            />
-          </List.Item>
-        )}
-        locale={{
-          emptyText: (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <Text type="secondary">No players available</Text>
-            </div>
-          )
-        }}
-      />
-    </Space>
-  </Modal>
-);
 
 const GameBoard = ({
   currentPlayer,
@@ -353,54 +300,35 @@ const LobbyView = (props) => {
       />
 
       <Content className="game-container">
-        {props.gameId ? (
-          <>
-            <GameBoard
-              currentPlayer={props.currentPlayer}
-              diceValues={props.diceValues}
-              selectedDice={props.selectedDice}
-              isRolling={props.isRolling}
-              rollCount={props.rollCount}
-              handleRollDice={props.handleRollDice}
-              toggleDiceSelection={props.toggleDiceSelection}
-              opponentState={props.opponentState}
-              gameMode={props.gameMode}
-            />
+        <GameBoard
+          currentPlayer={props.currentPlayer}
+          diceValues={props.diceValues}
+          selectedDice={props.selectedDice}
+          isRolling={props.isRolling}
+          rollCount={props.rollCount}
+          handleRollDice={props.handleRollDice}
+          toggleDiceSelection={props.toggleDiceSelection}
+          opponentState={props.opponentState}
+        />
 
-            <ScoreboardContainer
-              gameId={props.gameId}
-              currentPlayer={props.currentPlayer}
-              playerCategories={props.playerCategories}
-              calculateScores={props.calculateScores}
-              diceValues={props.diceValues}
-              rollCount={props.rollCount}
-              handleScoreCategoryClick={props.handleScoreCategoryClick}
-              onTurnComplete={props.onTurnComplete}
-              shouldResetScores={props.shouldResetScores}
-              opponentState={props.opponentState}
-            />
-          </>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Title level={2}>Welcome to Yahtzee!</Title>
-            <Text>Choose a game mode to start playing</Text>
-          </div>
-        )}
+        <ScoreboardContainer
+          gameId={props.gameId}
+          currentPlayer={props.currentPlayer}
+          playerCategories={props.playerCategories}
+          calculateScores={props.calculateScores}
+          diceValues={props.diceValues}
+          rollCount={props.rollCount}
+          handleScoreCategoryClick={props.handleScoreCategoryClick}
+          onTurnComplete={props.onTurnComplete}
+          shouldResetScores={props.shouldResetScores}
+          opponentState={props.opponentState}
+        />
       </Content>
-
-      <MultiplayerLobby
-        isVisible={props.showMultiplayerLobby}
-        onClose={() => props.setShowMultiplayerLobby(false)}
-        availablePlayers={props.availablePlayers}
-        pendingRequests={props.pendingRequests}
-        onRequestGame={props.onRequestGame}
-        currentPlayer={props.currentPlayer}
-      />
 
       {props.gameMode === 'multiplayer' && (
         <Modal
           title="Game Chat"
-          open={props.isChatVisible}
+          visible={props.isChatVisible}
           onCancel={() => props.setIsChatVisible(false)}
           footer={null}
           width={400}
@@ -419,12 +347,37 @@ const LobbyView = (props) => {
 };
 
 LobbyView.propTypes = {
-  // ... existing prop types ...
-  showMultiplayerLobby: PropTypes.bool.isRequired,
-  onCloseMultiplayerLobby: PropTypes.func.isRequired,
-  availablePlayers: PropTypes.array.isRequired,
-  pendingRequests: PropTypes.array.isRequired,
-  onRequestGame: PropTypes.func.isRequired,
+  currentPlayer: PropTypes.shape({
+    name: PropTypes.string,
+    player_id: PropTypes.string
+  }),
+  gameId: PropTypes.string,
+  diceValues: PropTypes.arrayOf(PropTypes.number).isRequired,
+  selectedDice: PropTypes.arrayOf(PropTypes.number).isRequired,
+  isRolling: PropTypes.bool.isRequired,
+  rollCount: PropTypes.number.isRequired,
+  playerCategories: PropTypes.array.isRequired,
+  handleNewGame: PropTypes.func.isRequired,
+  handleLogout: PropTypes.func.isRequired,
+  handleRollDice: PropTypes.func.isRequired,
+  toggleDiceSelection: PropTypes.func.isRequired,
+  shouldResetScores: PropTypes.bool.isRequired,
+  handleScoreCategoryClick: PropTypes.func.isRequired,
+  calculateScores: PropTypes.func.isRequired,
+  onTurnComplete: PropTypes.func.isRequired,
+  isLoading: PropTypes.bool.isRequired,
+  opponentState: PropTypes.shape({
+    categories: PropTypes.array,
+    dice: PropTypes.arrayOf(PropTypes.number),
+    score: PropTypes.number,
+    rollCount: PropTypes.number,
+    isOpponentTurn: PropTypes.bool,
+    lastCategory: PropTypes.string,
+    turnScore: PropTypes.number
+  }).isRequired,
+  gameMode: PropTypes.string.isRequired,
+  isChatVisible: PropTypes.bool.isRequired,
+  setIsChatVisible: PropTypes.func.isRequired,
 };
 
 export default LobbyView;
