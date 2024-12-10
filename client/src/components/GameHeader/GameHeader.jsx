@@ -52,11 +52,17 @@ const GameHeader = ({ currentPlayer }) => {
   }, [currentPlayer]);
 
   const handleChallenge = async (opponentId) => {
+    if (!currentPlayer?.player_id || !opponentId) {
+      console.error('Missing player IDs');
+      message.error('Failed to start a new game');
+      return;
+    }
+  
     try {
       const game = await createGame(currentPlayer.player_id, opponentId);
       message.success('Game created! Waiting for the opponent...');
       setIsModalVisible(false);
-
+  
       // Navigate to the game page or trigger socket connection for real-time updates
       navigate(`/game/${game.game.game_id}`);
     } catch (error) {
