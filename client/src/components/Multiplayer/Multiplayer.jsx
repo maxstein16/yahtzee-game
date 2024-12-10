@@ -11,13 +11,7 @@ import { useNavigate } from 'react-router-dom';
 
 const { Content } = Layout;
 
-const Multiplayer = ({ 
-  currentPlayer,
-  gameId,
-  onGameEnd,
-  socket,
-  opponent
-}) => {
+const Multiplayer = ({ currentPlayer, onGameEnd }) => {
   // Game state
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
   const [selectedDice, setSelectedDice] = useState([]);
@@ -27,10 +21,15 @@ const Multiplayer = ({
   const [playerCategories, setPlayerCategories] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(true);
 
+  // WebSocket and game state
+  const [socket, setSocket] = useState(null);
+  const [gameId, setGameId] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+
   // Opponent state
   const [opponentDice, setOpponentDice] = useState([1, 1, 1, 1, 1]);
   const [opponentCategories, setOpponentCategories] = useState([]);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
