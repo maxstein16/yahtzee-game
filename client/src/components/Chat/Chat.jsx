@@ -11,11 +11,16 @@ export default function Chat({ gameId, playerId, playerName }) {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    console.log('[Chat] Component mounted:', {
+    console.log('Connected to room:', {
       gameId,
       playerId,
       playerName
     });
+    
+    // Debug socket rooms
+    if (chatService.socket) {
+      console.log('Socket rooms:', chatService.socket.rooms);
+    }
   }, []);
 
   useEffect(() => {
