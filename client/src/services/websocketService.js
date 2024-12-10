@@ -20,6 +20,7 @@ export const initializeWebSocket = (gameId, playerId) => {
         console.log('WebSocket connected successfully');
         resolve({
           on: (event, callback) => socket.on(event, callback),
+          off: (event, callback) => socket.off(event, callback), // Add this
           emit: (event, data) => socket.emit(event, data),
           disconnect: () => socket.disconnect(),
         });

@@ -18,58 +18,23 @@ const MultiplayerModal = ({
     if (!socket || !visible) {
       return;
     }
-
-    const handlePlayersUpdate = (connectedPlayers) => {
-      setPlayers(connectedPlayers.filter(p => p.id !== currentPlayerId));
-      setLoading(false);
-    };
-
-    const handleGameRequest = (requestingPlayer) => {
-      Modal.confirm({
-        title: 'Game Request',
-        content: `${requestingPlayer.name} wants to play with you!`,
-        onOk: () => {
-          socket.emit('acceptGame', requestingPlayer.id);
-          onPlayerSelect(requestingPlayer);
-          onClose();
-        },
-        onCancel: () => {
-          socket.emit('rejectGame', requestingPlayer.id);
-        }
-      });
-    };
-
-    const handleGameRequestResponse = ({ playerId, accepted }) => {
-      setPendingRequests(prev => ({ ...prev, [playerId]: false }));
-      if (accepted) {
-        const player = players.find(p => p.id === playerId);
-        if (player) {
-          onPlayerSelect(player);
-          onClose();
-        }
-      } else {
-        message.error('Player declined your game request');
-      }
-    };
-
-    // Add event listeners
+  
+    console.log('Socket instance:', socket);
+  
+    // Add listeners
     socket.on('playersUpdate', handlePlayersUpdate);
     socket.on('gameRequest', handleGameRequest);
     socket.on('gameRequestResponse', handleGameRequestResponse);
-
-    // Request current players list
-    socket.emit('getPlayers');
-
+  
     // Cleanup function
     const cleanupListeners = () => {
       socket.off('playersUpdate', handlePlayersUpdate);
       socket.off('gameRequest', handleGameRequest);
       socket.off('gameRequestResponse', handleGameRequestResponse);
     };
-
-    // Return the cleanup function
+  
     return cleanupListeners;
-  }, [socket, visible, currentPlayerId, onPlayerSelect, onClose]);
+  }, [socket, visible, currentPlayerId, onPlayerSelect, onClose]);  
 
   const handleRequestGame = (playerId) => {
     if (!socket) {
