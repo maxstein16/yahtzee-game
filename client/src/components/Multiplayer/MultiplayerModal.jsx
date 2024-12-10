@@ -21,6 +21,11 @@ const MultiplayerModal = ({
   };
 
   const handleGameRequest = (requestingPlayer) => {
+    if (!requestingPlayer || !requestingPlayer.name) {
+      console.error('Invalid requesting player:', requestingPlayer);
+      return;
+    }
+  
     Modal.confirm({
       title: 'Game Request',
       content: `${requestingPlayer.name} wants to play with you!`,
