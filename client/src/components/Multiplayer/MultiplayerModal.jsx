@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, List, Button, Avatar, Badge, message } from 'antd';
-import { UserOutlined, LoadingOutlined } from 'lucide-react';
+import { Modal, List, Button, Avatar, Badge, message, Spin } from 'antd';
+import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
 
 const MultiplayerModal = ({ 
   visible, 
@@ -67,6 +67,8 @@ const MultiplayerModal = ({
     socket.emit('requestGame', playerId);
   };
 
+  const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
+
   return (
     <Modal
       title="Available Players"
@@ -77,7 +79,7 @@ const MultiplayerModal = ({
     >
       {loading ? (
         <div className="flex justify-center items-center h-40">
-          <LoadingOutlined className="w-8 h-8 text-blue-500" />
+          <Spin indicator={antIcon} />
         </div>
       ) : players.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
