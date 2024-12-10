@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography } from 'antd';
-import Dice from '../Dice';
+import Dice from '../../pages/Dice';
 
 const { Title, Text } = Typography;
 
