@@ -27,7 +27,6 @@ const Multiplayer = ({
   const [playerCategories, setPlayerCategories] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(true);
   const [socket, setSocket] = useState(null);
-  const [gameId, setGameId] = useState(null);
   const [opponent, setOpponent] = useState(null);
 
   // Opponent state
