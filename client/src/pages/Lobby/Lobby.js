@@ -54,6 +54,16 @@ function Lobby() {
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [isMultiplayerModalVisible, setIsMultiplayerModalVisible] = useState(false);
 
+  const [opponentState, setOpponentState] = useState({
+    categories: [],
+    dice: INITIAL_DICE_VALUES,
+    score: 0,
+    rollCount: 0,
+    isOpponentTurn: false,
+    lastCategory: null,
+    turnScore: 0
+  });
+
   // WebSocket setup
   useEffect(() => {
     if (currentPlayer?.player_id) {
@@ -250,7 +260,7 @@ function Lobby() {
   };
 
   // Handle dice rolling
-  const handleDiceRoll = async () => {
+  const handleRollDice = async () => {
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
       return;
@@ -274,6 +284,32 @@ function Lobby() {
       setIsRolling(false);
     }
   };
+
+  const checkForYahtzeeBonus = (dice) => {
+    if (!hasYahtzee) return false;
+    return dice.every(value => value === dice[0]);
+  };
+
+  const calculateAllScores = (categories) => {
+    const upperCategories = categories.filter(cat => cat.section === 'upper');
+    const upperTotal = upperCategories.reduce((total, cat) => total + (cat.score || 0), 0);
+    const upperBonus = upperTotal >= 63 ? 35 : 0;
+    
+    const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
+    const hasYahtzeeBonus = yahtzeeCategory?.score === 50;
+    
+    const total = categories.reduce((sum, cat) => sum + (cat.score || 0), 0) + upperBonus;
+    
+    return {
+      upperTotal,
+      upperBonus,
+      hasYahtzee: hasYahtzeeBonus,
+      yahtzeeBonus: categories.filter(cat => cat.name === 'yahtzeeBonus')
+        .reduce((sum, cat) => sum + (cat.score || 0), 0),
+      total
+    };
+  };
+  
 
   // Prepare shared props
   const sharedProps = {
