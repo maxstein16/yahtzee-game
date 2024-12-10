@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/yahtzee.maxstein.info/static/css/main.73bd8182.css",
+    "main.js": "/yahtzee.maxstein.info/static/js/main.a3baa5da.js",
+    "static/js/453.419a5d54.chunk.js": "/yahtzee.maxstein.info/static/js/453.419a5d54.chunk.js",
+    "static/media/dice.gif": "/yahtzee.maxstein.info/static/media/dice.034789f96a0e9c3922b4.gif",
+    "index.html": "/yahtzee.maxstein.info/index.html",
+    "main.73bd8182.css.map": "/yahtzee.maxstein.info/static/css/main.73bd8182.css.map",
+    "main.a3baa5da.js.map": "/yahtzee.maxstein.info/static/js/main.a3baa5da.js.map",
+    "453.419a5d54.chunk.js.map": "/yahtzee.maxstein.info/static/js/453.419a5d54.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.73bd8182.css",
+    "static/js/main.a3baa5da.js"
+  ]
+}
