@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import GameHeader from '../../components/GameHeader/GameHeader';
 import GameBoard from '../../components/GameBoard/GameBoard';
 import ScoreBoard from '../../components/ScoreBoard/ScoreBoard';
-import LobbyChat from './LobbyChat';
+import LobbyChat from '../../pages/Lobby/LobbyChat';
 
 const { Content } = Layout;
 
