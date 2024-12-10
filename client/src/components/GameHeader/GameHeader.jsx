@@ -1,7 +1,5 @@
-// src/components/GameHeader/GameHeader.jsx
 import React, { useState, useEffect } from 'react';
 import { Layout, Button, Modal, List, message } from 'antd';
-import { createGame } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import initializeWebSocket from '../../services/websocketService';
 
@@ -33,7 +31,7 @@ const GameHeader = ({ currentPlayer }) => {
             (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
           );
           setAvailablePlayers(filteredPlayers);
-        });
+        });        
 
         socketConnection.on('challengeReceived', ({ challenger }) => {
           setChallengedPlayer(challenger);
@@ -66,8 +64,9 @@ const GameHeader = ({ currentPlayer }) => {
   }, [currentPlayer, navigate]);
 
   const handleChallenge = async (opponent) => {
+    console.log('Challenging player:', opponent);
     if (!socket || !currentPlayer?.player_id || !opponent.id) return;
-
+  
     try {
       await socket.emit('challengePlayer', {
         challengerId: currentPlayer.player_id,
@@ -81,7 +80,7 @@ const GameHeader = ({ currentPlayer }) => {
       console.error('Error sending challenge:', error);
       message.error('Failed to send challenge');
     }
-  };
+  };  
 
   const handleAcceptChallenge = () => {
     if (!socket || !challengedPlayer) return;
@@ -103,13 +102,7 @@ const GameHeader = ({ currentPlayer }) => {
   return (
     <Header>
       <Button onClick={() => navigate('/singleplayer')}>Single Player</Button>
-      <Button
-        onClick={() => {
-          setIsModalVisible(true);
-        }}
-      >
-        Multiplayer
-      </Button>
+      <Button onClick={() => setIsModalVisible(true)}>Multiplayer</Button>
 
       {/* Multiplayer Modal */}
       <Modal
