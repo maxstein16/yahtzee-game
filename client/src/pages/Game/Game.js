@@ -20,7 +20,6 @@ const Game = ({ gameId, currentPlayer }) => {
   const [isMyTurn, setIsMyTurn] = useState(true);
   const [opponent, setOpponent] = useState(null);
   const messagesEndRef = useRef(null);
-  const [scores, setScores] = useState({});
   const [socket, setSocket] = useState(null);
 
 
@@ -137,28 +136,43 @@ const Game = ({ gameId, currentPlayer }) => {
       setIsRolling(false);
     }
   };
-
   const handleScoreCategoryClick = async (categoryName) => {
     try {
       const category = playerCategories.find((cat) => cat.name === categoryName);
       if (!category) throw new Error('Invalid category.');
-
-      await API.updateScoreCategory(category.category_id, scores[categoryName]);
+  
+      // Get the current score for this category
+      const currentScores = calculateScores(diceValues);
+      const categoryScore = currentScores[categoryName];
+      
+      if (categoryScore === undefined) {
+        throw new Error('Invalid score calculation');
+      }
+  
+      // Update the category with the current score
+      await API.updateScoreCategory(category.category_id, categoryScore);
       message.success('Score submitted successfully.');
-
+  
       // Reload categories
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       setPlayerCategories(updatedCategories);
-
+  
       // Notify turn completion
-      await API.submitTurn(gameId, currentPlayer.player_id, category.category_id, scores[categoryName], diceValues, rollCount);
+      await API.submitTurn(
+        gameId, 
+        currentPlayer.player_id, 
+        category.category_id, 
+        categoryScore, 
+        diceValues, 
+        rollCount
+      );
       
       // Reset turn state
       setRollCount(0);
       setSelectedDice([]);
       setDiceValues([1, 1, 1, 1, 1]);
       setIsMyTurn(false);
-
+  
       // Emit turn end
       if (socket) {
         socket.emit('turnEnd', {
