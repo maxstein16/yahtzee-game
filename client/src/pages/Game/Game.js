@@ -138,35 +138,51 @@ const Game = ({ gameId, currentPlayer }) => {
   };
   const handleScoreCategoryClick = async (categoryName) => {
     try {
+      // Only allow scoring on your turn
+      if (!isMyTurn) {
+        message.warning("It's not your turn!");
+        return;
+      }
+  
       const category = playerCategories.find((cat) => cat.name === categoryName);
       if (!category) throw new Error('Invalid category.');
   
       // Get the current score for this category
       const currentScores = calculateScores(diceValues);
-      const categoryScore = currentScores[categoryName];
+      const categoryScore = Number(currentScores[categoryName]);
       
-      if (categoryScore === undefined) {
+      if (categoryScore === undefined || isNaN(categoryScore)) {
         throw new Error('Invalid score calculation');
       }
   
-      // Update the category with the current score
-      await API.updateScoreCategory(category.category_id, categoryScore);
-      message.success('Score submitted successfully.');
+      // First update the category score
+      try {
+        await API.updateScoreCategory(category.category_id, categoryScore);
+        message.success('Score submitted successfully.');
+      } catch (error) {
+        console.error('Error updating score category:', error);
+        throw new Error('Failed to update score category');
+      }
   
-      // Reload categories
+      // Then submit the turn
+      try {
+        await API.submitTurn(
+          gameId, 
+          currentPlayer.player_id, 
+          category.category_id, 
+          categoryScore, 
+          diceValues, 
+          rollCount
+        );
+      } catch (error) {
+        console.error('Error submitting turn:', error);
+        throw new Error('Failed to submit turn');
+      }
+  
+      // Reload categories after successful submission
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       setPlayerCategories(updatedCategories);
   
-      // Notify turn completion
-      await API.submitTurn(
-        gameId, 
-        currentPlayer.player_id, 
-        category.category_id, 
-        categoryScore, 
-        diceValues, 
-        rollCount
-      );
-      
       // Reset turn state
       setRollCount(0);
       setSelectedDice([]);
@@ -180,9 +196,10 @@ const Game = ({ gameId, currentPlayer }) => {
           nextPlayer: opponent.player_id
         });
       }
+  
     } catch (error) {
       console.error('Error submitting score:', error);
-      message.error('Failed to submit score.');
+      message.error(error.message || 'Failed to submit score.');
     }
   };
 
