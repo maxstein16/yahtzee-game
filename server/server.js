@@ -3,8 +3,7 @@ const { app } = require('./app');
 const { Server } = require('socket.io');
 const API = require('./routes/index');
 
-// Use the PORT environment variable provided by Cloud Run
-const port = parseInt(process.env.PORT) || 8080;
+const port = process.env.PORT || 8080;
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -221,5 +220,5 @@ socket.on('disconnect', () => {
 });
 
 server.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
