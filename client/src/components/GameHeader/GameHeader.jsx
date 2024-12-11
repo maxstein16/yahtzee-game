@@ -6,7 +6,7 @@ import API from '../../utils/api';
 const { Header } = Layout;
 
 const GameHeader = ({
-  currentPlayer,
+  currentPlayer = {},
   handleLogout,
   socket,
   availablePlayers = []
@@ -16,17 +16,8 @@ const GameHeader = ({
   const [pendingChallenge, setPendingChallenge] = useState(null);
   const [isChallengePending, setIsChallengePending] = useState(false);
 
-  // Debug log props
-  useEffect(() => {
-    console.log('GameHeader props:', {
-      currentPlayer,
-      availablePlayers,
-      socketConnected: socket?.connected
-    });
-  }, [currentPlayer, availablePlayers, socket]);
-
-  const handleNewGame = async () => {
-    if (!currentPlayer?.player_id) {
+  const handleNewGame = useCallback(async () => {
+    if (!currentPlayer.player_id) {
       message.error('Player not initialized');
       return;
     }
@@ -44,10 +35,10 @@ const GameHeader = ({
       console.error('Error creating new game:', error);
       message.error('Failed to create new game');
     }
-  };
+  }, [currentPlayer.player_id, navigate]);
 
   const handleChallenge = useCallback(async (opponent) => {
-    if (!socket || !currentPlayer?.player_id) {
+    if (!socket) {
       message.error('Connection not available');
       return;
     }
@@ -60,19 +51,21 @@ const GameHeader = ({
         opponent.id
       );
       
+      const gameId = response.game.game_id;
+      
       socket.emit('gameChallenge', {
         challenger: { 
           id: currentPlayer.player_id, 
           name: currentPlayer.name 
         },
         opponentId: opponent.id,
-        gameId: response.game.game_id
+        gameId
       });
 
-      message.info(`Challenge sent to ${opponent.name}`);
       setPendingChallenge(opponent);
       setIsChallengePending(true);
       setIsModalVisible(false);
+      message.info(`Challenge sent to ${opponent.name}`);
     } catch (error) {
       console.error('Error creating game:', error);
       message.error('Failed to create game');
@@ -119,21 +112,22 @@ const GameHeader = ({
       });
     };
 
-    socket.on('challengeRequest', handleChallengeRequest);
-    socket.on('challengeAccepted', handleChallengeAccepted);
-    socket.on('challengeRejected', () => {
+    const handleChallengeRejected = () => {
       setPendingChallenge(null);
       setIsChallengePending(false);
-    });
+      message.warning('Challenge declined');
+    };
+
+    socket.on('challengeRequest', handleChallengeRequest);
+    socket.on('challengeAccepted', handleChallengeAccepted);
+    socket.on('challengeRejected', handleChallengeRejected);
 
     return () => {
-      socket.off('challengeRequest');
-      socket.off('challengeAccepted');
-      socket.off('challengeRejected');
+      socket.off('challengeRequest', handleChallengeRequest);
+      socket.off('challengeAccepted', handleChallengeAccepted);
+      socket.off('challengeRejected', handleChallengeRejected);
     };
   }, [socket, navigate]);
-
-  const safeAvailablePlayers = Array.isArray(availablePlayers) ? availablePlayers : [];
 
   return (
     <Header className="flex items-center justify-between px-6 bg-white shadow">
@@ -149,6 +143,7 @@ const GameHeader = ({
           type="primary"
           onClick={() => setIsModalVisible(true)}
           className="bg-green-500"
+          disabled={!socket}
         >
           Multiplayer
         </Button>
@@ -176,11 +171,9 @@ const GameHeader = ({
         onCancel={() => setIsModalVisible(false)}
         footer={null}
       >
-        {safeAvailablePlayers.length > 0 ? (
+        {Array.isArray(availablePlayers) && availablePlayers.length > 0 ? (
           <List
-            dataSource={safeAvailablePlayers.filter(player => 
-              player?.id !== currentPlayer?.player_id
-            )}
+            dataSource={availablePlayers}
             renderItem={(player) => (
               <List.Item
                 key={player.id}
@@ -195,7 +188,7 @@ const GameHeader = ({
                   </Button>
                 ]}
               >
-                {player.name || 'Unknown Player'}
+                {player.name}
               </List.Item>
             )}
           />

@@ -12,13 +12,14 @@ function Lobby() {
   const [isLoading, setIsLoading] = useState(true);
   const [socket, setSocket] = useState(null);
   const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
 
+  // Initialize player
   useEffect(() => {
     const initializePlayer = async () => {
       try {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
-          console.log('Player info:', playerInfo); // Debug log
           setCurrentPlayer(playerInfo.playerData);
         }
       } catch (error) {
@@ -32,40 +33,65 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
+  // Initialize WebSocket connection
   useEffect(() => {
-    if (currentPlayer?.player_id) {
-      initializeWebSocket(currentPlayer.player_id)
-        .then(socketConnection => {
-          setSocket(socketConnection);
+    let socketInstance = null;
+
+    const setupSocket = async () => {
+      if (!currentPlayer?.player_id) return;
+
+      try {
+        const socketConnection = await initializeWebSocket(currentPlayer.player_id);
+        socketInstance = socketConnection;
+        setSocket(socketConnection);
+
+        socketConnection.on('connect', () => {
+          console.log('Socket connected');
+          setIsSocketConnected(true);
           
-          socketConnection.on('connect', () => {
-            console.log('Connected to game server');
-            socketConnection.emit('playerJoined', {
-              id: currentPlayer.player_id,
-              name: currentPlayer.name
-            });
+          // Emit player joined event
+          socketConnection.emit('playerJoined', {
+            id: currentPlayer.player_id,
+            name: currentPlayer.name
           });
-
-          socketConnection.on('playersUpdate', (players) => {
-            console.log('Received players update:', players); // Debug log
-            const filteredPlayers = players
-              .filter(p => p && p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString())
-              .map(p => ({
-                id: p.id,
-                name: p.name
-              }));
-            setAvailablePlayers(filteredPlayers);
-          });
-        })
-        .catch(error => {
-          console.error('WebSocket connection error:', error);
-          message.error('Failed to connect to game server');
         });
-    }
 
+        socketConnection.on('disconnect', () => {
+          console.log('Socket disconnected');
+          setIsSocketConnected(false);
+        });
+
+        socketConnection.on('playersUpdate', (players) => {
+          console.log('Received players update:', players);
+          const filteredPlayers = players
+            .filter(p => 
+              p && 
+              p.id && 
+              p.name && 
+              p.id.toString() !== currentPlayer.player_id.toString()
+            )
+            .map(p => ({
+              id: p.id,
+              name: p.name
+            }));
+          setAvailablePlayers(filteredPlayers);
+        });
+
+      } catch (error) {
+        console.error('WebSocket connection error:', error);
+        message.error('Failed to connect to game server');
+      }
+    };
+
+    setupSocket();
+
+    // Cleanup function
     return () => {
-      if (socket) {
-        socket.disconnect();
+      if (socketInstance) {
+        console.log('Cleaning up socket connection');
+        socketInstance.disconnect();
+        setSocket(null);
+        setIsSocketConnected(false);
       }
     };
   }, [currentPlayer?.player_id]);
@@ -80,24 +106,22 @@ function Lobby() {
     );
   }
 
-  // Debug log before render
-  console.log('Rendering Lobby with:', {
-    currentPlayer,
-    availablePlayers,
-    socketConnected: socket?.connected
-  });
-
   return (
     <Layout style={{ height: '100vh' }}>
       <GameHeader
-        currentPlayer={currentPlayer}
+        currentPlayer={currentPlayer || {}}
         handleLogout={() => handleLogout(navigate)}
-        socket={socket}
-        availablePlayers={availablePlayers || []}
+        socket={isSocketConnected ? socket : null}
+        availablePlayers={availablePlayers}
       />
       
       <Layout.Content className="p-6">
-        <LobbyChat currentPlayer={currentPlayer} />
+        {currentPlayer && socket && (
+          <LobbyChat 
+            currentPlayer={currentPlayer} 
+            socket={socket}
+          />
+        )}
       </Layout.Content>
     </Layout>
   );
