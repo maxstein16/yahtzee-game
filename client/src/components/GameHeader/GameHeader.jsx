@@ -85,6 +85,7 @@ const GameHeader = ({
 
     const handleChallengeAccepted = ({ gameId, opponent }) => {
       message.success('Challenge accepted! Starting game...');
+      API.startGame(gameId);
       setPendingChallenge(null);
       setIsChallengePending(false);
       
