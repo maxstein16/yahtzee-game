@@ -291,6 +291,13 @@ export const getAvailablePlayers = () => apiRequest('/players/available');
 
 export const getPlayerById = (playerId) => apiRequest(`/players/${playerId}`);
 
+export const getPlayersInGame = (gameId) => {
+  if (!gameId) {
+    throw new Error('Game ID is required to fetch players');
+  }
+  return apiRequest(`/game/${gameId}/players`);
+};
+
 const API = {
   login,
   register,
@@ -315,6 +322,7 @@ const API = {
   createTurn,
   getAvailablePlayers,
   getPlayerById,
+  getPlayersInGame,
   updateTurn
 };
 
