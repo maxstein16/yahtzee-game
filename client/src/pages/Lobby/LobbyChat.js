@@ -15,6 +15,9 @@ const LobbyChat = ({ currentPlayer }) => {
   const [pendingChallenge, setPendingChallenge] = useState(null);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
   const messagesEndRef = useRef(null);
+  const [isMyTurn, setIsMyTurn] = useState(true);
+  const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
+  const [rollCount, setRollCount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -125,25 +128,42 @@ const LobbyChat = ({ currentPlayer }) => {
       message.error('Invalid game challenge');
       return;
     }
-
+  
     try {
       const { gameId } = pendingChallenge;
+  
+      // Start the game
       await API.startGame(gameId);
-
+  
+      // Create the turn for the current player
+      const newTurn = await API.createTurn(
+        gameId,
+        currentPlayer.player_id,
+        [1, 1, 1, 1, 1], // Default dice values
+        0, // Initial reroll count
+        0, // Initial score
+        false // Turn not completed
+      );
+  
+      console.log('Turn created successfully:', newTurn);
+  
       socket.emit('challengeAccepted', {
         challengerId: pendingChallenge.challenger.id,
-        gameId: gameId
+        gameId: gameId,
       });
-
+  
+      setDiceValues(newTurn.dice || [1, 1, 1, 1, 1]);
+      setRollCount(newTurn.rerolls || 0);
+      setIsMyTurn(true);
+  
       setPendingChallenge(null);
       message.success('Challenge accepted! Starting game...');
-
     } catch (error) {
       console.error('Error accepting challenge:', error);
       message.error('Failed to start game');
       setPendingChallenge(null);
     }
-  };
+  };  
 
   const handleDeclineChallenge = () => {
     if (!pendingChallenge) return;

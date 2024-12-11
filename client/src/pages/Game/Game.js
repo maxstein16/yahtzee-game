@@ -26,30 +26,22 @@ const Game = ({ gameId, currentPlayer }) => {
   useEffect(() => {
     const initializeGame = async () => {
       try {
-        // Step 1: Attempt to create the turn first
-        console.log('Creating a turn for the current player...');
-        await API.createTurn(
-          gameId,
-          currentPlayer.player_id,
-          [1, 1, 1, 1, 1], // Default dice values
-          0, // Initial reroll count
-          0, // Initial score
-          false // Turn not completed
-        );
-  
-        // Step 2: Fetch the newly created turn
+        // Fetch the existing turn for the current player
         const turnData = await API.getTurn(gameId, currentPlayer.player_id);
         console.log('Fetched turn data:', turnData);
   
-        // Step 3: Update the local state with the turn details
+        // Update local state with the turn details
         if (turnData) {
-          setIsMyTurn(turnData.playerId === currentPlayer.player_id);
+          setIsMyTurn(!turnData.turn_completed && turnData.playerId === currentPlayer.player_id);
           setDiceValues(turnData.dice || [1, 1, 1, 1, 1]);
           setRollCount(turnData.rerolls || 0);
   
-          if (turnData.playerId !== currentPlayer.player_id) {
+          if (turnData.playerId !== currentPlayer.player_id || turnData.turn_completed) {
             message.info("Waiting for opponent's turn...");
           }
+        } else {
+          console.log('No existing turn found.');
+          setIsMyTurn(false); // Player will create the turn upon action
         }
       } catch (error) {
         console.error('Error initializing game:', error);
@@ -65,6 +57,7 @@ const Game = ({ gameId, currentPlayer }) => {
       }
     };
   }, [gameId, currentPlayer]);
+  
 
   const toggleDiceSelection = (index) => {
     setSelectedDice((prevSelected) =>
