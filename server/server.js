@@ -56,6 +56,16 @@ io.on('connection', (socket) => {
       socketId: socket.id
     };
 
+    socket.on('chatMessage', (message) => {
+      const messageWithSender = {
+        sender: message.sender,
+        content: message.content,
+        timestamp: new Date().toISOString(),
+      };
+      chatHistory.push(messageWithSender);
+      io.emit('chatMessage', messageWithSender);
+    });
+
     // Send initial data to new player
     socket.emit('chatHistory', chatHistory);
     broadcastPlayerList();
