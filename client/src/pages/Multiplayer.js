@@ -3,7 +3,6 @@ import { Layout, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import GameBoard from '../components/GameBoard/GameBoard';
 import GameHeader from '../components/GameHeader/GameHeader';
-import GameChat from '../components/GameChat/GameChat';
 import Scoreboard from '../components/ScoreBoard/ScoreBoard';
 import { handleLogout, fetchCurrentPlayer } from '../services/authService';
 import API from '../utils/api';
@@ -20,7 +19,6 @@ function MultiplayerPage() {
   const [selectedDice, setSelectedDice] = useState([]);
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
-  const [isChatVisible, setIsChatVisible] = useState(false);
   const [socket, setSocket] = useState(null);
   const [isMyTurn, setIsMyTurn] = useState(isChallenger);
 
@@ -177,42 +175,25 @@ function MultiplayerPage() {
             handleRollDice={handleDiceRoll}
           />
 
-          <div className="flex flex-col gap-6">
-            <Button 
-              onClick={() => setIsChatVisible(true)}
-              type="primary"
-            >
-              Open Chat
-            </Button>
-
-            <div className="flex gap-4">
-              <Scoreboard
-                currentPlayer={currentPlayer}
-                diceValues={diceValues}
-                rollCount={rollCount}
-                handleScoreCategoryClick={handleScoreCategoryClick}
-                gameId={gameId}
-                isMyTurn={isMyTurn}
-              />
-              <Scoreboard
-                currentPlayer={opponent}
-                diceValues={diceValues}
-                rollCount={rollCount}
-                gameId={gameId}
-                isOpponent
-              />
-            </div>
+          <div className="flex gap-4">
+            <Scoreboard
+              currentPlayer={currentPlayer}
+              diceValues={diceValues}
+              rollCount={rollCount}
+              handleScoreCategoryClick={handleScoreCategoryClick}
+              gameId={gameId}
+              isMyTurn={isMyTurn}
+            />
+            <Scoreboard
+              currentPlayer={opponent}
+              diceValues={diceValues}
+              rollCount={rollCount}
+              gameId={gameId}
+              isOpponent
+            />
           </div>
         </div>
       </Layout.Content>
-
-      <GameChat
-        isChatVisible={isChatVisible}
-        setIsChatVisible={setIsChatVisible}
-        gameId={gameId}
-        currentPlayer={currentPlayer}
-        mode="multiplayer"
-      />
     </Layout>
   );
 }
