@@ -30,7 +30,7 @@ const MultiplayerPage = () => {
   const initializeSocket = async (playerId) => {
     try {
       const socketConnection = await initializeWebSocket(playerId);
-      
+
       socketConnection.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
         message.error('Connection lost. Retrying...');
@@ -54,21 +54,21 @@ const MultiplayerPage = () => {
   // Initialize player and game
   useEffect(() => {
     let mounted = true;
-    
+
     const initializeGame = async () => {
       try {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (!mounted) return;
-        
+
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
-          
+
           // Initialize categories
           await API.initializePlayerCategories(playerInfo.playerData.player_id);
           const categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
           if (!mounted) return;
           setPlayerCategories(categories);
-          
+
           if (opponent?.id) {
             const opponentCats = await API.getPlayerCategories(opponent.id);
             if (!mounted) return;
@@ -90,20 +90,21 @@ const MultiplayerPage = () => {
             if (!mounted) return;
             const isMyNewTurn = nextPlayer === playerInfo.playerData.player_id;
             setIsMyTurn(isMyNewTurn);
-            
+
             if (isMyNewTurn) {
               setDiceValues([1, 1, 1, 1, 1]);
               setRollCount(0);
               setSelectedDice([]);
               message.success("It's your turn!");
             } else {
+              setOpponentDiceValues(newDice || [1, 1, 1, 1, 1]);
               message.info("Opponent's turn");
             }
           });
 
-          socketConnection.on('categoriesUpdate', async ({ categories, playerId }) => {
+          socketConnection.on('categoriesUpdate', async ({ playerId }) => {
             if (!mounted) return;
-            
+
             try {
               if (playerId === playerInfo.playerData.player_id) {
                 const updatedCategories = await API.getPlayerCategories(playerId);
@@ -142,12 +143,6 @@ const MultiplayerPage = () => {
     };
   }, [gameId, navigate, opponent?.id]);
 
-  const calculateTotalScore = async (categories) => {
-    return categories.reduce((total, category) => {
-      return total + (category.score || 0);
-    }, 0);
-  };
-
   const handleDiceRoll = async () => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");
@@ -169,13 +164,13 @@ const MultiplayerPage = () => {
 
       setDiceValues(result.dice);
       setRollCount((prev) => prev + 1);
-      
+
       // Emit dice roll to opponent
-      socket?.emit('diceRoll', { 
-        dice: result.dice, 
-        gameId 
+      socket?.emit('diceRoll', {
+        dice: result.dice,
+        gameId
       });
-      
+
     } catch (error) {
       console.error('Roll dice error:', error);
       message.error('Failed to roll dice');
@@ -231,9 +226,9 @@ const MultiplayerPage = () => {
 
   const toggleDiceSelection = (index) => {
     if (!isMyTurn || isRolling) return;
-    
-    setSelectedDice(prev => 
-      prev.includes(index) 
+
+    setSelectedDice(prev =>
+      prev.includes(index)
         ? prev.filter(i => i !== index)
         : [...prev, index]
     );
@@ -242,7 +237,7 @@ const MultiplayerPage = () => {
   const calculateScores = (dice) => {
     const counts = new Array(7).fill(0);
     dice.forEach(value => counts[value]++);
-  
+
     return {
       ones: counts[1] * 1,
       twos: counts[2] * 2,
@@ -260,68 +255,13 @@ const MultiplayerPage = () => {
     };
   };
 
-  const handleNewGame = async () => {
-    try {
-      if (!socket || !opponent) {
-        throw new Error('Missing socket connection or opponent information');
-      }
-
-      // Reset current player's categories
-      await API.resetPlayerCategories(currentPlayer.player_id);
-
-      // Create new game
-      const response = await API.createGame('pending', 0, currentPlayer.player_id);
-      
-      if (!response?.game?.game_id) {
-        throw new Error('Failed to create new game');
-      }
-
-      // Initialize categories for current player
-      await API.initializePlayerCategories(currentPlayer.player_id);
-
-      // Send challenge to opponent for new game
-      socket.emit('gameChallenge', {
-        challenger: {
-          id: currentPlayer.player_id,
-          name: currentPlayer.name
-        },
-        opponentId: opponent.id,
-        gameId: response.game.game_id
-      });
-
-      // Update local state
-      setDiceValues([1, 1, 1, 1, 1]);
-      setOpponentDiceValues([1, 1, 1, 1, 1]);
-      setRollCount(0);
-      setSelectedDice([]);
-      setIsMyTurn(true);
-      setIsRolling(false);
-
-      // Navigate to new game
-      navigate('/multiplayer', {
-        state: {
-          gameId: response.game.game_id,
-          isChallenger: true,
-          opponent: opponent
-        },
-        replace: true
-      });
-
-      message.success('New game challenge sent to opponent!');
-    } catch (error) {
-      console.error('Error creating new game:', error);
-      message.error('Failed to create new game');
-    }
-  };
-
   return (
     <Layout className="min-h-screen">
       <GameHeader
         currentPlayer={currentPlayer}
         handleLogout={() => handleLogout(navigate)}
-        handleNewGame={handleNewGame}
       />
-      
+
       <Layout.Content className="p-6">
         <div className="flex gap-6">
           <GameBoard
