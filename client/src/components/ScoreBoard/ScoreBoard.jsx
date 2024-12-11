@@ -18,6 +18,7 @@ const Scoreboard = ({
 }) => {
   const [scores, setScores] = useState({});
   const [lockedCategories, setLockedCategories] = useState({});
+  const [playerCategories, setPlayerCategories] = useState([]); // Add this
   const [totalScore, setTotalScore] = useState(0);
   const [upperSectionScore, setUpperSectionScore] = useState(0);
   const [lowerSectionScore, setLowerSectionScore] = useState(0);
