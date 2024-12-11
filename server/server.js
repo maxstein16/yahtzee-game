@@ -30,6 +30,16 @@ io.on('connection', (socket) => {
       socketId: socket.id,
     });
 
+    socket.on('chatMessage', (message) => {
+      const messageWithSender = {
+        sender: message.sender,
+        content: message.content,
+        timestamp: new Date().toISOString(),
+      };
+      chatHistory.push(messageWithSender); // Add message to chat history
+      io.emit('chatMessage', messageWithSender); // Broadcast message to all clients
+    });  
+
     // Emit chat history to the newly connected player
     socket.emit('chatHistory', chatHistory);
 
