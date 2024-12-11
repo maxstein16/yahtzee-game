@@ -69,43 +69,61 @@ function Lobby() {
 
   // WebSocket setup
   useEffect(() => {
-    if (currentPlayer?.player_id) {
-      initializeWebSocket(currentPlayer.player_id)
-        .then(socketConnection => {
-          setSocket(socketConnection);
-          
-          socketConnection.on('connect', () => {
-            console.log('Connected to game server');
-            socketConnection.emit('playerJoined', {
-              id: currentPlayer.player_id,
-              name: currentPlayer.name
-            });
-          });
-
-          socketConnection.on('playersUpdate', (players) => {
-            setAvailablePlayers(players);
-          });
-
-          // Add error handling for socket connection
-          socketConnection.on('connect_error', (error) => {
-            console.error('Socket connection error:', error);
-            message.error('Lost connection to game server');
-          });
-
-          socketConnection.on('error', (error) => {
-            console.error('Socket error:', error);
-            message.error('Game server error occurred');
-          });
-        })
-        .catch(error => {
-          console.error('WebSocket connection error:', error);
-          message.error('Failed to connect to game server');
+    let socketInstance = null;
+  
+    const setupSocket = async () => {
+      if (!currentPlayer?.player_id) return;
+  
+      try {
+        socketInstance = await initializeWebSocket(currentPlayer.player_id);
+        setSocket(socketInstance);
+  
+        // Set up event listeners
+        socketInstance.on('playersUpdate', (players) => {
+          setAvailablePlayers(players.filter(p => p.id !== currentPlayer.player_id));
         });
-    }
-
+  
+        // Handle disconnection
+        socketInstance.on('disconnect', () => {
+          message.warning('Lost connection to game server. Attempting to reconnect...');
+        });
+  
+        // Handle reconnection
+        socketInstance.on('reconnect', () => {
+          message.success('Reconnected to game server');
+          
+          // Re-emit player joined after reconnection
+          socketInstance.emit('playerJoined', {
+            id: currentPlayer.player_id,
+            name: currentPlayer.name
+          }).catch(error => {
+            console.error('Error rejoining after reconnection:', error);
+          });
+        });
+  
+        // Handle connection state changes
+        const checkConnection = setInterval(() => {
+          const state = socketInstance.getState();
+          if (!state.connected && !state.connecting) {
+            socketInstance.reconnect();
+          }
+        }, 30000); // Check every 30 seconds
+  
+        return () => {
+          clearInterval(checkConnection);
+        };
+      } catch (error) {
+        console.error('WebSocket setup error:', error);
+        message.error('Failed to connect to game server');
+      }
+    };
+  
+    setupSocket();
+  
+    // Cleanup function
     return () => {
-      if (socket) {
-        socket.disconnect();
+      if (socketInstance) {
+        socketInstance.disconnect();
       }
     };
   }, [currentPlayer?.player_id]);
