@@ -163,34 +163,42 @@ function MultiplayerPage() {
   }, [socket, currentPlayer]);  
 
   const handleDiceRoll = async () => {
+    if (rollCount >= 3) {
+      message.warning('Maximum rolls reached for this turn.');
+      return;
+    }
+  
     if (!isMyTurn) {
       message.warning("It's not your turn!");
       return;
     }
   
+    setIsRolling(true);
     try {
-      setIsRolling(true);
-      const response = await API.rollDice(gameId, {
-        playerId: currentPlayer.player_id,
-        currentDice: diceValues,
-        keepIndices: selectedDice,
-      });
+      const result = await API.rollDice(gameId, currentPlayer, diceValues, selectedDice);
   
-      setDiceValues(response.dice);
-      setRollCount((prev) => prev + 1);
+      if (result.success) {
+        setDiceValues(result.dice);
+        const newScores = calculateScores(result.dice);
+        setCurrentScores(newScores);
+        setRollCount((prev) => prev + 1);
   
-      if (socket) {
-        socket.emit('diceRoll', {
-          dice: response.dice,
-          gameId: gameId,
-        });
+        if (socket) {
+          socket.emit('diceRoll', {
+            dice: result.dice,
+            gameId: gameId,
+          });
+        }
+      } else {
+        message.error(result.message);
       }
     } catch (error) {
+      console.error('Roll dice error:', error);
       message.error('Failed to roll dice');
     } finally {
       setIsRolling(false);
     }
-  };
+  };  
   
 
   const calculateScores = (dice) => {
@@ -222,29 +230,94 @@ function MultiplayerPage() {
       return;
     }
   
-    try {
-      const scores = calculateScores(diceValues);
-      const score = scores[categoryName];
-      await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
+    if (!gameId || !currentPlayer?.player_id) {
+      message.error('Game or player information missing');
+      return;
+    }
   
+    if (!categoryName) {
+      message.error('No category selected');
+      return;
+    }
+  
+    try {
+      // Calculate scores with current dice
+      const calculatedScores = calculateScores(diceValues);
+  
+      if (!calculatedScores.hasOwnProperty(categoryName)) {
+        throw new Error(`Invalid category: ${categoryName}`);
+      }
+  
+      const categoryScore = calculatedScores[categoryName];
+  
+      if (typeof categoryScore !== 'number') {
+        throw new Error('Invalid score calculation');
+      }
+  
+      console.log('Submitting score:', {
+        categoryName,
+        categoryScore,
+        diceValues,
+        rollCount
+      });
+  
+      // Handle Yahtzee scoring
+      if (categoryName === 'yahtzee' && categoryScore === 50) {
+        setHasYahtzee(true);
+      } else if (hasYahtzee && checkForYahtzeeBonus(diceValues)) {
+        const newBonus = yahtzeeBonus + 100;
+        setYahtzeeBonus(newBonus);
+        await API.submitYahtzeeBonus(gameId, currentPlayer.player_id, newBonus);
+        message.success('Yahtzee Bonus! +100 points');
+      }
+  
+      // Create turn record first
+      await API.createTurn(
+        gameId, 
+        currentPlayer.player_id, 
+        diceValues, 
+        rollCount, 
+        categoryScore, 
+        false
+      );
+  
+      // Submit score with verified data
+      await API.submitGameScore(
+        gameId,
+        currentPlayer.player_id,
+        categoryName,
+        categoryScore
+      );
+  
+      // Update categories and scores
+      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
+      setPlayerCategories(updatedCategories);
+  
+      const scores = calculateAllScores(updatedCategories);
+      setUpperSectionTotal(scores.upperTotal);
+      setUpperSectionBonus(scores.upperBonus);
+      setPlayerTotal(scores.total + yahtzeeBonus);
+  
+      // Reset turn state
+      setDiceValues(INITIAL_DICE_VALUES);
+      setRollCount(0);
+      setSelectedDice([]);
+  
+      // Notify opponent and end turn
       if (socket) {
-        socket.emit('scoreCategory', {
+        socket.emit('turnChange', {
+          nextPlayer: opponent.player_id,
           gameId: gameId,
-          categoryName: categoryName,
-          score: score,
         });
       }
   
-      setRollCount(0);
-      setSelectedDice([]);
-      setDiceValues([1, 1, 1, 1, 1]);
       setIsMyTurn(false);
-  
-      message.success(`Scored ${score} points for ${categoryName}`);
+      message.success(`Scored ${categoryScore} points in ${categoryName}!`);
     } catch (error) {
-      message.error('Failed to submit score');
+      console.error('Error submitting score:', error);
+      message.error(`Failed to submit score: ${error.message}`);
     }
-  };
+  };  
 
   const toggleDiceSelection = (index) => {
     if (isRolling || !isMyTurn || rollCount === 0) return;
