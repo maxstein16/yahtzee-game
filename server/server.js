@@ -12,32 +12,30 @@ const io = new Server(server, {
   },
 });
 
-// Store player data, chat history, and game challenges
+// Store data
 const connectedPlayers = new Map();
 const chatHistory = [];
-const activeChallenges = new Map(); // Map to track active game challenges
+const activeChallenges = new Map();
+const activeGames = new Map(); // Track active games and their states
 
 io.on('connection', (socket) => {
   socket.on('playerJoined', (player) => {
     if (!player.id || !player.name) {
       console.error('Invalid player data received:', player);
-      return; // Reject invalid player data
+      return;
     }
 
-    // Store player data
     connectedPlayers.set(player.id, {
       id: player.id,
       name: player.name,
       socketId: socket.id,
     });
 
-    // Send chat history to the newly connected player
     socket.emit('chatHistory', chatHistory);
-
-    // Send the updated list of players to all clients
     io.emit('playersUpdate', Array.from(connectedPlayers.values()));
   });
 
+  // Handle chat messages
   socket.on('chatMessage', (message) => {
     const messageWithSender = {
       sender: message.sender,
@@ -48,7 +46,7 @@ io.on('connection', (socket) => {
     io.emit('chatMessage', messageWithSender);
   });
 
-  // Handle game challenges
+  // Game challenge handling
   socket.on('gameChallenge', ({ challenger, opponentId, gameId }) => {
     if (!connectedPlayers.has(opponentId)) {
       socket.emit('error', { message: 'Opponent not available' });
@@ -57,11 +55,8 @@ io.on('connection', (socket) => {
 
     const opponent = connectedPlayers.get(opponentId);
     const challengeData = { gameId, challenger, opponent, status: 'pending' };
-
-    // Store the challenge
     activeChallenges.set(gameId, challengeData);
 
-    // Notify the opponent about the challenge
     io.to(opponent.socketId).emit('gameChallenge', {
       challenger,
       gameId,
@@ -72,10 +67,59 @@ io.on('connection', (socket) => {
   socket.on('challengeAccepted', ({ challengerId, gameId }) => {
     console.log(`Game accepted by player for gameId: ${gameId}`);
     
-    // Emit gameStart to both players
-    const gameStartPayload = { gameId };
-    io.to(connectedPlayers.get(challengerId).socketId).emit('gameStart', gameStartPayload);
-    io.to(socket.id).emit('gameStart', gameStartPayload);
+    const challenge = activeChallenges.get(gameId);
+    if (challenge) {
+      // Initialize game state
+      activeGames.set(gameId, {
+        currentTurn: challengerId, // Challenger goes first
+        dice: [1, 1, 1, 1, 1],
+        rollCount: 0,
+        players: [challengerId, challenge.opponent.id]
+      });
+
+      // Notify both players
+      const gameStartPayload = { 
+        gameId,
+        firstPlayer: challengerId
+      };
+      
+      io.to(connectedPlayers.get(challengerId).socketId).emit('gameStart', gameStartPayload);
+      io.to(socket.id).emit('gameStart', gameStartPayload);
+    }
+  });
+
+  // Handle dice rolls
+  socket.on('diceRolled', ({ gameId, dice, player }) => {
+    const game = activeGames.get(gameId);
+    if (game && game.currentTurn === player) {
+      // Update game state
+      game.dice = dice;
+      game.rollCount++;
+      
+      // Broadcast the dice roll to both players
+      io.emit('diceRolled', {
+        gameId,
+        dice,
+        player
+      });
+    }
+  });
+
+  // Handle turn end
+  socket.on('turnEnd', ({ gameId, nextPlayer }) => {
+    const game = activeGames.get(gameId);
+    if (game) {
+      // Update game state
+      game.currentTurn = nextPlayer;
+      game.rollCount = 0;
+      game.dice = [1, 1, 1, 1, 1];
+
+      // Notify all players about the turn change
+      io.emit('turnChange', {
+        gameId,
+        nextPlayer
+      });
+    }
   });
 
   // Handle challenge rejection
@@ -85,22 +129,20 @@ io.on('connection', (socket) => {
     );
 
     if (challenge) {
-      const opponentId =
-        challenge.challenger.id === challengerId
-          ? challenge.opponent.id
-          : challenge.challenger.id;
+      const opponentId = challenge.challenger.id === challengerId
+        ? challenge.opponent.id
+        : challenge.challenger.id;
 
-      // Notify the challenger about the rejection
       io.to(connectedPlayers.get(opponentId).socketId).emit('challengeRejected', {
         message: `${connectedPlayers.get(challengerId)?.name || 'Opponent'} declined your challenge.`,
       });
 
-      // Remove the challenge
       activeChallenges.delete(challenge.gameId);
     }
   });
 
   socket.on('disconnect', () => {
+    // Clean up player data
     for (const [id, data] of connectedPlayers.entries()) {
       if (data.socketId === socket.id) {
         connectedPlayers.delete(id);
@@ -108,7 +150,7 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Remove active challenges involving the disconnected player
+    // Clean up challenges
     for (const [gameId, challenge] of activeChallenges.entries()) {
       if (
         challenge.challenger.socketId === socket.id ||
@@ -118,7 +160,14 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Emit updated list of players to all clients
+    // Clean up games or handle disconnection
+    for (const [gameId, game] of activeGames.entries()) {
+      if (game.players.includes(socket.id)) {
+        // Optionally handle game interruption
+        io.emit('playerDisconnected', { gameId, socketId: socket.id });
+      }
+    }
+
     io.emit('playersUpdate', Array.from(connectedPlayers.values()));
   });
 });

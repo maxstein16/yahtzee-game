@@ -17,10 +17,11 @@ const Game = ({ gameId, currentPlayer }) => {
   const [playerCategories, setPlayerCategories] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  const [isMyTurn, setIsMyTurn] = useState(false);
+  const [isMyTurn, setIsMyTurn] = useState(true);
   const [opponent, setOpponent] = useState(null);
   const messagesEndRef = useRef(null);
-  const [scores, setScores] = useState({}); // Define scores here
+  const [scores, setScores] = useState({});
+  const [socket, setSocket] = useState(null);
 
 
   useEffect(() => {
@@ -28,47 +29,68 @@ const Game = ({ gameId, currentPlayer }) => {
       try {
         const game = await API.getGameById(gameId);
         const players = await API.getPlayersInGame(gameId);
-  
+
         // Set opponent details
         const opponentPlayer = players.find(p => p.player_id !== currentPlayer.player_id);
         setOpponent(opponentPlayer);
-  
+
         // Initialize player categories
         await API.initializePlayerCategories(currentPlayer.player_id);
         const categories = await API.getPlayerCategories(currentPlayer.player_id);
         setPlayerCategories(categories);
-  
+
         // Set default dice values first
         setDiceValues([1, 1, 1, 1, 1]);
-  
+
+        // Determine if it's the player's turn based on game state
+        const isPlayerTurn = game.currentTurnPlayer === currentPlayer.player_id || 
+                           game.status === 'pending' || 
+                           !game.currentTurnPlayer;
+        setIsMyTurn(isPlayerTurn);
+
         try {
-          // Try to get current dice state
           const gameDice = await API.getGameDice(gameId);
           if (gameDice && Array.isArray(gameDice.dice)) {
             setDiceValues(gameDice.dice);
           }
         } catch (diceError) {
           console.warn('Could not fetch dice state:', diceError);
-          // Keep default dice values
         }
-  
-        setIsMyTurn(game.currentTurnPlayer === currentPlayer.player_id);
+
       } catch (error) {
         console.error('Error fetching game details:', error);
         message.error('Failed to load game details.');
       }
     };
-  
+
     fetchGameDetails();
-  
+
     // Initialize WebSocket
-    const socket = initializeWebSocket(currentPlayer.player_id);
-    socket.on('chatMessage', (message) => {
+    const socketConnection = initializeWebSocket(currentPlayer.player_id);
+    setSocket(socketConnection);
+
+    socketConnection.on('chatMessage', (message) => {
       setChatMessages((prevMessages) => [...prevMessages, message]);
       scrollToBottom();
     });
-  
-    return () => socket.disconnect();
+
+    // Listen for turn changes
+    socketConnection.on('turnChange', ({ nextPlayer }) => {
+      setIsMyTurn(nextPlayer === currentPlayer.player_id);
+      if (nextPlayer === currentPlayer.player_id) {
+        message.info("It's your turn!");
+        setRollCount(0);
+        setDiceValues([1, 1, 1, 1, 1]);
+      }
+    });
+
+    socketConnection.on('diceRolled', ({ dice, player }) => {
+      if (player !== currentPlayer.player_id) {
+        setDiceValues(dice);
+      }
+    });
+
+    return () => socketConnection.disconnect();
   }, [gameId, currentPlayer]);
 
   const scrollToBottom = () => {
@@ -94,13 +116,25 @@ const Game = ({ gameId, currentPlayer }) => {
         keepIndices: selectedDice,
       });
 
-      setDiceValues(result.dice);
-      setRollCount(result.rollCount);
-      setSelectedDice([]);
-      setIsRolling(false);
+      if (result.success) {
+        setDiceValues(result.dice);
+        setRollCount(prev => prev + 1);
+        setSelectedDice([]);
+        
+        // Emit the dice roll to other players
+        if (socket) {
+          socket.emit('diceRolled', {
+            gameId,
+            dice: result.dice,
+            player: currentPlayer.player_id
+          });
+        }
+      }
     } catch (error) {
       console.error('Error rolling dice:', error);
       message.error('Failed to roll dice.');
+    } finally {
+      setIsRolling(false);
     }
   };
 
@@ -118,8 +152,20 @@ const Game = ({ gameId, currentPlayer }) => {
 
       // Notify turn completion
       await API.submitTurn(gameId, currentPlayer.player_id, category.category_id, scores[categoryName], diceValues, rollCount);
+      
+      // Reset turn state
       setRollCount(0);
       setSelectedDice([]);
+      setDiceValues([1, 1, 1, 1, 1]);
+      setIsMyTurn(false);
+
+      // Emit turn end
+      if (socket) {
+        socket.emit('turnEnd', {
+          gameId,
+          nextPlayer: opponent.player_id
+        });
+      }
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error('Failed to submit score.');
