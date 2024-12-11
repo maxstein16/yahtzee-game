@@ -60,23 +60,33 @@ router.post('/game/:id/roll', async (req, res) => {
     }
   });
 
-router.get('/game/:id/turn', async (req, res) => {
-  try {
-    const gameId = req.params.id;
-    const playerId = req.query.player_id;
-
-    if (!gameId || !playerId) {
-      return res.status(400).json({ error: 'Missing required parameters' });
+  router.get('/game/:id/turn', async (req, res) => {
+    try {
+      const gameId = req.params.id;
+      const playerId = req.query.player_id;
+  
+      if (!gameId || !playerId) {
+        console.error('Missing parameters:', { gameId, playerId });
+        return res.status(400).json({ error: 'Missing required parameters' });
+      }
+  
+      console.log('Fetching turn for gameId:', gameId, 'playerId:', playerId);
+  
+      const turn = await getLatestTurn(gameId, playerId);
+      console.log('Turn fetched:', turn);
+  
+      if (!turn) {
+        console.warn('No active turn found for gameId:', gameId, 'playerId:', playerId);
+        return res.status(404).json({ error: 'No active turn found' });
+      }
+  
+      return res.json(turn);
+    } catch (error) {
+      console.error('Error in GET /game/:id/turn:', error);
+      res.status(500).json({ error: 'Failed to fetch turn', details: error.message });
     }
-
-    const turn = await getLatestTurn(gameId, playerId);
-    res.json(turn);
-  } catch (error) {
-    console.error('Get turn error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
+  });
+  
 router.post('/game/:id/turn', async (req, res) => {
   try {
     const gameId = req.params.id;
