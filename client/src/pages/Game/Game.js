@@ -54,28 +54,33 @@ const Game = ({ gameId, currentPlayer }) => {
         }
   
         // Socket setup
-        const socketConnection = initializeWebSocket(currentPlayer.player_id);
+        const socketConnection = initializeWebSocket(currentPlayer.player_id, (socket) => {
+          // Register socket handlers
+          socket.on('turnChange', (data) => {
+            const isMyNewTurn = data.currentPlayer === currentPlayer.player_id;
+            setIsMyTurn(isMyNewTurn);
+            
+            if (isMyNewTurn) {
+              message.success("It's your turn!");
+              setRollCount(0);
+              setDiceValues([1, 1, 1, 1, 1]);
+            } else {
+              message.info("Opponent's turn");
+            }
+          });
+  
+          socket.on('diceRolled', (data) => {
+            setDiceValues(data.dice);
+            if (data.player !== currentPlayer.player_id) {
+              message.info("Opponent rolled the dice!");
+            }
+          });
+  
+          // Return the socket instance
+          return socket;
+        });
+  
         setSocket(socketConnection);
-  
-        socketConnection.on('turnChange', ({ currentPlayer: nextPlayer }) => {
-          const isMyNewTurn = nextPlayer === currentPlayer.player_id;
-          setIsMyTurn(isMyNewTurn);
-          
-          if (isMyNewTurn) {
-            message.success("It's your turn!");
-            setRollCount(0);
-            setDiceValues([1, 1, 1, 1, 1]);
-          } else {
-            message.info("Opponent's turn");
-          }
-        });
-  
-        socketConnection.on('diceRolled', ({ dice, player }) => {
-          setDiceValues(dice);
-          if (player !== currentPlayer.player_id) {
-            message.info("Opponent rolled the dice!");
-          }
-        });
   
       } catch (error) {
         console.error('Error fetching game details:', error);

@@ -19,56 +19,49 @@ const LobbyChat = ({ currentPlayer }) => {
 
   useEffect(() => {
     if (!currentPlayer?.player_id) return;
-
+  
     const connectSocket = async () => {
       try {
-        const socketConnection = await initializeWebSocket(currentPlayer.player_id);
+        const socketConnection = await initializeWebSocket(currentPlayer.player_id, (socket) => {
+          // Set up socket event handlers
+          socket.emit('registerUser', {
+            id: currentPlayer.player_id,
+            name: currentPlayer.name
+          });
+  
+          socket.on('playersList', (players) => {
+            const filteredPlayers = players.filter(
+              p => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
+            );
+            setOnlinePlayers(filteredPlayers);
+          });
+  
+          socket.on('challenge', ({ challenger, gameId }) => {
+            setPendingChallenge({ challenger, gameId });
+          });
+  
+          socket.on('gameStart', ({ gameId }) => {
+            message.success('Game is starting!');
+            navigate(`/game/${gameId}`);
+          });
+  
+          socket.on('chatMessage', (message) => {
+            setMessages(prev => [...prev, message]);
+            setTimeout(scrollToBottom, 100);
+          });
+  
+          return socket;
+        });
+  
         setSocket(socketConnection);
-
-        // Announce player joining
-        socketConnection.emit('playerJoined', {
-          id: currentPlayer.player_id,
-          name: currentPlayer.name,
-        });
-
-        // Listen for players update
-        socketConnection.on('playersUpdate', (players) => {
-          const filteredPlayers = players.filter(
-            (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
-          );
-          setOnlinePlayers(filteredPlayers);
-        });
-
-        // Load chat history
-        socketConnection.on('chatHistory', (history) => {
-          setMessages(history);
-          setTimeout(scrollToBottom, 100);
-        });
-
-        // Listen for new chat messages
-        socketConnection.on('chatMessage', (message) => {
-          setMessages((prev) => [...prev, message]);
-          setTimeout(scrollToBottom, 100);
-        });
-
-        // Listen for game challenges
-        socketConnection.on('gameChallenge', ({ challenger, gameId }) => {
-          setPendingChallenge({ challenger, gameId });
-        });
-
-        // Listen for game start signal
-        socketConnection.on('gameStart', ({ gameId }) => {
-          message.success('Game is starting!');
-          navigate(`/game/${gameId}`);
-        });
       } catch (error) {
         console.error('Socket connection error:', error);
         message.error('Failed to connect to chat');
       }
     };
-
+  
     connectSocket();
-
+  
     return () => {
       if (socket) {
         socket.disconnect();
@@ -125,7 +118,7 @@ const LobbyChat = ({ currentPlayer }) => {
   
     try {
       const { gameId } = pendingChallenge;
-      
+
       const game = await API.getGameById(gameId);
       if (!game) {
         throw new Error('Game not found');
