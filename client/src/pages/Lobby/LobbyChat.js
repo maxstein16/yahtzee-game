@@ -95,21 +95,24 @@ const LobbyChat = ({ currentPlayer }) => {
 
   const handleRequestToPlay = async (player) => {
     if (!socket) return;
-
-    const gameId = `game_${Date.now()}`;
+  
     try {
-      await API.createGame('pending', 0, currentPlayer.player_id, player.id);
+      // Create the game in the database and fetch the generated gameId
+      const gameId = await API.createGame('pending', 0, currentPlayer.player_id, player.id);
+  
+      // Emit the challenge with the fetched gameId
       socket.emit('gameChallenge', {
         challenger: { id: currentPlayer.player_id, name: currentPlayer.name },
         opponentId: player.id,
         gameId,
       });
+  
       message.info(`Challenge sent to ${player.name}`);
     } catch (error) {
       console.error('Error creating game:', error);
       message.error('Failed to send challenge');
     }
-  };
+  };  
 
   const handleAcceptChallenge = async () => {
     if (!pendingChallenge) return;
