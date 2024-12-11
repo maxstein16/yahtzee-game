@@ -34,16 +34,28 @@ export const initializeWebSocket = (playerId) => {
         sendChatMessage: (message) => {
           socket.emit('chatMessage', {
             content: message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         },
         onChatMessage: (callback) => {
           socket.on('chatMessage', callback);
         },
+        onPlayerJoined: (callback) => {
+          socket.on('playerJoined', callback);
+        },
+        onGameChallenge: (callback) => {
+          socket.on('gameChallenge', callback);
+        },
+        onChallengeAccepted: (callback) => {
+          socket.on('challengeAccepted', callback);
+        },
+        onChallengeRejected: (callback) => {
+          socket.on('challengeRejected', callback);
+        },
         disconnect: () => {
           socket.disconnect();
           socket = null;
-        }
+        },
       };
 
       resolve(socketInterface);
