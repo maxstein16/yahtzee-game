@@ -14,48 +14,51 @@ const LobbyChat = ({ currentPlayer }) => {
 
   useEffect(() => {
     if (!currentPlayer?.player_id) return;
-
+  
     const connectSocket = async () => {
       try {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
-
+  
         // Announce player joining with complete player info
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
-          name: currentPlayer.name
+          name: currentPlayer.name,
         });
-
+  
         // Listen for player updates and filter out current player and invalid entries
         socketConnection.on('playersUpdate', (players) => {
-          const filteredPlayers = players.filter(p => 
-            p.id && 
-            p.name && 
-            p.id.toString() !== currentPlayer.player_id.toString()
+          const filteredPlayers = players.filter(
+            (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
           );
           setOnlinePlayers(filteredPlayers);
         });
-
-        // Listen for chat messages
-        socketConnection.on('chatMessage', (message) => {
-          setMessages(prev => [...prev, message]);
+  
+        // Load chat history
+        socketConnection.on('chatHistory', (history) => {
+          setMessages(history);
           setTimeout(scrollToBottom, 100);
         });
-
+  
+        // Listen for chat messages
+        socketConnection.on('chatMessage', (message) => {
+          setMessages((prev) => [...prev, message]);
+          setTimeout(scrollToBottom, 100);
+        });
       } catch (error) {
         console.error('Socket connection error:', error);
         message.error('Failed to connect to chat');
       }
     };
-
+  
     connectSocket();
-
+  
     return () => {
       if (socket) {
         socket.disconnect();
       }
     };
-  }, [currentPlayer]);
+  }, [currentPlayer]);  
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,13 +74,28 @@ const LobbyChat = ({ currentPlayer }) => {
     setMessageInput('');
   };
 
+  const handleRequestToPlay = (player) => {
+    console.log(`Requesting to play with ${player.name}`);
+    // Add your functionality here
+  };
+
   return (
     <div className="flex flex-col h-full">
       <Card className="mb-4" title={`Other Players Online (${onlinePlayers.length})`}>
         <List
           dataSource={onlinePlayers.filter(player => player.name)}
           renderItem={player => (
-            <List.Item>
+            <List.Item
+              actions={[
+                <Button 
+                  key="request" 
+                  type="primary" 
+                  onClick={() => handleRequestToPlay(player)}
+                >
+                  Request to Play
+                </Button>
+              ]}
+            >
               <List.Item.Meta
                 avatar={
                   <Badge status="success" dot>
