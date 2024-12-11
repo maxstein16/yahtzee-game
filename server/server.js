@@ -171,36 +171,43 @@ io.on('connection', (socket) => {
     try {
       // Submit the score to the server
       await API.submitGameScore(gameId, currentPlayerId, categoryName, score);
-  
+
       // Get both players' updated categories
       const currentPlayerCategories = await API.getPlayerCategories(currentPlayerId);
       const opponentCategories = await API.getPlayerCategories(nextPlayerId);
-  
-      // Emit updates to both players
+
+      // Get both sockets
       const currentPlayerSocket = connectedPlayers.get(currentPlayerId)?.socketId;
       const nextPlayerSocket = connectedPlayers.get(nextPlayerId)?.socketId;
-  
+
+      // Notify current player their turn is over
       if (currentPlayerSocket) {
-        io.to(currentPlayerSocket).emit('categoriesUpdate', {
-          categories: currentPlayerCategories,
-          isMyTurn: false
+        io.to(currentPlayerSocket).emit('turnChange', {
+          nextPlayer: nextPlayerId,
+          isMyTurn: false,
+          message: "Opponent's turn"
         });
       }
-  
+
+      // Notify next player it's their turn
       if (nextPlayerSocket) {
-        io.to(nextPlayerSocket).emit('categoriesUpdate', {
-          categories: opponentCategories,
-          isMyTurn: true
-        });
-        
-        // Notify the next player it's their turn
         io.to(nextPlayerSocket).emit('turnChange', {
           nextPlayer: nextPlayerId,
-          diceValues: [1, 1, 1, 1, 1], // Reset dice for new turn
+          isMyTurn: true,
+          message: "Your turn!",
+          diceValues: [1, 1, 1, 1, 1],
           rollCount: 0
         });
       }
-  
+
+      // Broadcast category updates to both players
+      io.to(currentPlayerSocket).emit('categoriesUpdate', {
+        categories: currentPlayerCategories
+      });
+      io.to(nextPlayerSocket).emit('categoriesUpdate', {
+        categories: opponentCategories
+      });
+
     } catch (error) {
       console.error('Error in score submission:', error);
       socket.emit('scoreError', { error: error.message });

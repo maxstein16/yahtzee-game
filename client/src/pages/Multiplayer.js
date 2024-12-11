@@ -174,25 +174,31 @@ function MultiplayerPage() {
 
   useEffect(() => {
     if (socket && currentPlayer?.player_id) {
-      socket.on('categoriesUpdate', ({ categories, isMyTurn: newIsMyTurn }) => {
-        setPlayerCategories(categories);
-        setIsMyTurn(newIsMyTurn);
+      // Listen for turn changes
+      socket.on('turnChange', ({ nextPlayer, message, diceValues: newDiceValues, rollCount: newRollCount }) => {
+        // Check if it's our turn based on nextPlayer value
+        const isMyNewTurn = nextPlayer === currentPlayer.player_id;
+        setIsMyTurn(isMyNewTurn);
+        
+        if (isMyNewTurn) {
+          // Reset game state for new turn
+          setDiceValues(newDiceValues || [1, 1, 1, 1, 1]);
+          setRollCount(newRollCount || 0);
+          setSelectedDice([]);
+          message.info(message || "It's your turn!");
+        } else {
+          message.info(message || "Opponent's turn");
+        }
       });
   
-      socket.on('turnChange', ({ nextPlayer, diceValues: newDiceValues, rollCount: newRollCount }) => {
-        const isMyNewTurn = nextPlayer === currentPlayer.player_id;
-        if (isMyNewTurn) {
-          message.info("It's your turn!");
-          setDiceValues(newDiceValues);
-          setRollCount(newRollCount);
-          setSelectedDice([]);
-        }
-        setIsMyTurn(isMyNewTurn);
+      // Listen for category updates
+      socket.on('categoriesUpdate', ({ categories }) => {
+        setPlayerCategories(categories);
       });
   
       return () => {
-        socket.off('categoriesUpdate');
         socket.off('turnChange');
+        socket.off('categoriesUpdate');
       };
     }
   }, [socket, currentPlayer]);
@@ -307,7 +313,7 @@ function MultiplayerPage() {
         true
       );
   
-      // Submit score
+      // Submit score and notify server
       await API.submitGameScore(
         gameId,
         currentPlayer.player_id,
@@ -323,11 +329,10 @@ function MultiplayerPage() {
         nextPlayerId: opponent.id
       });
   
-      // Update local state
+      // Update local state immediately
       setRollCount(0);
       setSelectedDice([]);
       setDiceValues([1, 1, 1, 1, 1]);
-      setIsMyTurn(false);
   
       message.success(`Scored ${categoryScore} points in ${categoryName}!`);
   
@@ -335,7 +340,7 @@ function MultiplayerPage() {
       console.error('Error submitting score:', error);
       message.error(`Failed to submit score: ${error.message}`);
     }
-  }; 
+  };
 
   const toggleDiceSelection = (index) => {
     if (isRolling) return;
