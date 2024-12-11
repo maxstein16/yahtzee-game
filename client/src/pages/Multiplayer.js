@@ -241,6 +241,8 @@ function MultiplayerPage() {
       if (response?.game?.game_id) {
         await API.initializePlayerCategories(currentPlayer.player_id);
         await API.initializePlayerCategories(opponent.id);
+  
+        // Start the game
         await API.startGame(response.game.game_id);
   
         if (socket) {
@@ -259,9 +261,10 @@ function MultiplayerPage() {
         });
       }
     } catch (error) {
+      console.error('Error creating new game:', error);
       message.error('Failed to create new game');
     }
-  };
+  };  
   
   return (
     <Layout className="min-h-screen">
