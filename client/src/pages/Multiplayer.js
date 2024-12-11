@@ -240,6 +240,26 @@ function MultiplayerPage() {
     return scores;
   };
 
+  const calculateAllScores = (categories) => {
+    const upperCategories = categories.filter(cat => cat.section === 'upper');
+    const upperTotal = upperCategories.reduce((total, cat) => total + (cat.score || 0), 0);
+    const upperBonus = upperTotal >= 63 ? 35 : 0;
+    
+    const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
+    const hasYahtzee = yahtzeeCategory?.score === 50;
+    
+    const total = categories.reduce((sum, cat) => sum + (cat.score || 0), 0) + upperBonus;
+    
+    return {
+      upperTotal,
+      upperBonus,
+      hasYahtzee,
+      yahtzeeBonus: categories.filter(cat => cat.name === 'yahtzeeBonus')
+        .reduce((sum, cat) => sum + (cat.score || 0), 0),
+      total
+    };
+  };
+
   const handleScoreCategoryClick = async (categoryName) => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");
