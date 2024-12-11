@@ -6,12 +6,35 @@ const API = require('./routes/index');
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
 
+// Create Socket.IO server with enhanced configuration
 const io = new Server(server, {
   cors: {
     origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'Connection', 
+      'Upgrade',
+      'Sec-WebSocket-Key',
+      'Sec-WebSocket-Version'
+    ],
+  },
+  allowEIO3: true,
+  transports: ['polling', 'websocket'], // Start with polling, upgrade to websocket
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  cookie: false // Disable Socket.IO cookie
+});
+
+// Handle upgrade failures
+server.on('upgrade', (req, socket, head) => {
+  console.log('Upgrade request received');
+  socket.on('error', (err) => {
+    console.error('Socket upgrade error:', err);
+  });
 });
 
 // Store player data with both socket ID and player ID mapping
