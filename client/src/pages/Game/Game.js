@@ -27,64 +27,58 @@ const Game = ({ gameId, currentPlayer }) => {
     const fetchGameDetails = async () => {
       try {
         const gameData = await API.getGameById(gameId);
-        const players = await API.getPlayersInGame(gameId);
   
-        // Set opponent details
-        const opponentPlayer = players.find(p => p.player_id !== currentPlayer.player_id);
-        setOpponent(opponentPlayer);
+        // Fetch or initialize the turn for the current game
+        const turnData = await API.createTurn(
+          gameId,
+          gameData.currentTurn || currentPlayer.player_id,
+          [1, 1, 1, 1, 1], // Default dice values
+          0, // Initial reroll count
+          0, // Initial score
+          false // Turn not yet completed
+        );
   
-        // Initialize player categories for both players
-        await API.initializePlayerCategories(currentPlayer.player_id);
-        if (opponentPlayer) {
-          await API.initializePlayerCategories(opponentPlayer.player_id);
-        }
-        
-        const categories = await API.getPlayerCategories(currentPlayer.player_id);
-        setPlayerCategories(categories);
-  
-        // Set default dice values first
-        setDiceValues([1, 1, 1, 1, 1]);
-  
-        // Determine if it's the player's turn based on game data
-        const isPlayerTurn = gameData.currentTurn === currentPlayer.player_id;
+        // Determine if it's the player's turn
+        const isPlayerTurn = turnData.playerId === currentPlayer.player_id;
         setIsMyTurn(isPlayerTurn);
   
         if (!isPlayerTurn) {
           message.info("Waiting for opponent's turn...");
         }
   
-        // Socket setup
+        // Initialize WebSocket for real-time updates
         const socketConnection = initializeWebSocket(currentPlayer.player_id, currentPlayer.name, (socket) => {
-          // Register socket handlers
           socket.on('turnChange', (data) => {
             const isMyNewTurn = data.currentPlayer === currentPlayer.player_id;
             setIsMyTurn(isMyNewTurn);
-            
+  
             if (isMyNewTurn) {
               message.success("It's your turn!");
               setRollCount(0);
               setDiceValues([1, 1, 1, 1, 1]);
+  
+              // Create a new turn for the player
+              API.createTurn(
+                gameId,
+                currentPlayer.player_id,
+                [1, 1, 1, 1, 1],
+                0,
+                0,
+                false
+              ).catch((error) => {
+                console.error("Error creating turn:", error);
+                message.error("Failed to initialize turn.");
+              });
             } else {
               message.info("Opponent's turn");
             }
           });
-  
-          socket.on('diceRolled', (data) => {
-            setDiceValues(data.dice);
-            if (data.player !== currentPlayer.player_id) {
-              message.info("Opponent rolled the dice!");
-            }
-          });
-  
-          // Return the socket instance
-          return socket;
         });
   
         setSocket(socketConnection);
-  
       } catch (error) {
-        console.error('Error fetching game details:', error);
-        message.error('Failed to load game details.');
+        console.error('Error fetching game details or creating turn:', error);
+        message.error('Failed to initialize game or turn.');
       }
     };
   
@@ -95,7 +89,7 @@ const Game = ({ gameId, currentPlayer }) => {
         socket.disconnect();
       }
     };
-  }, [gameId, currentPlayer]);
+  }, [gameId, currentPlayer]);  
 
   const toggleDiceSelection = (index) => {
     setSelectedDice((prevSelected) =>
@@ -128,15 +122,25 @@ const Game = ({ gameId, currentPlayer }) => {
         setDiceValues(result.dice);
         setRollCount(prev => prev + 1);
         setSelectedDice([]);
-        
-        // Emit the dice roll to other players
+  
+        // Emit dice roll to other players
         if (socket) {
           socket.emit('diceRolled', {
             gameId,
             dice: result.dice,
-            player: currentPlayer.player_id
+            player: currentPlayer.player_id,
           });
         }
+  
+        // Update turn
+        await API.updateTurn(
+          gameId,
+          currentPlayer.player_id,
+          result.dice,
+          rollCount + 1,
+          0,
+          false
+        );
       }
     } catch (error) {
       console.error('Error rolling dice:', error);
@@ -144,11 +148,10 @@ const Game = ({ gameId, currentPlayer }) => {
     } finally {
       setIsRolling(false);
     }
-  };
+  };  
 
   const handleScoreCategoryClick = async (categoryName) => {
     try {
-      // Only allow scoring on your turn
       if (!isMyTurn) {
         message.warning("It's not your turn!");
         return;
@@ -157,61 +160,45 @@ const Game = ({ gameId, currentPlayer }) => {
       const category = playerCategories.find((cat) => cat.name === categoryName);
       if (!category) throw new Error('Invalid category.');
   
-      // Get the current score for this category
       const currentScores = calculateScores(diceValues);
       const categoryScore = Number(currentScores[categoryName]);
-      
+  
       if (categoryScore === undefined || isNaN(categoryScore)) {
         throw new Error('Invalid score calculation');
       }
   
-      // First update the category score
-      try {
-        await API.updateScoreCategory(category.category_id, categoryScore);
-        message.success('Score submitted successfully.');
-      } catch (error) {
-        console.error('Error updating score category:', error);
-        throw new Error('Failed to update score category');
-      }
+      await API.updateScoreCategory(category.category_id, categoryScore);
   
-      // Then submit the turn
-      try {
-        await API.submitTurn(
-          gameId, 
-          currentPlayer.player_id, 
-          category.category_id, 
-          categoryScore, 
-          diceValues, 
-          rollCount
-        );
-      } catch (error) {
-        console.error('Error submitting turn:', error);
-        throw new Error('Failed to submit turn');
-      }
+      await API.submitTurn(
+        gameId,
+        currentPlayer.player_id,
+        category.category_id,
+        categoryScore,
+        diceValues,
+        rollCount
+      );
   
-      // Reload categories after successful submission
+      await API.updateTurn(gameId, currentPlayer.player_id, diceValues, rollCount, categoryScore, true);
+  
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       setPlayerCategories(updatedCategories);
   
-      // Reset turn state
       setRollCount(0);
       setSelectedDice([]);
       setDiceValues([1, 1, 1, 1, 1]);
       setIsMyTurn(false);
   
-      // Emit turn end
       if (socket) {
         socket.emit('turnEnd', {
           gameId,
-          nextPlayer: opponent.player_id
+          nextPlayer: opponent.player_id,
         });
       }
-  
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error(error.message || 'Failed to submit score.');
     }
-  };
+  };  
 
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
