@@ -20,34 +20,32 @@ const LobbyChat = ({ currentPlayer }) => {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
   
-        console.log('Announcing playerJoined:', {
-          id: currentPlayer.player_id,
-          name: currentPlayer.name,
-        });
-  
-        // Announce player joining with complete player info
+        // Announce player joining
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
           name: currentPlayer.name,
         });
   
-        // Listen for player updates
+        // Listen for players update
         socketConnection.on('playersUpdate', (players) => {
-          console.log('Players Update:', players); // Debug log to verify received data
+          console.log('Players Update:', players);
           const filteredPlayers = players.filter(
             (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
           );
+          console.log('Filtered Players:', filteredPlayers);
           setOnlinePlayers(filteredPlayers);
         });
-
+  
         // Load chat history
         socketConnection.on('chatHistory', (history) => {
+          console.log('Chat History:', history);
           setMessages(history);
           setTimeout(scrollToBottom, 100);
         });
   
-        // Listen for chat messages
+        // Listen for new chat messages
         socketConnection.on('chatMessage', (message) => {
+          console.log('New Chat Message:', message);
           setMessages((prev) => [...prev, message]);
           setTimeout(scrollToBottom, 100);
         });
@@ -96,13 +94,13 @@ const LobbyChat = ({ currentPlayer }) => {
           renderItem={(player) => (
             <List.Item
               actions={[
-                <Button 
-                  key="request" 
-                  type="primary" 
+                <Button
+                  key="request"
+                  type="primary"
                   onClick={() => handleRequestToPlay(player)}
                 >
                   Request to Play
-                </Button>
+                </Button>,
               ]}
             >
               <List.Item.Meta
@@ -111,7 +109,7 @@ const LobbyChat = ({ currentPlayer }) => {
                     <Avatar icon={<UserOutlined />} />
                   </Badge>
                 }
-                title={player.name} 
+                title={player.name || `Player ${player.id}`} // Fallback if no name
               />
             </List.Item>
           )}
