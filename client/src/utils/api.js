@@ -122,8 +122,6 @@ export const endGame = (gameId) =>
 export const getActiveGameForPlayer = (playerId) => 
   apiRequest(`/game/active/${playerId}`);
 
-export const getPlayersInGame = (gameId) => apiRequest(`/game/${gameId}/players`);
-
 // Score Category Management
 export const initializePlayerCategories = async (playerId) => {
   try {
@@ -287,6 +285,11 @@ export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompl
     turnScore: turnScore || 0,
     turnCompleted: turnCompleted || false
   });
+  
+// Players in Game
+export const getAvailablePlayers = () => apiRequest('/players/available');
+
+export const getPlayerById = (playerId) => apiRequest(`/players/${playerId}`);
 
 const API = {
   login,
@@ -298,7 +301,6 @@ const API = {
   endGame,
   startGame,
   getActiveGameForPlayer,
-  getPlayersInGame,
   getPlayerCategories,
   getPlayerCategory,
   updateScoreCategory,
@@ -311,6 +313,8 @@ const API = {
   rollDice,
   submitTurn,
   createTurn,
+  getAvailablePlayers,
+  getPlayerById,
   updateTurn
 };
 
