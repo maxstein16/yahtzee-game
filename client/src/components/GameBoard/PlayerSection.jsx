@@ -13,7 +13,7 @@ const PlayerSection = ({
   isRolling,
   rollCount,
   toggleDiceSelection,
-  handleRollDice,
+  handleDiceRoll,
   gameId
 }) => {
   return (
@@ -34,7 +34,7 @@ const PlayerSection = ({
       <div className="roll-button-container">
         <Button
           type="primary"
-          onClick={handleRollDice}
+          onClick={handleDiceRoll}
           disabled={!gameId || rollCount >= 3 || isAITurn}
         >
           Roll Dice
