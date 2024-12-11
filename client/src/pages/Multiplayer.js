@@ -30,20 +30,19 @@ const MultiplayerPage = () => {
   // Initialize socket connection with retry mechanism
   const initializeSocket = async (playerId) => {
     try {
-      const socketConnection = await initializeWebSocket(playerId);
-      setSocket(socketConnection);
-      
-      socketConnection.on('connect', () => {
-        console.log('Socket connected');
-        message.success('Connected to game server');
-      });
+      // Only initialize if we don't have a valid connection
+      if (!socket?.getState().connected) {
+        const socketConnection = await initializeWebSocket(playerId);
+        setSocket(socketConnection);
+        
+        socketConnection.on('connect', () => {
+          console.log('Socket connected');
+          message.success('Connected to game server');
+        });
 
-      socketConnection.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-        message.error('Connection lost. Retrying...');
-      });
-
-      return socketConnection;
+        return socketConnection;
+      }
+      return socket;
     } catch (error) {
       console.error('Socket initialization error:', error);
       message.error('Failed to connect to game server');
