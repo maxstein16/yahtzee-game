@@ -8,6 +8,8 @@ import { handleLogout, fetchCurrentPlayer } from '../services/authService';
 import API from '../utils/api';
 import initializeWebSocket from '../services/websocketService';
 
+const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
+
 function MultiplayerPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,6 +24,16 @@ function MultiplayerPage() {
   const [isRolling, setIsRolling] = useState(false);
   const [socket, setSocket] = useState(null);
   const [isMyTurn, setIsMyTurn] = useState(isChallenger);
+
+  // Scoring and bonus state
+  const [hasYahtzee, setHasYahtzee] = useState(false);
+  const [yahtzeeBonus, setYahtzeeBonus] = useState(0);
+
+  // Game play state
+  const [playerTotal, setPlayerTotal] = useState(0);
+  const [currentScores, setCurrentScores] = useState({});
+  const [upperSectionTotal, setUpperSectionTotal] = useState(0);
+  const [upperSectionBonus, setUpperSectionBonus] = useState(0);
 
   // Initialize player and game
   useEffect(() => {
@@ -199,7 +211,11 @@ function MultiplayerPage() {
       setIsRolling(false);
     }
   };  
-  
+
+  const checkForYahtzeeBonus = (dice) => {
+    if (!hasYahtzee) return false;
+    return dice.every(value => value === dice[0]);
+  };
 
   const calculateScores = (dice) => {
     const counts = new Array(7).fill(0);
