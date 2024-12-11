@@ -115,10 +115,40 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Dice roll event
+  socket.on('gameStart', ({ gameId, players }) => {
+    // Broadcast to all players in the game
+    players.forEach(playerId => {
+      const player = connectedPlayers.get(playerId);
+      if (player) {
+        io.to(player.socketId).emit('gameStart', {
+          gameId,
+          players,
+          startTime: new Date().toISOString()
+        });
+      }
+    });
+  });
+
   socket.on('diceRoll', ({ dice, gameId }) => {
-    // Broadcast the dice values to the opponent
-    io.to(socket.id).emit('opponentRoll', { dice });
+    const playerId = socketToPlayer.get(socket.id);
+    API.getGameById(gameId).then(gameData => {
+      // Find opponent ID
+      const opponentId = gameData.players.find(p => p !== playerId);
+      const opponent = connectedPlayers.get(opponentId);
+      if (opponent) {
+        io.to(opponent.socketId).emit('opponentRoll', { dice });
+      }
+    }).catch(error => {
+      console.error('Error handling dice roll:', error);
+    });
+  });
+  
+  // Add a turn end event
+  socket.on('turnEnd', ({ gameId, nextPlayer }) => {
+    const nextPlayerSocket = connectedPlayers.get(nextPlayer)?.socketId;
+    if (nextPlayerSocket) {
+      io.to(nextPlayerSocket).emit('turnChange', { nextPlayer });
+    }
   });
 
   // Score submission event
