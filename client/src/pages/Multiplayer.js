@@ -193,7 +193,9 @@ function MultiplayerPage() {
         currentDice: diceValues,
         keepIndices: selectedDice,
       });
-  
+    
+      console.log('API rollDice result:', result); // Debugging the API response
+    
       if (result.success) {
         setDiceValues(result.dice);
         setRollCount((prev) => prev + 1);
