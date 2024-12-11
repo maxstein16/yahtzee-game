@@ -1,6 +1,5 @@
 import React from 'react';
 import { Modal } from 'antd';
-import Chat from '../Chat';
 
 const GameChat = ({ isChatVisible, mode, setIsChatVisible, gameId, currentPlayer }) => {
   return (
