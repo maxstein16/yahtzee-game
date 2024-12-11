@@ -257,9 +257,36 @@ export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompl
   
     try {
       console.log('Fetching turn for gameId:', gameId, 'playerId:', playerId);
-      const result = await apiRequest(`/game/${gameId}/turn?player_id=${playerId}`, 'GET');
-      console.log('Fetched turn:', result);
-      return result;
+      
+      // Modify the apiRequest to log the raw response text before parsing
+      const url = `${API_BASE_URL}/game/${gameId}/turn?player_id=${playerId}`;
+      const options = {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        mode: 'cors'
+      };
+  
+      const response = await fetch(url, options);
+      const text = await response.text();
+      
+      console.log('Raw response:', text);
+  
+      // Trim any leading whitespace or unexpected characters
+      const cleanedText = text.trim();
+  
+      try {
+        const result = JSON.parse(cleanedText);
+        console.log('Parsed turn:', result);
+        return result;
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.error('Failed to parse:', cleanedText);
+        throw new Error('Failed to parse turn data');
+      }
     } catch (error) {
       console.error('Error fetching turn:', error.message);
       throw error;
