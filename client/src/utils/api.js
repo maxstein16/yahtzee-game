@@ -285,6 +285,22 @@ export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompl
     turnScore: turnScore || 0,
     turnCompleted: turnCompleted || false
   });
+
+export const getTurn = async (gameId, playerId) => {
+  if (!gameId || !playerId) {
+    throw new Error('Game ID and Player ID are required to fetch turn');
+  }
+
+  try {
+    const result = await apiRequest(`/game/${gameId}/turn?player_id=${playerId}`, 'GET');
+    console.log('Fetched turn:', result);
+    return result;
+  } catch (error) {
+    console.error('Error fetching turn:', error);
+    throw error;
+  }
+};
+  
   
 // Players in Game
 export const getAvailablePlayers = () => apiRequest('/players/available');
@@ -321,6 +337,7 @@ const API = {
   getGameDice,
   submitTurn,
   createTurn,
+  getTurn,
   getAvailablePlayers,
   getPlayerById,
   getPlayersInGame,
