@@ -355,16 +355,16 @@ function MultiplayerPage() {
   };  
 
   const toggleDiceSelection = (index) => {
-    if (isRolling || !isMyTurn || rollCount === 0) return;
-
-    setSelectedDice(prev => {
+    if (isRolling) return;
+  
+    setSelectedDice((prev) => {
       if (prev.includes(index)) {
-        return prev.filter(i => i !== index);
+        return prev.filter((i) => i !== index);
       } else {
         return [...prev, index];
       }
     });
-  };
+  };  
 
   // In MultiplayerPage.js
   const handleNewGame = async () => {
