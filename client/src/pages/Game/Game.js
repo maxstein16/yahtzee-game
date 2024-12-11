@@ -26,30 +26,36 @@ const Game = ({ gameId, currentPlayer }) => {
   useEffect(() => {
     const initializeGame = async () => {
       try {
-        // Step 1: Attempt to create the turn first
-        console.log('Creating a turn for the current player...');
-        await API.createTurn(
-          gameId,
-          currentPlayer.player_id,
-          [1, 1, 1, 1, 1], // Default dice values
-          0, // Initial reroll count
-          0, // Initial score
-          false // Turn not completed
-        );
+        // Step 1: Check if a turn exists for the current player
+        const existingTurn = await API.getTurn(gameId, currentPlayer.player_id);
+        
+        if (existingTurn) {
+          console.log('Turn already exists:', existingTurn);
   
-        // Step 2: Fetch the newly created turn
-        const turnData = await API.getTurn(gameId, currentPlayer.player_id);
-        console.log('Fetched turn data:', turnData);
+          // Step 2: Update local state with the existing turn details
+          setDiceValues(existingTurn.dice || [1, 1, 1, 1, 1]);
+          setRollCount(existingTurn.rerolls || 0);
+          setIsMyTurn(!existingTurn.turn_completed && existingTurn.playerId === currentPlayer.player_id);
   
-        // Step 3: Update the local state with the turn details
-        if (turnData) {
-          setIsMyTurn(turnData.playerId === currentPlayer.player_id);
-          setDiceValues(turnData.dice || [1, 1, 1, 1, 1]);
-          setRollCount(turnData.rerolls || 0);
-  
-          if (turnData.playerId !== currentPlayer.player_id) {
+          if (existingTurn.playerId !== currentPlayer.player_id || existingTurn.turn_completed) {
             message.info("Waiting for opponent's turn...");
           }
+        } else {
+          // Step 3: Create a new turn if no turn exists
+          console.log('Creating a new turn for the current player...');
+          const newTurn = await API.createTurn(
+            gameId,
+            currentPlayer.player_id,
+            [1, 1, 1, 1, 1], // Default dice values
+            0, // Initial reroll count
+            0, // Initial score
+            false // Turn not completed
+          );
+  
+          console.log('New turn created:', newTurn);
+          setDiceValues(newTurn.dice || [1, 1, 1, 1, 1]);
+          setRollCount(newTurn.rerolls || 0);
+          setIsMyTurn(true);
         }
       } catch (error) {
         console.error('Error initializing game:', error);
@@ -64,7 +70,7 @@ const Game = ({ gameId, currentPlayer }) => {
         socket.disconnect();
       }
     };
-  }, [gameId, currentPlayer]);
+  }, [gameId, currentPlayer]);  
 
   const toggleDiceSelection = (index) => {
     setSelectedDice((prevSelected) =>
@@ -98,7 +104,6 @@ const Game = ({ gameId, currentPlayer }) => {
         setRollCount(prev => prev + 1);
         setSelectedDice([]);
   
-        // Emit dice roll to other players
         if (socket) {
           socket.emit('diceRolled', {
             gameId,
@@ -107,7 +112,6 @@ const Game = ({ gameId, currentPlayer }) => {
           });
         }
   
-        // Update turn
         await API.updateTurn(
           gameId,
           currentPlayer.player_id,
