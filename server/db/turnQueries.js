@@ -47,11 +47,12 @@ async function getLatestTurn(gameId, playerId) {
     SELECT turn_id, game_id, player_id, dice, rerolls, turn_score, turn_completed
     FROM turn 
     WHERE game_id = ? AND player_id = ?
-    AND turn_completed = FALSE
     ORDER BY turn_id DESC LIMIT 1;
   `;
-  const result = await runSQL(query, [gameId, playerId]);
   
+  const result = await runSQL(query, [gameId, playerId]);
+  console.log('getLatestTurn result:', result);
+
   if (result.length === 0) {
     return null;
   }
