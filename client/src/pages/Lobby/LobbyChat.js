@@ -66,13 +66,16 @@ const LobbyChat = ({ currentPlayer }) => {
 
   const sendMessage = () => {
     if (!messageInput.trim() || !socket) return;
-
-    socket.emit('chatMessage', {
+  
+    const messageToSend = {
+      sender: currentPlayer.name,
       content: messageInput.trim(),
-      timestamp: new Date().toISOString()
-    });
+      timestamp: new Date().toISOString(),
+    };
+  
+    socket.emit('chatMessage', messageToSend);
     setMessageInput('');
-  };
+  };  
 
   const handleRequestToPlay = (player) => {
     console.log(`Requesting to play with ${player.name}`);
@@ -121,8 +124,8 @@ const LobbyChat = ({ currentPlayer }) => {
       >
         <div className="flex-grow overflow-y-auto mb-4 p-4 bg-gray-50 rounded">
           {messages.map((msg, idx) => (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               className={`mb-2 ${msg.sender === currentPlayer.name ? 'text-right' : ''}`}
             >
               <div className="text-xs text-gray-500">

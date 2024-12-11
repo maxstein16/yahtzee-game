@@ -28,8 +28,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chatMessage', (message) => {
-    chatHistory.push(message); // Add message to chat history
-    io.emit('chatMessage', message); // Broadcast message to all clients
+    const messageWithSender = {
+      sender: message.sender,
+      content: message.content,
+      timestamp: new Date().toISOString(),
+    };
+    chatHistory.push(messageWithSender); // Add message to chat history
+    io.emit('chatMessage', messageWithSender); // Broadcast message to all clients
   });
 
   socket.on('disconnect', () => {
@@ -44,6 +49,7 @@ io.on('connection', (socket) => {
     io.emit('playersUpdate', Array.from(connectedPlayers.values()));
   });
 });
+
 
 server.listen(port, () => {
   console.log(`Server running on port ${port}`);
