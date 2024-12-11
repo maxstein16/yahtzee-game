@@ -23,69 +23,37 @@ const apiRequest = async (endpoint, method = 'GET', body = null, retries = 3) =>
     try {
       console.log(`Attempt ${attempt + 1} for ${method} ${endpoint}`);
       const response = await fetch(url, options);
-      
-      // Log response details for debugging
-      console.log(`Response status: ${response.status}`);
+
       const contentType = response.headers.get('content-type');
+      console.log(`Response status: ${response.status}`);
       console.log(`Content-Type: ${contentType}`);
-      
-      // Handle different response status codes
-      if (response.status === 503) {
-        console.warn(`Service unavailable, attempt ${attempt + 1} of ${retries}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-        attempt++;
-        continue;
-      }
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        
-        let errorMessage;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.error || `HTTP error! status: ${response.status}`;
-        } catch {
-          errorMessage = errorText || `HTTP error! status: ${response.status}`;
-        }
-        
-        throw new Error(errorMessage);
-      }
 
-      // Handle empty responses
-      if (response.status === 204) {
-        return null;
-      }
-
-      // Check if response has content before trying to parse JSON
       const text = await response.text();
-      if (!text) {
-        return null;
+      console.log('Raw response:', text); // Log raw response text
+
+      if (!response.ok) {
+        console.error('Error response:', text);
+        throw new Error(text);
       }
 
-      try {
+      if (contentType && contentType.includes('application/json')) {
         return JSON.parse(text);
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        console.error('Response text:', text);
-        throw new Error('Invalid JSON response from server');
+      } else {
+        console.error('Unexpected content type:', contentType);
+        throw new Error('Expected JSON response but received different content type');
       }
     } catch (error) {
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        console.warn(`Network error, attempt ${attempt + 1} of ${retries}`);
-        if (attempt === retries - 1) {
-          throw new Error('Network error: Failed to connect to the server after multiple attempts');
-        }
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-        attempt++;
-        continue;
+      console.error(`Error on attempt ${attempt + 1}:`, error.message);
+      if (attempt === retries - 1) {
+        throw error;
       }
-      throw error;
+      attempt++;
     }
   }
-  
+
   throw new Error('Failed to complete request after multiple attempts');
 };
+
 
 // Authentication
 export const login = async (credentials) => apiRequest('/players/login', 'POST', credentials);
