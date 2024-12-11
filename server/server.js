@@ -141,20 +141,6 @@ io.on('connection', (socket) => {
       console.error('Error handling gameStart event:', error);
     }
   });  
-
-  socket.on('diceRoll', ({ dice, gameId }) => {
-    const playerId = socketToPlayer.get(socket.id);
-    API.getGameById(gameId).then(gameData => {
-      // Find opponent ID
-      const opponentId = gameData.players.find(p => p !== playerId);
-      const opponent = connectedPlayers.get(opponentId);
-      if (opponent) {
-        io.to(opponent.socketId).emit('opponentRoll', { dice });
-      }
-    }).catch(error => {
-      console.error('Error handling dice roll:', error);
-    });
-  });
   
   // Add a turn end event
   socket.on('turnEnd', ({ gameId, nextPlayer }) => {
@@ -172,7 +158,7 @@ io.on('connection', (socket) => {
     io.to(socket.id).emit('turnChange', {
       nextPlayer: nextPlayerId,
       isMyTurn: false,
-      message: "Opponent's turn",
+      message: "Opponent's turn"
     });
   
     // Notify next player it's their turn
@@ -181,35 +167,33 @@ io.on('connection', (socket) => {
       io.to(nextPlayerSocket).emit('turnChange', {
         nextPlayer: nextPlayerId,
         isMyTurn: true,
-        message: "Your turn!",
-        diceValues: [1, 1, 1, 1, 1],
-        rollCount: 0,
+        message: "Your turn!"
       });
     }
   
-    // Broadcast a simple category update event without API logic
+    // Broadcast category updates
     socket.emit('categoriesUpdate', { playerId: currentPlayerId });
     if (nextPlayerSocket) {
       io.to(nextPlayerSocket).emit('categoriesUpdate', { playerId: nextPlayerId });
     }
   });
 
-// Disconnect event
-socket.on('disconnect', () => {
-  const playerId = socketToPlayer.get(socket.id);
-  if (playerId) {
-    connectedPlayers.delete(playerId);
-    socketToPlayer.delete(socket.id);
+  // Disconnect event
+  socket.on('disconnect', () => {
+    const playerId = socketToPlayer.get(socket.id);
+    if (playerId) {
+      connectedPlayers.delete(playerId);
+      socketToPlayer.delete(socket.id);
 
-    // Update player list
-    const players = Array.from(connectedPlayers.values())
-      .filter(p => p.id && p.name);
-    
-    io.emit('playersUpdate', players);
-  }
-});
-});
+      // Update player list
+      const players = Array.from(connectedPlayers.values())
+        .filter(p => p.id && p.name);
+      
+      io.emit('playersUpdate', players);
+    }
+  });
+  });
 
-server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+  server.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });

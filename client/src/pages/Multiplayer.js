@@ -77,13 +77,6 @@ const MultiplayerPage = () => {
           const socketConnection = await initializeSocket(playerInfo.playerData.player_id);
           if (!mounted || !socketConnection) return;
 
-          // Set up socket event handlers
-          socketConnection.on('opponentRoll', ({ dice }) => {
-            if (!mounted) return;
-            setOpponentDiceValues(dice);
-            message.info("Opponent rolled the dice!");
-          });
-
           socketConnection.on('turnChange', ({ nextPlayer, diceValues: newDice }) => {
             if (!mounted) return;
             const isMyNewTurn = nextPlayer === playerInfo.playerData.player_id;
@@ -139,6 +132,35 @@ const MultiplayerPage = () => {
     };
   }, [gameId, navigate, opponent?.id]);
 
+  useEffect(() => {
+    let pollInterval;
+    
+    const pollDice = async () => {
+      try {
+        if (!isMyTurn && gameId && opponent?.id) {
+          const result = await API.getGameDice(gameId);
+          if (result.dice) {
+            setOpponentDiceValues(result.dice);
+          }
+        }
+      } catch (error) {
+        console.error('Error polling dice:', error);
+      }
+    };
+  
+    // Start polling when it's not our turn
+    if (!isMyTurn && gameId) {
+      pollDice(); // Initial poll
+      pollInterval = setInterval(pollDice, 2000); // Poll every 2 seconds
+    }
+  
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [isMyTurn, gameId, opponent?.id]);
+
   // Handle dice rolling
   const handleDiceRoll = async () => {
     if (!isMyTurn) {
@@ -154,31 +176,17 @@ const MultiplayerPage = () => {
     setIsRolling(true);
   
     try {
-      // Roll dice through API
+      // Only use API for rolling dice
       const result = await API.rollDice(gameId, {
         playerId: currentPlayer?.player_id,
         currentDice: diceValues,
         keepIndices: selectedDice
       });
   
-      // Update local state first
+      // Update local state
       setDiceValues(result.dice);
       setRollCount(prev => prev + 1);
   
-      // Then notify other players
-      if (socket?.getState().connected) {
-        try {
-          await socket.emit('diceRoll', {
-            gameId,
-            dice: result.dice,
-            playerId: currentPlayer.player_id
-          });
-        } catch (socketError) {
-          console.error('Socket error:', socketError);
-          // Don't block the game on socket errors
-          message.warning('Could not notify opponent of roll');
-        }
-      }
     } catch (error) {
       console.error('Roll dice error:', error);
       message.error('Failed to roll dice');

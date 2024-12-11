@@ -91,4 +91,18 @@ router.get('/game/active/:playerId', async (req, res) => {
   }
 });
 
+// Add this route to your API
+router.get('/game/:id/dice', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const game = await getGameById(gameId);
+    res.json({ 
+      dice: game.currentDice,
+      lastRollTime: game.lastRollTime 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

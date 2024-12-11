@@ -227,51 +227,55 @@ export const rollDice = async (gameId, { playerId, currentDice, keepIndices }) =
   }
 };
 
-  export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {
-    if (!gameId || !playerId || !categoryId || score === undefined) {
-      throw new Error('Missing required parameters for turn submission');
-    }
-    
-    // Ensure score is a number, not an array
-    const turnScore = typeof score === 'number' ? score : 0;
-    
-    // Convert dice array to string if needed
-    const diceString = Array.isArray(dice) ? JSON.stringify(dice) : dice;
-    
-    return apiRequest(`/game/${gameId}/turn`, 'PUT', {
-      playerId: Number(playerId),
-      categoryId: Number(categoryId),
-      score: turnScore,
-      dice: diceString,
-      rerolls: Number(rerolls) || 0
-    });
-  };  
+export const getGameDice = async (gameId) => {
+  return await apiRequest(`/game/${gameId}/dice`, 'GET');
+};
 
-  export const createTurn = async (gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) => {
-    if (!gameId || !playerId) {
-      throw new Error('Game ID and Player ID are required');
-    }
+export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {
+  if (!gameId || !playerId || !categoryId || score === undefined) {
+    throw new Error('Missing required parameters for turn submission');
+  }
   
-    const payload = {
-      playerId,
-      dice: Array.isArray(dice) ? dice : [1, 1, 1, 1, 1],
-      rerolls: Number(rerolls) || 0,
-      turnScore: Number(turnScore) || 0,
-      turnCompleted: Boolean(turnCompleted)
-    };
+  // Ensure score is a number, not an array
+  const turnScore = typeof score === 'number' ? score : 0;
   
-    try {
-      const result = await apiRequest(`/game/${gameId}/turn`, 'POST', payload);
-      console.log('Turn created successfully:', result);
-      return result;
-    } catch (error) {
-      console.error('Error creating turn:', error);
-      if (error.message.includes('CORS')) {
-        throw new Error('Server connection error. Please try again later.');
-      }
-      throw error;
-    }
+  // Convert dice array to string if needed
+  const diceString = Array.isArray(dice) ? JSON.stringify(dice) : dice;
+  
+  return apiRequest(`/game/${gameId}/turn`, 'PUT', {
+    playerId: Number(playerId),
+    categoryId: Number(categoryId),
+    score: turnScore,
+    dice: diceString,
+    rerolls: Number(rerolls) || 0
+  });
+};  
+
+export const createTurn = async (gameId, playerId, dice, rerolls = 0, turnScore = 0, turnCompleted = false) => {
+  if (!gameId || !playerId) {
+    throw new Error('Game ID and Player ID are required');
+  }
+
+  const payload = {
+    playerId,
+    dice: Array.isArray(dice) ? dice : [1, 1, 1, 1, 1],
+    rerolls: Number(rerolls) || 0,
+    turnScore: Number(turnScore) || 0,
+    turnCompleted: Boolean(turnCompleted)
   };
+
+  try {
+    const result = await apiRequest(`/game/${gameId}/turn`, 'POST', payload);
+    console.log('Turn created successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Error creating turn:', error);
+    if (error.message.includes('CORS')) {
+      throw new Error('Server connection error. Please try again later.');
+    }
+    throw error;
+  }
+};
 
 export const updateTurn = (gameId, playerId, dice, rerolls, turnScore, turnCompleted) =>
   apiRequest(`/game/${gameId}/roll`, 'PUT', {
