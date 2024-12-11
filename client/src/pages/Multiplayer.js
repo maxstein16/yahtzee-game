@@ -24,6 +24,8 @@ const MultiplayerPage = () => {
   const [isRolling, setIsRolling] = useState(false);
   const [socket, setSocket] = useState(null);
   const [isMyTurn, setIsMyTurn] = useState(isChallenger);
+  const [playerTotal, setPlayerTotal] = useState(0);
+  const [opponentTotal, setOpponentTotal] = useState(0);
 
   // Initialize player and game
   useEffect(() => {
@@ -71,8 +73,10 @@ const MultiplayerPage = () => {
         socketConnection.on('categoriesUpdate', ({ categories, playerId }) => {
           if (playerId === playerInfo.playerData.player_id) {
             setPlayerCategories(categories);
+            calculateTotalScore(categories).then(setPlayerTotal);
           } else {
             setOpponentCategories(categories);
+            calculateTotalScore(categories).then(setOpponentTotal);
           }
         });
 
@@ -93,6 +97,12 @@ const MultiplayerPage = () => {
       }
     };
   }, [gameId, navigate, opponent?.id]);
+
+  const calculateTotalScore = async (categories) => {
+    return categories.reduce((total, category) => {
+      return total + (category.score || 0);
+    }, 0);
+  };
 
   const handleDiceRoll = async () => {
     if (!isMyTurn) {
@@ -179,7 +189,7 @@ const MultiplayerPage = () => {
     const counts = new Array(7).fill(0);
     dice.forEach(value => counts[value]++);
   
-    const scores = {
+    return {
       ones: counts[1] * 1,
       twos: counts[2] * 2,
       threes: counts[3] * 3,
@@ -194,48 +204,8 @@ const MultiplayerPage = () => {
       yahtzee: counts.some(count => count === 5) ? 50 : 0,
       chance: dice.reduce((sum, val) => sum + val, 0)
     };
-  
-    return scores;
   };
 
-  // In MultiplayerPage.js
-  const handleNewGame = async () => {
-    try {
-      if (!socket) {
-        throw new Error('Socket connection is not established.');
-      }
-  
-      // Reset current player's categories
-      await API.resetPlayerCategories(currentPlayer.player_id);
-  
-      // Create the game
-      const response = await API.createGame('pending', 0, currentPlayer.player_id, opponent?.id);
-  
-      if (response?.game?.game_id) {
-        // Emit WebSocket event to start the game
-        socket.emit('gameStart', {
-          gameId: response.game.game_id,
-          players: [currentPlayer.player_id, opponent.id],
-        });
-  
-        // Navigate to the new game
-        navigate('/multiplayer', {
-          state: {
-            gameId: response.game.game_id,
-            isChallenger: true,
-            opponent: opponent,
-          },
-        });
-      } else {
-        throw new Error('Failed to create a new game.');
-      }
-    } catch (error) {
-      console.error('Error creating new game:', error);
-      message.error('Failed to create new game');
-    }
-  };  
-   
-  
   return (
     <Layout className="min-h-screen">
       <GameHeader
@@ -246,52 +216,21 @@ const MultiplayerPage = () => {
       
       <Layout.Content className="p-6">
         <div className="flex gap-6">
-          <div className="flex-1 space-y-6">
-            {/* Player's Dice Section */}
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-bold mb-4">
-                {currentPlayer?.name}'s Dice
-              </h2>
-              <div className="flex justify-center gap-4">
-                {diceValues.map((value, index) => (
-                  <Dice
-                    key={index}
-                    value={value}
-                    isSelected={selectedDice.includes(index)}
-                    onClick={() => toggleDiceSelection(index)}
-                    isRolling={isRolling}
-                    disabled={!isMyTurn}
-                  />
-                ))}
-              </div>
-              <div className="mt-4 text-center">
-                <Button
-                  type="primary"
-                  onClick={handleDiceRoll}
-                  disabled={!isMyTurn || rollCount >= 3}
-                >
-                  Roll Dice ({rollCount}/3)
-                </Button>
-              </div>
-            </div>
-
-            {/* Opponent's Dice Section */}
-            <div className="bg-white p-4 rounded-lg shadow opacity-80">
-              <h2 className="text-lg font-bold mb-4">
-                {opponent?.name}'s Dice
-              </h2>
-              <div className="flex justify-center gap-4">
-                {opponentDiceValues.map((value, index) => (
-                  <Dice
-                    key={index}
-                    value={value}
-                    isRolling={false}
-                    disabled={true}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+          <GameBoard
+            currentPlayer={currentPlayer}
+            playerTotal={playerTotal}
+            isMyTurn={isMyTurn}
+            diceValues={diceValues}
+            selectedDice={selectedDice}
+            isRolling={isRolling}
+            rollCount={rollCount}
+            toggleDiceSelection={toggleDiceSelection}
+            handleDiceRoll={handleDiceRoll}
+            gameId={gameId}
+            opponent={opponent}
+            opponentTotal={opponentTotal}
+            opponentDiceValues={opponentDiceValues}
+          />
 
           <div className="flex gap-4">
             <Scoreboard
@@ -318,6 +257,6 @@ const MultiplayerPage = () => {
       </Layout.Content>
     </Layout>
   );
-}
+};
 
 export default MultiplayerPage;
