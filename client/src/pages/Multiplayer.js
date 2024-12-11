@@ -111,6 +111,12 @@ function MultiplayerPage() {
     }
   };
 
+  const calculateScores = (dice) => {
+    // Implement your score calculation logic here
+    // This should return an object with category names as keys and possible scores as values
+    return {};
+  };
+  
   const handleScoreCategoryClick = async (categoryName) => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");
