@@ -145,27 +145,40 @@ const MultiplayerPage = () => {
       message.warning("It's not your turn!");
       return;
     }
-
+  
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
       return;
     }
-
+  
     setIsRolling(true);
+  
     try {
+      // Roll dice through API
       const result = await API.rollDice(gameId, {
         playerId: currentPlayer?.player_id,
         currentDice: diceValues,
         keepIndices: selectedDice
       });
-
+  
+      // Update local state first
       setDiceValues(result.dice);
       setRollCount(prev => prev + 1);
-
-      socket?.emit('diceRoll', {
-        dice: result.dice,
-        gameId
-      });
+  
+      // Then notify other players
+      if (socket?.getState().connected) {
+        try {
+          await socket.emit('diceRoll', {
+            gameId,
+            dice: result.dice,
+            playerId: currentPlayer.player_id
+          });
+        } catch (socketError) {
+          console.error('Socket error:', socketError);
+          // Don't block the game on socket errors
+          message.warning('Could not notify opponent of roll');
+        }
+      }
     } catch (error) {
       console.error('Roll dice error:', error);
       message.error('Failed to roll dice');
