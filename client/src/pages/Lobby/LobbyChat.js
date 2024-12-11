@@ -30,10 +30,10 @@ const LobbyChat = ({ currentPlayer }) => {
         socketConnection.on('playersUpdate', (players) => {
           console.log('Players Update:', players);
           const filteredPlayers = players.filter(
-            (p) => p.id && p.socketId && p.id !== currentPlayer.player_id
+            (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
           );
           setOnlinePlayers(filteredPlayers);
-        });        
+        });                
   
         // Load chat history
         socketConnection.on('chatHistory', (history) => {
@@ -106,7 +106,7 @@ const LobbyChat = ({ currentPlayer }) => {
                     <Avatar icon={<UserOutlined />} />
                   </Badge>
                 }
-                title={player.name || `Player ${player.id}`} 
+                title={player.name || `${player.id}`} 
               />
             </List.Item>
           )}
