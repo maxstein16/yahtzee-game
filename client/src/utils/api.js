@@ -292,7 +292,7 @@ export const getTurn = async (gameId, playerId) => {
   }
 
   try {
-    const result = await apiRequest(`/game/${gameId}/turn?player_id=${playerId}`, 'GET');
+    const result = await apiRequest(`/game/${gameId}/turn}`, 'GET');
     console.log('Fetched turn:', result);
     return result;
   } catch (error) {
