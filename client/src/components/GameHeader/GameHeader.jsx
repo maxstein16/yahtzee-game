@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Space, Button, Divider, Modal, List, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import API from '../../utils/api';
@@ -6,23 +6,54 @@ import API from '../../utils/api';
 const { Header } = Layout;
 
 const GameHeader = ({
-  currentPlayer = {},
+  currentPlayer,
   handleLogout,
   socket,
-  availablePlayers = []
+  availablePlayers
 }) => {
   const navigate = useNavigate();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [pendingChallenge, setPendingChallenge] = useState(null);
   const [isChallengePending, setIsChallengePending] = useState(false);
 
-  const handleNewGame = useCallback(async () => {
-    if (!currentPlayer.player_id) {
-      message.error('Player not initialized');
-      return;
+  const handleChallenge = async (opponent) => {
+    if (socket) {
+      try {
+        // Create a new game with both player IDs
+        const response = await API.createGame(
+          'pending', 
+          0, 
+          currentPlayer.player_id,
+          opponent.id
+        );
+        
+        // Send challenge with game ID
+        socket.emit('gameChallenge', {
+          challenger: { 
+            id: currentPlayer.player_id, 
+            name: currentPlayer.name 
+          },
+          opponentId: opponent.id,
+          gameId: response.game.game_id
+        });
+  
+        message.info(`Challenge sent to ${opponent.name}`);
+        setPendingChallenge(opponent);
+        setIsChallengePending(true);
+        setIsModalVisible(false);
+      } catch (error) {
+        console.error('Error creating game:', error);
+        message.error('Failed to create game');
+      }
+    } else {
+      message.error('Unable to send challenge. No connection to server.');
     }
-
+  };
+  
+  // Handle single player game creation
+  const handleNewGame = async () => {
     try {
+      // For single player, we only need player1Id
       const response = await API.createGame(
         'pending', 
         0, 
@@ -35,103 +66,78 @@ const GameHeader = ({
       console.error('Error creating new game:', error);
       message.error('Failed to create new game');
     }
-  }, [currentPlayer.player_id, navigate]);
-
-  const handleChallenge = useCallback(async (opponent) => {
-    if (!socket) {
-      message.error('Connection not available');
-      return;
-    }
-
-    try {
-      const response = await API.createGame(
-        'pending', 
-        0, 
-        currentPlayer.player_id,
-        opponent.id
-      );
-      
-      const gameId = response.game.game_id;
-      
-      socket.emit('gameChallenge', {
-        challenger: { 
-          id: currentPlayer.player_id, 
-          name: currentPlayer.name 
-        },
-        opponentId: opponent.id,
-        gameId
-      });
-
-      setPendingChallenge(opponent);
-      setIsChallengePending(true);
-      setIsModalVisible(false);
-      message.info(`Challenge sent to ${opponent.name}`);
-    } catch (error) {
-      console.error('Error creating game:', error);
-      message.error('Failed to create game');
-    }
-  }, [socket, currentPlayer]);
+  };
 
   useEffect(() => {
-    if (!socket) return;
-
-    const handleChallengeRequest = ({ challenger, gameId }) => {
-      Modal.confirm({
-        title: `${challenger.name} has challenged you to a game!`,
-        onOk: () => {
-          socket.emit('challengeAccepted', { 
-            challengerId: challenger.id,
-            gameId 
-          });
-          
-          setIsChallengePending(false);
-          navigate('/multiplayer', { 
-            state: { 
-              gameId,
-              isChallenger: false,
-              opponent: challenger
-            }
-          });
-        },
-        onCancel: () => {
-          socket.emit('challengeRejected', { challengerId: challenger.id });
-          setIsChallengePending(false);
-        }
+    if (socket) {
+      // Handle challenge request
+      socket.on('challengeRequest', ({ challenger, gameId }) => {
+        Modal.confirm({
+          title: `${challenger.name} has challenged you to a game!`,
+          onOk: async () => {
+            socket.emit('challengeAccepted', { 
+              challengerId: challenger.id,
+              gameId: gameId 
+            });
+            
+            message.success('Challenge accepted! Starting game...');
+            setIsChallengePending(false);
+            
+            // Navigate to multiplayer with game info
+            navigate('/multiplayer', { 
+              state: { 
+                gameId: gameId,
+                isChallenger: false,
+                opponent: challenger
+              }
+            });
+          },
+          onCancel: () => {
+            socket.emit('challengeRejected', { challengerId: challenger.id });
+            message.warning('Challenge declined.');
+            setIsChallengePending(false);
+          },
+          okText: 'Accept',
+          cancelText: 'Decline'
+        });
       });
-    };
 
-    const handleChallengeAccepted = ({ gameId, opponent }) => {
-      setPendingChallenge(null);
-      setIsChallengePending(false);
-      navigate('/multiplayer', { 
-        state: { 
-          gameId,
-          isChallenger: true,
-          opponent
-        }
+      // Handle challenge accepted
+      socket.on('challengeAccepted', ({ gameId, opponent }) => {
+        message.success('Challenge accepted! Starting game...');
+        setPendingChallenge(null);
+        setIsChallengePending(false);
+        
+        // Navigate challenger to multiplayer game
+        navigate('/multiplayer', { 
+          state: { 
+            gameId: gameId,
+            isChallenger: true,
+            opponent: opponent
+          }
+        });
       });
-    };
 
-    const handleChallengeRejected = () => {
-      setPendingChallenge(null);
-      setIsChallengePending(false);
-      message.warning('Challenge declined');
-    };
+      // Handle challenge rejected
+      socket.on('challengeRejected', ({ message: rejectMessage }) => {
+        message.warning(rejectMessage || 'Challenge declined.');
+        setPendingChallenge(null);
+        setIsChallengePending(false);
+      });
 
-    socket.on('challengeRequest', handleChallengeRequest);
-    socket.on('challengeAccepted', handleChallengeAccepted);
-    socket.on('challengeRejected', handleChallengeRejected);
-
-    return () => {
-      socket.off('challengeRequest', handleChallengeRequest);
-      socket.off('challengeAccepted', handleChallengeAccepted);
-      socket.off('challengeRejected', handleChallengeRejected);
-    };
-  }, [socket, navigate]);
+      // Cleanup listeners on component unmount
+      return () => {
+        socket.off('challengeRequest');
+        socket.off('challengeAccepted');
+        socket.off('challengeRejected');
+      };
+    }
+  }, [socket, navigate, currentPlayer]);
 
   return (
     <Header className="flex items-center justify-between px-6 bg-white shadow">
       <div className="flex items-center gap-4">
+        {/* Game buttons */}
         <Button
           type="primary"
           onClick={() => navigate('/singleplayer')}
@@ -143,7 +149,6 @@ const GameHeader = ({
           type="primary"
           onClick={() => setIsModalVisible(true)}
           className="bg-green-500"
-          disabled={!socket}
         >
           Multiplayer
         </Button>
@@ -156,6 +161,7 @@ const GameHeader = ({
         </Button>
       </div>
 
+      {/* User info and logout */}
       <Space>
         <span className="text-gray-700">
           {currentPlayer?.name ? `Welcome, ${currentPlayer.name}` : 'Loading...'}
@@ -165,21 +171,20 @@ const GameHeader = ({
         </Button>
       </Space>
 
+      {/* Multiplayer Challenge Modal */}
       <Modal
         title="Challenge a Player"
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
       >
-        {Array.isArray(availablePlayers) && availablePlayers.length > 0 ? (
+        {availablePlayers.length > 0 ? (
           <List
-            dataSource={availablePlayers}
+            dataSource={availablePlayers.filter(player => player.id !== currentPlayer.player_id)}
             renderItem={(player) => (
               <List.Item
-                key={player.id}
                 actions={[
                   <Button
-                    key="challenge"
                     type="primary"
                     onClick={() => handleChallenge(player)}
                     disabled={!!pendingChallenge || isChallengePending}
