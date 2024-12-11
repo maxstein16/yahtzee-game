@@ -26,10 +26,11 @@ const LobbyChat = ({ currentPlayer }) => {
           name: currentPlayer.name,
         });
   
-        // Listen for player updates and filter out current player and invalid entries
+        // Listen for player updates
         socketConnection.on('playersUpdate', (players) => {
+          console.log('Players Update:', players);
           const filteredPlayers = players.filter(
-            (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
+            (p) => p.id && p.name && p.id !== currentPlayer.player_id
           );
           setOnlinePlayers(filteredPlayers);
         });
@@ -58,7 +59,7 @@ const LobbyChat = ({ currentPlayer }) => {
         socket.disconnect();
       }
     };
-  }, [currentPlayer]);  
+  }, [currentPlayer]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
