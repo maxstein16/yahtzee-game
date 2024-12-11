@@ -105,6 +105,7 @@ const Scoreboard = ({
           setTotalScore(sectionTotals.upperTotal + sectionTotals.lowerTotal);
         } catch (error) {
           console.error('Error loading scores:', error);
+          message.error('Failed to load scores');
         }
       }
     };
@@ -112,8 +113,9 @@ const Scoreboard = ({
     loadScores();
   }, [currentPlayer?.player_id, gameId, playerCategories]);
 
+  // Update scores when dice values change
   useEffect(() => {
-    if (!isOpponent && diceValues && diceValues.length > 0 && rollCount > 0) {
+    if (!isOpponent && diceValues?.length > 0 && rollCount > 0 && typeof calculateScores === 'function') {
       const calculatedScores = calculateScores(diceValues);
       setScores(prevScores => {
         const newScores = { ...prevScores };
@@ -128,23 +130,29 @@ const Scoreboard = ({
   }, [diceValues, rollCount, calculateScores, lockedCategories, isOpponent]);
 
   const handleClick = async (category) => {
-    if (isOpponent) return; // Prevent clicking on opponent's scoreboard
-    
-    const key = category.name;
-    if (lockedCategories[key] || rollCount === 0) return;
+    // Early returns for invalid conditions
+    if (isOpponent) return;
+    if (!category?.name) return;
+    if (lockedCategories[category.name] || rollCount === 0) return;
+    if (typeof handleScoreCategoryClick !== 'function') {
+      console.error('handleScoreCategoryClick is not a function');
+      message.error('Game action unavailable');
+      return;
+    }
   
     try {
-      // Log the category being clicked
-      console.log('Category clicked:', category);
-  
-      if (key === 'yahtzee' && hasYahtzee && diceValues.every(val => val === diceValues[0])) {
+      const key = category.name;
+      
+      // Handle Yahtzee bonus
+      if (key === 'yahtzee' && hasYahtzee && diceValues?.every(val => val === diceValues[0])) {
         setYahtzeeBonus(prevBonus => prevBonus + 100);
         message.success('Yahtzee Bonus! +100 points');
       }
   
-      // Pass the category name to the handler
+      // Submit score
       await handleScoreCategoryClick(key);
   
+      // Update categories and scores
       const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
       const scoreMap = {};
       const lockedMap = {};
@@ -155,6 +163,7 @@ const Scoreboard = ({
         lockedMap[catKey] = cat.is_submitted;
       });
   
+      // Update state
       setScores(scoreMap);
       setLockedCategories(lockedMap);
   
@@ -173,7 +182,10 @@ const Scoreboard = ({
         });
       }
   
-      onTurnComplete(key);
+      // Call turn complete callback if it exists
+      if (typeof onTurnComplete === 'function') {
+        onTurnComplete(key);
+      }
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error('Failed to submit score');
