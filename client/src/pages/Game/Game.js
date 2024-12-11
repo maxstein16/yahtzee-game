@@ -30,7 +30,9 @@ const Game = ({ gameId, currentPlayer }) => {
         const gameData = await API.getGameById(gameId);
   
         // Fetch the current turn
-        const turnData = await API.getGameDice(gameId); // Adjust API call to fetch turn info
+        const turnData = await API.getGameDice(gameId);
+
+        console.log('Game data:', turnData);
   
         if (!turnData) {
           // Create a new turn if none exists
@@ -49,6 +51,7 @@ const Game = ({ gameId, currentPlayer }) => {
   
         // Determine if it's the player's turn
         const isPlayerTurn = turnData?.playerId === currentPlayer.player_id;
+        console.log('Is player turn:', isPlayerTurn);
         setIsMyTurn(isPlayerTurn);
   
         if (!isPlayerTurn) {
