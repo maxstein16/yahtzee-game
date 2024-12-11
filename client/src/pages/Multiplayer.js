@@ -15,6 +15,7 @@ function MultiplayerPage() {
 
   // Game state
   const [currentPlayer, setCurrentPlayer] = useState(null);
+  const [playerCategories, setPlayerCategories] = useState([]); // Add this
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
   const [selectedDice, setSelectedDice] = useState([]);
   const [rollCount, setRollCount] = useState(0);
@@ -30,14 +31,16 @@ function MultiplayerPage() {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
+          
+          // Initialize player categories
+          await API.initializePlayerCategories(playerInfo.playerData.player_id);
+          const categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
+          setPlayerCategories(categories);
         }
 
         // Initialize WebSocket connection
         const socketConnection = await initializeWebSocket(playerInfo.playerData.player_id);
         setSocket(socketConnection);
-
-        // Initialize player categories if needed
-        await API.initializePlayerCategories(playerInfo.playerData.player_id);
 
         // Listen for opponent's moves
         socketConnection.on('opponentRoll', ({ dice }) => {
@@ -178,14 +181,19 @@ function MultiplayerPage() {
           <div className="flex gap-4">
             <Scoreboard
               currentPlayer={currentPlayer}
+              playerCategories={playerCategories} // Add this
+              calculateScores={calculateScores}   // Add this
               diceValues={diceValues}
               rollCount={rollCount}
               handleScoreCategoryClick={handleScoreCategoryClick}
+              onTurnComplete={() => {}} // Add a proper turn complete handler if needed
               gameId={gameId}
               isMyTurn={isMyTurn}
             />
             <Scoreboard
               currentPlayer={opponent}
+              playerCategories={playerCategories} // Add this
+              calculateScores={calculateScores}   // Add this
               diceValues={diceValues}
               rollCount={rollCount}
               gameId={gameId}
