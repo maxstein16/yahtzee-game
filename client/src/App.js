@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Lobby from './pages/Lobby/Lobby';
-import GameWrapper from './pages/GameWrapper';
+import GameWrapper from './pages/Game/GameWrapper';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
