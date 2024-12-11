@@ -30,10 +30,10 @@ const LobbyChat = ({ currentPlayer }) => {
         socketConnection.on('playersUpdate', (players) => {
           console.log('Players Update:', players);
           const filteredPlayers = players.filter(
-            (p) => p.id && p.name && p.id !== currentPlayer.player_id
+            (p) => p.id && p.socketId && p.id !== currentPlayer.player_id
           );
           setOnlinePlayers(filteredPlayers);
-        });
+        });        
   
         // Load chat history
         socketConnection.on('chatHistory', (history) => {
@@ -87,8 +87,8 @@ const LobbyChat = ({ currentPlayer }) => {
     <div className="flex flex-col h-full">
       <Card className="mb-4" title={`Other Players Online (${onlinePlayers.length})`}>
         <List
-          dataSource={onlinePlayers.filter(player => player.name)}
-          renderItem={player => (
+          dataSource={onlinePlayers}
+          renderItem={(player) => (
             <List.Item
               actions={[
                 <Button 
@@ -106,7 +106,7 @@ const LobbyChat = ({ currentPlayer }) => {
                     <Avatar icon={<UserOutlined />} />
                   </Badge>
                 }
-                title={player.name}
+                title={player.name || `Player ${player.id}`} 
               />
             </List.Item>
           )}

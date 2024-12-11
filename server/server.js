@@ -18,7 +18,7 @@ const chatHistory = []; // To store chat messages in memory (consider database f
 
 io.on('connection', (socket) => {
   socket.on('playerJoined', (player) => {
-    connectedPlayers.set(player.id, { id: player.id, name: player.name, socketId: socket.id });
+    connectedPlayers.set(player.id, { id: player.id, name: player.name || `Player ${player.id}`, socketId: socket.id });
 
     // Emit chat history to the newly connected player
     socket.emit('chatHistory', chatHistory);
