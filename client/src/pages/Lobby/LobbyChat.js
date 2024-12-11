@@ -119,7 +119,7 @@ const LobbyChat = ({ currentPlayer }) => {
 
     try {
       const { gameId } = pendingChallenge;
-      await API.updateGame(gameId, 'in_progress', 0);
+      await API.startGame(gameId);
       socket.emit('challengeAccepted', { 
         challengerId: pendingChallenge.challenger.id, 
         gameId 
