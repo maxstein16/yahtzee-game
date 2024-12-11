@@ -8,87 +8,76 @@ import { handleLogout, fetchCurrentPlayer } from '../services/authService';
 import API from '../utils/api';
 import initializeWebSocket from '../services/websocketService';
 
-function MultiplayerPage() {
+const MultiplayerPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { gameId, isChallenger, opponent } = location.state || {};
 
   // Game state
   const [currentPlayer, setCurrentPlayer] = useState(null);
-  const [playerCategories, setPlayerCategories] = useState([]); // Add this
+  const [playerCategories, setPlayerCategories] = useState([]);
+  const [opponentCategories, setOpponentCategories] = useState([]);
   const [diceValues, setDiceValues] = useState([1, 1, 1, 1, 1]);
+  const [opponentDiceValues, setOpponentDiceValues] = useState([1, 1, 1, 1, 1]);
   const [selectedDice, setSelectedDice] = useState([]);
   const [rollCount, setRollCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
   const [socket, setSocket] = useState(null);
   const [isMyTurn, setIsMyTurn] = useState(isChallenger);
 
-  // Scoring and bonus state
-  const [hasYahtzee, setHasYahtzee] = useState(false);
-  const [yahtzeeBonus, setYahtzeeBonus] = useState(0);
-
-  // Game play state
-  const [playerTotal, setPlayerTotal] = useState(0);
-  const [currentScores, setCurrentScores] = useState({});
-  const [upperSectionTotal, setUpperSectionTotal] = useState(0);
-  const [upperSectionBonus, setUpperSectionBonus] = useState(0);
-
   // Initialize player and game
   useEffect(() => {
     const initializeGame = async () => {
       try {
-        // Get current player data
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
           
-          // Initialize player categories
+          // Initialize categories for both players
           await API.initializePlayerCategories(playerInfo.playerData.player_id);
           const categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
           setPlayerCategories(categories);
+          
+          if (opponent?.id) {
+            const opponentCats = await API.getPlayerCategories(opponent.id);
+            setOpponentCategories(opponentCats);
+          }
         }
 
-        // Initialize WebSocket connection
         const socketConnection = await initializeWebSocket(playerInfo.playerData.player_id);
         setSocket(socketConnection);
 
-        // Listen for opponent's moves
+        // Set up socket event listeners
         socketConnection.on('opponentRoll', ({ dice }) => {
-          setDiceValues(dice);
+          setOpponentDiceValues(dice);
+          message.info("Opponent rolled the dice!");
         });
 
-        socketConnection.on('turnChange', ({ nextPlayer }) => {
-            setIsMyTurn(nextPlayer === currentPlayer.player_id);
+        socketConnection.on('turnChange', ({ nextPlayer, diceValues: newDice }) => {
+          const isMyNewTurn = nextPlayer === playerInfo.playerData.player_id;
+          setIsMyTurn(isMyNewTurn);
+          
+          if (isMyNewTurn) {
+            setDiceValues([1, 1, 1, 1, 1]);
             setRollCount(0);
             setSelectedDice([]);
-            setDiceValues([1, 1, 1, 1, 1]);
+            message.success("It's your turn!");
+          } else {
+            setOpponentDiceValues([1, 1, 1, 1, 1]);
+            message.info("Opponent's turn");
+          }
         });
 
-        socketConnection.on('gameStart', async ({ gameId, players }) => {
-            try {
-              setIsMyTurn(players[0] === currentPlayer.player_id);
-          
-              // Initialize categories for the new game
-              await API.initializePlayerCategories(currentPlayer.player_id);
-          
-              // Fetch updated categories
-              const categories = await API.getPlayerCategories(currentPlayer.player_id);
-              setPlayerCategories(categories);
-          
-              message.success('Game started!');
-            } catch (error) {
-              console.error('Error handling gameStart event:', error);
-              message.error('Failed to initialize game.');
-            }
-          });          
-
-        socketConnection.on('gameEnd', ({ winner }) => {
-          message.success(`Game Over! ${winner.name} wins!`);
-          navigate('/lobby');
+        socketConnection.on('categoriesUpdate', ({ categories, playerId }) => {
+          if (playerId === playerInfo.playerData.player_id) {
+            setPlayerCategories(categories);
+          } else {
+            setOpponentCategories(categories);
+          }
         });
 
       } catch (error) {
-        console.error('Error initializing multiplayer game:', error);
+        console.error('Error initializing game:', error);
         message.error('Failed to initialize game');
         navigate('/lobby');
       }
@@ -96,8 +85,6 @@ function MultiplayerPage() {
 
     if (gameId) {
       initializeGame();
-    } else {
-      navigate('/lobby');
     }
 
     return () => {
@@ -105,109 +92,19 @@ function MultiplayerPage() {
         socket.disconnect();
       }
     };
-  }, [gameId, navigate]);
-
-  useEffect(() => {
-    if (currentPlayer?.player_id) {
-      socket?.on('opponentRoll', ({ dice }) => {
-        setDiceValues(dice);
-      });
-  
-      socket?.on('turnChange', ({ nextPlayer }) => {
-        setIsMyTurn(nextPlayer === currentPlayer.player_id);
-        if (nextPlayer === currentPlayer.player_id) {
-          message.info("It's your turn!");
-          setRollCount(0);
-          setSelectedDice([]);
-          setDiceValues([1, 1, 1, 1, 1]);
-        }
-      });
-  
-      socket?.on('gameEnd', ({ winner }) => {
-        message.success(`Game Over! ${winner.name} wins!`);
-        navigate('/lobby');
-      });
-    }
-  
-    return () => {
-      if (socket) {
-        socket.off('opponentRoll');
-        socket.off('turnChange');
-        socket.off('gameEnd');
-      }
-    };
-  }, [currentPlayer, socket, navigate]);
-
-  useEffect(() => {
-    if (!location.state || !location.state.gameId || !location.state.opponent) {
-      message.error('Invalid game parameters');
-      navigate('/lobby');
-      return;
-    }
-  }, [location.state, navigate]);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('gameStart', async ({ gameId, players }) => {
-        try {
-          setIsMyTurn(players[0] === currentPlayer.player_id);
-  
-          // Initialize player categories
-          await API.initializePlayerCategories(currentPlayer.player_id);
-  
-          // Fetch updated categories
-          const categories = await API.getPlayerCategories(currentPlayer.player_id);
-          setPlayerCategories(categories);
-  
-          message.success('Game started!');
-        } catch (error) {
-          console.error('Error handling gameStart event:', error);
-          message.error('Failed to initialize game.');
-        }
-      });
-  
-      return () => {
-        socket.off('gameStart');
-      };
-    }
-  }, [socket, currentPlayer]);  
-
-  useEffect(() => {
-    if (socket && currentPlayer?.player_id) {
-      socket.on('turnChange', ({ nextPlayer, message, diceValues: newDiceValues, rollCount: newRollCount, canRoll }) => {
-        const isMyNewTurn = nextPlayer === currentPlayer.player_id;
-        
-        setIsMyTurn(isMyNewTurn);
-        setDiceValues(newDiceValues || [1, 1, 1, 1, 1]);
-        setRollCount(newRollCount || 0);
-        setSelectedDice([]);
-  
-        if (!isMyNewTurn) {
-          // If it's not my turn, make sure I can't roll
-          setIsMyTurn(false);
-          message.info("Opponent's turn");
-        } else {
-          message.info("Your turn!");
-        }
-      });
-  
-      return () => {
-        socket.off('turnChange');
-      };
-    }
-  }, [socket, currentPlayer]);
+  }, [gameId, navigate, opponent?.id]);
 
   const handleDiceRoll = async () => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");
       return;
     }
-  
+
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
       return;
     }
-  
+
     setIsRolling(true);
     try {
       const result = await API.rollDice(gameId, {
@@ -215,27 +112,67 @@ function MultiplayerPage() {
         currentDice: diceValues,
         keepIndices: selectedDice,
       });
-  
-      if (result.success) {
-        setDiceValues(result.dice);
-        setRollCount((prev) => prev + 1);
-        if (socket) {
-          socket.emit('diceRoll', { dice: result.dice, gameId });
-        }
-      } else {
-        message.error(result.message || 'Failed to roll dice.');
-      }
+
+      setDiceValues(result.dice);
+      setRollCount((prev) => prev + 1);
+      
+      // Emit dice roll to opponent
+      socket?.emit('diceRoll', { 
+        dice: result.dice, 
+        gameId 
+      });
+      
     } catch (error) {
       console.error('Roll dice error:', error);
-      message.error(error.message || 'Failed to roll dice.');
+      message.error('Failed to roll dice');
     } finally {
       setIsRolling(false);
     }
   };
 
-  const checkForYahtzeeBonus = (dice) => {
-    if (!hasYahtzee) return false;
-    return dice.every(value => value === dice[0]);
+  const handleScoreCategoryClick = async (categoryName) => {
+    if (!isMyTurn) {
+      message.warning("It's not your turn!");
+      return;
+    }
+
+    try {
+      const calculatedScores = calculateScores(diceValues);
+      const score = calculatedScores[categoryName];
+
+      // Submit score
+      await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
+
+      // Notify opponent through socket
+      socket?.emit('scoreCategory', {
+        gameId,
+        categoryName,
+        score,
+        nextPlayerId: opponent.id
+      });
+
+      // Update local state
+      setIsMyTurn(false);
+      setRollCount(0);
+      setSelectedDice([]);
+      setDiceValues([1, 1, 1, 1, 1]);
+
+      message.success(`Scored ${score} points in ${categoryName}!`);
+
+    } catch (error) {
+      console.error('Error submitting score:', error);
+      message.error('Failed to submit score');
+    }
+  };
+
+  const toggleDiceSelection = (index) => {
+    if (!isMyTurn || isRolling) return;
+    
+    setSelectedDice(prev => 
+      prev.includes(index) 
+        ? prev.filter(i => i !== index)
+        : [...prev, index]
+    );
   };
 
   const calculateScores = (dice) => {
@@ -260,92 +197,6 @@ function MultiplayerPage() {
   
     return scores;
   };
-
-  const calculateAllScores = (categories) => {
-    const upperCategories = categories.filter(cat => cat.section === 'upper');
-    const upperTotal = upperCategories.reduce((total, cat) => total + (cat.score || 0), 0);
-    const upperBonus = upperTotal >= 63 ? 35 : 0;
-    
-    const yahtzeeCategory = categories.find(cat => cat.name === 'yahtzee');
-    const hasYahtzee = yahtzeeCategory?.score === 50;
-    
-    const total = categories.reduce((sum, cat) => sum + (cat.score || 0), 0) + upperBonus;
-    
-    return {
-      upperTotal,
-      upperBonus,
-      hasYahtzee,
-      yahtzeeBonus: categories.filter(cat => cat.name === 'yahtzeeBonus')
-        .reduce((sum, cat) => sum + (cat.score || 0), 0),
-      total
-    };
-  };
-
-  const handleScoreCategoryClick = async (categoryName) => {
-    if (!isMyTurn) {
-      message.warning("It's not your turn!");
-      return;
-    }
-  
-    if (!gameId || !currentPlayer?.player_id) {
-      message.error('Game or player information missing');
-      return;
-    }
-  
-    try {
-      const calculatedScores = calculateScores(diceValues);
-      const categoryScore = calculatedScores[categoryName];
-  
-      // Create turn record
-      await API.createTurn(
-        gameId,
-        currentPlayer.player_id,
-        diceValues,
-        rollCount,
-        categoryScore,
-        true
-      );
-  
-      // Submit score and notify server
-      await API.submitGameScore(
-        gameId,
-        currentPlayer.player_id,
-        categoryName,
-        categoryScore
-      );
-  
-      // Emit score submission and turn change via socket
-      socket.emit('scoreCategory', {
-        gameId,
-        categoryName,
-        score: categoryScore,
-        nextPlayerId: opponent.id
-      });
-  
-      // Update local state immediately
-      setRollCount(0);
-      setSelectedDice([]);
-      setDiceValues([1, 1, 1, 1, 1]);
-  
-      message.success(`Scored ${categoryScore} points in ${categoryName}!`);
-  
-    } catch (error) {
-      console.error('Error submitting score:', error);
-      message.error(`Failed to submit score: ${error.message}`);
-    }
-  };
-
-  const toggleDiceSelection = (index) => {
-    if (isRolling) return;
-  
-    setSelectedDice((prev) => {
-      if (prev.includes(index)) {
-        return prev.filter((i) => i !== index);
-      } else {
-        return [...prev, index];
-      }
-    });
-  };  
 
   // In MultiplayerPage.js
   const handleNewGame = async () => {
@@ -391,43 +242,76 @@ function MultiplayerPage() {
         currentPlayer={currentPlayer}
         handleLogout={() => handleLogout(navigate)}
         handleNewGame={handleNewGame}
-    />
+      />
       
       <Layout.Content className="p-6">
         <div className="flex gap-6">
-          <GameBoard
-            currentPlayer={currentPlayer}
-            opponent={opponent}
-            diceValues={diceValues}
-            selectedDice={selectedDice}
-            isRolling={isRolling}
-            rollCount={rollCount}
-            isMyTurn={isMyTurn}
-            toggleDiceSelection={toggleDiceSelection}
-            handleDiceRoll={handleDiceRoll}
-            gameId={gameId}
-          />
+          <div className="flex-1 space-y-6">
+            {/* Player's Dice Section */}
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h2 className="text-lg font-bold mb-4">
+                {currentPlayer?.name}'s Dice
+              </h2>
+              <div className="flex justify-center gap-4">
+                {diceValues.map((value, index) => (
+                  <Dice
+                    key={index}
+                    value={value}
+                    isSelected={selectedDice.includes(index)}
+                    onClick={() => toggleDiceSelection(index)}
+                    isRolling={isRolling}
+                    disabled={!isMyTurn}
+                  />
+                ))}
+              </div>
+              <div className="mt-4 text-center">
+                <Button
+                  type="primary"
+                  onClick={handleDiceRoll}
+                  disabled={!isMyTurn || rollCount >= 3}
+                >
+                  Roll Dice ({rollCount}/3)
+                </Button>
+              </div>
+            </div>
+
+            {/* Opponent's Dice Section */}
+            <div className="bg-white p-4 rounded-lg shadow opacity-80">
+              <h2 className="text-lg font-bold mb-4">
+                {opponent?.name}'s Dice
+              </h2>
+              <div className="flex justify-center gap-4">
+                {opponentDiceValues.map((value, index) => (
+                  <Dice
+                    key={index}
+                    value={value}
+                    isRolling={false}
+                    disabled={true}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
 
           <div className="flex gap-4">
             <Scoreboard
               currentPlayer={currentPlayer}
-              playerCategories={playerCategories} // Add this
-              calculateScores={calculateScores}   // Add this
+              playerCategories={playerCategories}
+              calculateScores={calculateScores}
               diceValues={diceValues}
               rollCount={rollCount}
               handleScoreCategoryClick={handleScoreCategoryClick}
-              onTurnComplete={() => {}} // Add a proper turn complete handler if needed
               gameId={gameId}
               isMyTurn={isMyTurn}
             />
             <Scoreboard
               currentPlayer={opponent}
-              playerCategories={playerCategories} // Add this
-              calculateScores={calculateScores}   // Add this
-              diceValues={diceValues}
-              rollCount={rollCount}
+              playerCategories={opponentCategories}
+              calculateScores={calculateScores}
+              diceValues={opponentDiceValues}
+              rollCount={0}
               gameId={gameId}
-              isOpponent
+              isOpponent={true}
             />
           </div>
         </div>
