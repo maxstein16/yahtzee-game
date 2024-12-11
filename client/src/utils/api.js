@@ -29,7 +29,6 @@ const apiRequest = async (endpoint, method = 'GET', body = null, retries = 3) =>
       console.log(`Content-Type: ${contentType}`);
 
       const text = await response.text();
-      console.log('Raw response:', text); // Log raw response text
 
       if (!response.ok) {
         console.error('Error response:', text);
