@@ -17,7 +17,7 @@ function Lobby() {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
-          console.log('Player info:', playerInfo);
+          console.log('Player info:', playerInfo.playerData.name);
 
           const socket = initializeWebSocket(playerInfo.playerData.player_id);
 
