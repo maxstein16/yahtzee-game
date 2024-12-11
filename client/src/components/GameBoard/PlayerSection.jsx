@@ -14,22 +14,22 @@ const PlayerSection = ({
   rollCount,
   toggleDiceSelection,
   handleDiceRoll,
-  gameId
+  gameId,
 }) => {
   return (
     <div className="player-section">
       <Title level={4}>{currentPlayer?.name || 'Player'} (Total: {playerTotal})</Title>
       <div className="game-dice-container">
-        {!isAITurn && diceValues.map((value, index) => (
-          <Dice
-            key={index}
-            value={value}
-            isSelected={selectedDice.includes(index)}
-            isRolling={isRolling}
-            onClick={() => toggleDiceSelection(index)}
-            disabled={isAITurn || rollCount >= 3}
-          />
-        ))}
+        {!isAITurn &&
+          diceValues.map((value, index) => (
+            <Dice
+              key={index}
+              value={value}
+              isSelected={selectedDice.includes(index)}
+              isRolling={isRolling}
+              onClick={() => toggleDiceSelection(index)}
+            />
+          ))}
       </div>
       <div className="roll-button-container">
         <Button
