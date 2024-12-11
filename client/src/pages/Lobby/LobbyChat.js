@@ -25,12 +25,13 @@ const LobbyChat = ({ currentPlayer }) => {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
 
+        console.log(currentPlayer.name);
+
         // Register player with socket
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
           name: currentPlayer.name
         });
-
         // Set up event listeners
         socketConnection.on('playersUpdate', (players) => {
           console.log('Received players update:', players);
