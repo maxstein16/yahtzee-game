@@ -69,22 +69,37 @@ io.on('connection', (socket) => {
     
     const challenge = activeChallenges.get(gameId);
     if (challenge) {
-      // Initialize game state
+      const opponent = challenge.opponent;
+      // Initialize game state with proper player IDs
       activeGames.set(gameId, {
-        currentTurn: challengerId, // Challenger goes first
+        currentTurn: challengerId,
         dice: [1, 1, 1, 1, 1],
         rollCount: 0,
-        players: [challengerId, challenge.opponent.id]
+        players: {
+          challenger: challengerId,
+          opponent: opponent.id
+        }
       });
-
-      // Notify both players
+  
+      // Notify both players with more detailed game state
       const gameStartPayload = { 
         gameId,
-        firstPlayer: challengerId
+        currentTurn: challengerId,
+        players: {
+          challenger: challengerId,
+          opponent: opponent.id
+        }
       };
       
       io.to(connectedPlayers.get(challengerId).socketId).emit('gameStart', gameStartPayload);
       io.to(socket.id).emit('gameStart', gameStartPayload);
+  
+      // Also emit initial turn state
+      io.emit('turnChange', {
+        gameId,
+        currentPlayer: challengerId,
+        previousPlayer: null
+      });
     }
   });
 

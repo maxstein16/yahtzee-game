@@ -126,19 +126,19 @@ const LobbyChat = ({ currentPlayer }) => {
     try {
       const { gameId } = pendingChallenge;
       
-      // Verify the game exists
       const game = await API.getGameById(gameId);
       if (!game) {
         throw new Error('Game not found');
       }
-  
+      
       // Start the game
       await API.startGame(gameId);
   
-      // Notify the challenger
+      // Notify the challenger with player IDs
       socket.emit('challengeAccepted', {
         challengerId: pendingChallenge.challenger.id,
-        gameId: gameId
+        gameId: gameId,
+        accepterId: currentPlayer.player_id  // Add this line
       });
   
       message.success('Challenge accepted! Starting game...');

@@ -26,38 +26,56 @@ const Game = ({ gameId, currentPlayer }) => {
   useEffect(() => {
     const fetchGameDetails = async () => {
       try {
-        const game = await API.getGameById(gameId);
+        const gameData = await API.getGameById(gameId);
         const players = await API.getPlayersInGame(gameId);
   
         // Set opponent details
         const opponentPlayer = players.find(p => p.player_id !== currentPlayer.player_id);
         setOpponent(opponentPlayer);
   
-        // Initialize player categories
+        // Initialize player categories for both players
         await API.initializePlayerCategories(currentPlayer.player_id);
+        if (opponentPlayer) {
+          await API.initializePlayerCategories(opponentPlayer.player_id);
+        }
+        
         const categories = await API.getPlayerCategories(currentPlayer.player_id);
         setPlayerCategories(categories);
   
         // Set default dice values first
         setDiceValues([1, 1, 1, 1, 1]);
   
-        // Determine if it's the player's turn based on game state
-        const isPlayerTurn = game.currentTurn === currentPlayer.player_id || 
-                           (game.status === 'pending' && !game.currentTurn);
+        // Determine if it's the player's turn based on game data
+        const isPlayerTurn = gameData.currentTurn === currentPlayer.player_id;
         setIsMyTurn(isPlayerTurn);
   
         if (!isPlayerTurn) {
           message.info("Waiting for opponent's turn...");
         }
   
-        try {
-          const gameDice = await API.getGameDice(gameId);
-          if (gameDice && Array.isArray(gameDice.dice)) {
-            setDiceValues(gameDice.dice);
+        // Socket setup
+        const socketConnection = initializeWebSocket(currentPlayer.player_id);
+        setSocket(socketConnection);
+  
+        socketConnection.on('turnChange', ({ currentPlayer: nextPlayer }) => {
+          const isMyNewTurn = nextPlayer === currentPlayer.player_id;
+          setIsMyTurn(isMyNewTurn);
+          
+          if (isMyNewTurn) {
+            message.success("It's your turn!");
+            setRollCount(0);
+            setDiceValues([1, 1, 1, 1, 1]);
+          } else {
+            message.info("Opponent's turn");
           }
-        } catch (diceError) {
-          console.warn('Could not fetch dice state:', diceError);
-        }
+        });
+  
+        socketConnection.on('diceRolled', ({ dice, player }) => {
+          setDiceValues(dice);
+          if (player !== currentPlayer.player_id) {
+            message.info("Opponent rolled the dice!");
+          }
+        });
   
       } catch (error) {
         console.error('Error fetching game details:', error);
@@ -67,32 +85,11 @@ const Game = ({ gameId, currentPlayer }) => {
   
     fetchGameDetails();
   
-    // Initialize WebSocket
-    const socketConnection = initializeWebSocket(currentPlayer.player_id);
-    setSocket(socketConnection);
-  
-    // Socket event handlers
-    socketConnection.on('turnChange', ({ currentPlayer: nextPlayer, previousPlayer }) => {
-      const isMyNewTurn = nextPlayer === currentPlayer.player_id;
-      setIsMyTurn(isMyNewTurn);
-      
-      if (isMyNewTurn) {
-        message.success("It's your turn!");
-        setRollCount(0);
-        setDiceValues([1, 1, 1, 1, 1]);
-      } else {
-        message.info("Opponent's turn");
+    return () => {
+      if (socket) {
+        socket.disconnect();
       }
-    });
-  
-    socketConnection.on('diceRolled', ({ dice, player }) => {
-      setDiceValues(dice);
-      if (player !== currentPlayer.player_id) {
-        message.info("Opponent rolled the dice!");
-      }
-    });
-  
-    return () => socketConnection.disconnect();
+    };
   }, [gameId, currentPlayer]);
 
   const toggleDiceSelection = (index) => {
@@ -143,7 +140,7 @@ const Game = ({ gameId, currentPlayer }) => {
       setIsRolling(false);
     }
   };
-  
+
   const handleScoreCategoryClick = async (categoryName) => {
     try {
       // Only allow scoring on your turn
