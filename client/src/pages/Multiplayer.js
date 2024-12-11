@@ -188,7 +188,8 @@ function MultiplayerPage() {
     setIsRolling(true);
     try {
       const result = await API.rollDice(gameId, currentPlayer, diceValues, selectedDice);
-  
+      console.log('Roll dice API parameters:', { gameId, currentPlayer, diceValues, selectedDice });
+
       if (result.success) {
         setDiceValues(result.dice);
         const newScores = calculateScores(result.dice);

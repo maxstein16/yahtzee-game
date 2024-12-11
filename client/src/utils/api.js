@@ -148,12 +148,13 @@ export const sendMessage = (gameId, playerId, message) =>
   apiRequest(`/game/${gameId}/chat`, 'POST', { player_id: playerId, message });
 
 // Turn Management
-export const rollDice = (gameId, {playerId, currentDice, keepIndices}) =>
-  apiRequest(`/game/${gameId}/roll`, 'POST', { 
-    playerId, 
-    currentDice, 
-    keepIndices 
-  });
+async function rollDice(gameId, player, diceValues, selectedDice) {
+  return fetch(`/api/games/${gameId}/roll`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player, diceValues, selectedDice }),
+  }).then((response) => response.json());
+}
 
   export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {
     if (!gameId || !playerId || !categoryId || score === undefined) {
