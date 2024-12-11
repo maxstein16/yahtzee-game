@@ -3,7 +3,7 @@ import { Card, Typography, Input, Button, List, Avatar, message, Space } from 'a
 import { UserOutlined } from '@ant-design/icons';
 import GameBoard from './GameBoard';
 import Scoreboard from './Scoreboard';
-import API from '../../utils/api';
+import API from '../utils/api';
 import { initializeWebSocket } from '../../services/websocketService';
 
 const { Title } = Typography;
