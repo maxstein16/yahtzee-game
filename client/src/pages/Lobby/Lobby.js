@@ -1,4 +1,3 @@
-// src/pages/Lobby/Lobby.js
 import React, { useState, useEffect } from 'react';
 import { message, Layout } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -9,21 +8,17 @@ import GameHeader from '../../components/GameHeader/GameHeader';
 
 function Lobby() {
   const navigate = useNavigate();
-
-  // Basic state
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Socket state
   const [socket, setSocket] = useState(null);
   const [availablePlayers, setAvailablePlayers] = useState([]);
 
-  // Initialize player
   useEffect(() => {
     const initializePlayer = async () => {
       try {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
+          console.log('Player info:', playerInfo); // Debug log
           setCurrentPlayer(playerInfo.playerData);
         }
       } catch (error) {
@@ -37,10 +32,9 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
-  // WebSocket setup
   useEffect(() => {
     if (currentPlayer?.player_id) {
-      initializeWebSocket(null, currentPlayer.player_id)
+      initializeWebSocket(currentPlayer.player_id)
         .then(socketConnection => {
           setSocket(socketConnection);
           
@@ -53,7 +47,14 @@ function Lobby() {
           });
 
           socketConnection.on('playersUpdate', (players) => {
-            setAvailablePlayers(players);
+            console.log('Received players update:', players); // Debug log
+            const filteredPlayers = players
+              .filter(p => p && p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString())
+              .map(p => ({
+                id: p.id,
+                name: p.name
+              }));
+            setAvailablePlayers(filteredPlayers);
           });
         })
         .catch(error => {
@@ -79,13 +80,20 @@ function Lobby() {
     );
   }
 
+  // Debug log before render
+  console.log('Rendering Lobby with:', {
+    currentPlayer,
+    availablePlayers,
+    socketConnected: socket?.connected
+  });
+
   return (
     <Layout style={{ height: '100vh' }}>
       <GameHeader
         currentPlayer={currentPlayer}
         handleLogout={() => handleLogout(navigate)}
         socket={socket}
-        availablePlayers={availablePlayers}
+        availablePlayers={availablePlayers || []}
       />
       
       <Layout.Content className="p-6">

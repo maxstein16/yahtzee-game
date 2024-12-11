@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Layout, Space, Button, Divider, Modal, List, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import API from '../../utils/api';
@@ -16,12 +16,26 @@ const GameHeader = ({
   const [pendingChallenge, setPendingChallenge] = useState(null);
   const [isChallengePending, setIsChallengePending] = useState(false);
 
+  // Debug log props
+  useEffect(() => {
+    console.log('GameHeader props:', {
+      currentPlayer,
+      availablePlayers,
+      socketConnected: socket?.connected
+    });
+  }, [currentPlayer, availablePlayers, socket]);
+
   const handleNewGame = async () => {
+    if (!currentPlayer?.player_id) {
+      message.error('Player not initialized');
+      return;
+    }
+
     try {
       const response = await API.createGame(
         'pending', 
         0, 
-        currentPlayer?.player_id
+        currentPlayer.player_id
       );
       navigate('/singleplayer', { 
         state: { gameId: response.game.game_id }
@@ -32,9 +46,9 @@ const GameHeader = ({
     }
   };
 
-  const handleChallenge = async (opponent) => {
-    if (!socket) {
-      message.error('Unable to send challenge. No connection to server.');
+  const handleChallenge = useCallback(async (opponent) => {
+    if (!socket || !currentPlayer?.player_id) {
+      message.error('Connection not available');
       return;
     }
 
@@ -42,14 +56,14 @@ const GameHeader = ({
       const response = await API.createGame(
         'pending', 
         0, 
-        currentPlayer?.player_id,
+        currentPlayer.player_id,
         opponent.id
       );
       
       socket.emit('gameChallenge', {
         challenger: { 
-          id: currentPlayer?.player_id, 
-          name: currentPlayer?.name 
+          id: currentPlayer.player_id, 
+          name: currentPlayer.name 
         },
         opponentId: opponent.id,
         gameId: response.game.game_id
@@ -63,7 +77,7 @@ const GameHeader = ({
       console.error('Error creating game:', error);
       message.error('Failed to create game');
     }
-  };
+  }, [socket, currentPlayer]);
 
   useEffect(() => {
     if (!socket) return;
@@ -74,15 +88,13 @@ const GameHeader = ({
         onOk: () => {
           socket.emit('challengeAccepted', { 
             challengerId: challenger.id,
-            gameId: gameId 
+            gameId 
           });
           
-          message.success('Challenge accepted! Starting game...');
           setIsChallengePending(false);
-          
           navigate('/multiplayer', { 
             state: { 
-              gameId: gameId,
+              gameId,
               isChallenger: false,
               opponent: challenger
             }
@@ -90,44 +102,38 @@ const GameHeader = ({
         },
         onCancel: () => {
           socket.emit('challengeRejected', { challengerId: challenger.id });
-          message.warning('Challenge declined.');
           setIsChallengePending(false);
-        },
-        okText: 'Accept',
-        cancelText: 'Decline'
-      });
-    };
-
-    const handleChallengeAccepted = ({ gameId, opponent }) => {
-      message.success('Challenge accepted! Starting game...');
-      setPendingChallenge(null);
-      setIsChallengePending(false);
-      
-      navigate('/multiplayer', { 
-        state: { 
-          gameId: gameId,
-          isChallenger: true,
-          opponent: opponent
         }
       });
     };
 
-    const handleChallengeRejected = ({ message: rejectMessage }) => {
-      message.warning(rejectMessage || 'Challenge declined.');
+    const handleChallengeAccepted = ({ gameId, opponent }) => {
       setPendingChallenge(null);
       setIsChallengePending(false);
+      navigate('/multiplayer', { 
+        state: { 
+          gameId,
+          isChallenger: true,
+          opponent
+        }
+      });
     };
 
     socket.on('challengeRequest', handleChallengeRequest);
     socket.on('challengeAccepted', handleChallengeAccepted);
-    socket.on('challengeRejected', handleChallengeRejected);
+    socket.on('challengeRejected', () => {
+      setPendingChallenge(null);
+      setIsChallengePending(false);
+    });
 
     return () => {
-      socket.off('challengeRequest', handleChallengeRequest);
-      socket.off('challengeAccepted', handleChallengeAccepted);
-      socket.off('challengeRejected', handleChallengeRejected);
+      socket.off('challengeRequest');
+      socket.off('challengeAccepted');
+      socket.off('challengeRejected');
     };
-  }, [socket, navigate, currentPlayer]);
+  }, [socket, navigate]);
+
+  const safeAvailablePlayers = Array.isArray(availablePlayers) ? availablePlayers : [];
 
   return (
     <Header className="flex items-center justify-between px-6 bg-white shadow">
@@ -170,9 +176,11 @@ const GameHeader = ({
         onCancel={() => setIsModalVisible(false)}
         footer={null}
       >
-        {Array.isArray(availablePlayers) && availablePlayers.length > 0 ? (
+        {safeAvailablePlayers.length > 0 ? (
           <List
-            dataSource={availablePlayers.filter(player => player.id !== currentPlayer?.player_id)}
+            dataSource={safeAvailablePlayers.filter(player => 
+              player?.id !== currentPlayer?.player_id
+            )}
             renderItem={(player) => (
               <List.Item
                 key={player.id}
