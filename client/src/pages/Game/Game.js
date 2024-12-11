@@ -54,7 +54,7 @@ const Game = ({ gameId, currentPlayer }) => {
         }
   
         // Socket setup
-        const socketConnection = initializeWebSocket(currentPlayer.player_id, (socket) => {
+        const socketConnection = initializeWebSocket(currentPlayer.player_id, currentPlayer.name, (socket) => {
           // Register socket handlers
           socket.on('turnChange', (data) => {
             const isMyNewTurn = data.currentPlayer === currentPlayer.player_id;

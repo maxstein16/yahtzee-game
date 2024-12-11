@@ -10,10 +10,10 @@ const users = {
 
 let socket = null;
 
-export const initializeWebSocket = (playerId) => {
+export const initializeWebSocket = (playerId, name) => {
   if (!socket) {
     socket = io(WS_BASE_URL, {
-      query: { playerId },
+      query: { playerId, name },
       transports: ['websocket'],
     });
 
@@ -22,12 +22,14 @@ export const initializeWebSocket = (playerId) => {
       
       // Store socket info in centralized management
       users.socket[socket.id] = playerId;
+      users.socket[socket.name] = name;
       users.info[playerId] = {
         id: playerId,
+        name: name,
         socketId: socket.id
       };
 
-      socket.emit('playerJoined', { id: playerId });
+      socket.emit('playerJoined', { id: playerId, name: name });
     });
 
     socket.on('disconnect', () => {

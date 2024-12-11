@@ -19,7 +19,7 @@ function Lobby() {
           setCurrentPlayer(playerInfo.playerData);
           console.log('Player info:', playerInfo.playerData.name);
 
-          const socket = initializeWebSocket(playerInfo.playerData.player_id);
+          const socket = initializeWebSocket(playerInfo.playerData.player_id, playerInfo.playerData.name);
 
           // Listen for updates from WebSocket
           socket.on('playersUpdate', (players) => {

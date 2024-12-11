@@ -22,7 +22,7 @@ const LobbyChat = ({ currentPlayer }) => {
 
     const connectSocket = async () => {
       try {
-        const socketConnection = await initializeWebSocket(currentPlayer.player_id);
+        const socketConnection = await initializeWebSocket(currentPlayer.player_id, currentPlayer.player_name);
         setSocket(socketConnection);
 
         console.log(currentPlayer.name);
