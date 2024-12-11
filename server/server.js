@@ -1,14 +1,11 @@
 const http = require('http');
-const https = require('https');
 const { app } = require('./app');
 const { Server } = require('socket.io');
 const API = require('./routes/index');
 
-// Use port 443 for HTTPS/WSS in production, 8080 for development
-const port = process.env.NODE_ENV === 'production' ? 443 : 8080;
-const server = process.env.NODE_ENV === 'production' 
-  ? https.createServer(app)
-  : http.createServer(app);
+// Use the PORT environment variable provided by Cloud Run
+const port = parseInt(process.env.PORT) || 8080;
+const server = http.createServer(app);
 
 const io = new Server(server, {
   path: '/socket.io',
@@ -240,5 +237,5 @@ socket.on('disconnect', () => {
 });
 
 server.listen(port, () => {
-  console.log(`Server running on port ${port} in ${process.env.NODE_ENV} mode`);
+  console.log(`Server listening on port ${port}`);
 });
