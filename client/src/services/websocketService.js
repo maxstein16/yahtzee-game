@@ -1,17 +1,25 @@
 import io from 'socket.io-client';
 
-const WS_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app';
+const WS_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'wss://yahtzee-backend-621359075899.us-east1.run.app:443'
+  : 'ws://localhost:8080';
 
 export const initializeWebSocket = (playerId) => {
   return new Promise((resolve, reject) => {
     try {
       // Create socket connection with auth data
       const socket = io(WS_BASE_URL, {
+        path: '/socket.io',
         query: { playerId },
-        transports: ['websocket'],
+        transports: ['polling', 'websocket'],
+        secure: true, // Enable secure connection
+        rejectUnauthorized: false, // Required for self-signed certs
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        timeout: 20000,
+        forceNew: true,
+        withCredentials: true
       });
 
       // Handle connection success
