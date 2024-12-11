@@ -186,28 +186,26 @@ function MultiplayerPage() {
     }
   
     setIsRolling(true);
+  
     try {
-      const result = await API.rollDice(gameId, currentPlayer, diceValues, selectedDice);
-      console.log('Roll dice API parameters:', { gameId, currentPlayer, diceValues, selectedDice });
-
+      const result = await API.rollDice(gameId, {
+        playerId: currentPlayer?.player_id,
+        currentDice: diceValues,
+        keepIndices: selectedDice,
+      });
+  
       if (result.success) {
         setDiceValues(result.dice);
-        const newScores = calculateScores(result.dice);
-        setCurrentScores(newScores);
         setRollCount((prev) => prev + 1);
-  
         if (socket) {
-          socket.emit('diceRoll', {
-            dice: result.dice,
-            gameId: gameId,
-          });
+          socket.emit('diceRoll', { dice: result.dice, gameId });
         }
       } else {
-        message.error(result.message);
+        message.error(result.message || 'Failed to roll dice.');
       }
     } catch (error) {
-      console.error('Roll dice error:', error);
-      message.error('Failed to roll dice');
+      console.error('Error rolling dice:', error);
+      message.error(error.message || 'Failed to roll dice.');
     } finally {
       setIsRolling(false);
     }

@@ -148,13 +148,21 @@ export const sendMessage = (gameId, playerId, message) =>
   apiRequest(`/game/${gameId}/chat`, 'POST', { player_id: playerId, message });
 
 // Turn Management
-async function rollDice(gameId, player, diceValues, selectedDice) {
-  return fetch(`/game/${gameId}/roll`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ player, diceValues, selectedDice }),
-  }).then((response) => response.json());
-}
+export const rollDice = (gameId, { playerId, currentDice, keepIndices }) => {
+  if (!gameId || !playerId) {
+    throw new Error('Game ID and Player ID are required to roll dice.');
+  }
+
+  const payload = {
+    playerId,
+    currentDice: Array.isArray(currentDice) ? currentDice : [1, 1, 1, 1, 1],
+    keepIndices: Array.isArray(keepIndices) ? keepIndices : [],
+  };
+
+  console.log('Rolling dice with payload:', payload);
+
+  return apiRequest(`/game/${gameId}/roll`, 'POST', payload);
+};
 
   export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {
     if (!gameId || !playerId || !categoryId || score === undefined) {
