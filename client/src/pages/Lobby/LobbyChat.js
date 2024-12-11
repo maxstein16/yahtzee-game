@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, List, Input, Button, Avatar, Badge, Space, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import initializeWebSocket from '../../services/websocketService';
+import { initializeWebSocket}  from '../../services/websocketService';
 
 const { TextArea } = Input;
 
