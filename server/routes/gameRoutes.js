@@ -6,13 +6,18 @@ const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer 
 router.post('/game', async (req, res) => {
   console.log('Game creation request received:', req.body);
 
-  const { status, round, playerId } = req.body;
-  if (!playerId) {
+  const { status, round, player1Id, player2Id } = req.body;
+  if (!player1Id) {
     return res.status(400).json({ error: 'Player ID is required' });
   }
 
   try {
-    const newGame = await createGame(status, round, playerId);
+    const newGame = await createGame(
+      status, 
+      round, 
+      player1Id,
+      player2Id || player1Id
+    );
     res.status(201).json(newGame);
   } catch (error) {
     console.error('Error creating game:', error);

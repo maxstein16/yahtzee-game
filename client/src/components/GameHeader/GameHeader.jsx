@@ -16,26 +16,15 @@ const GameHeader = ({
   const [pendingChallenge, setPendingChallenge] = useState(null);
   const [isChallengePending, setIsChallengePending] = useState(false);
 
-  const handleNewGame = async () => {
-    try {
-      const response = await API.createGame('pending', 0, currentPlayer.player_id);
-      navigate('/singleplayer', { 
-        state: { gameId: response.game.game_id }
-      });
-    } catch (error) {
-      console.error('Error creating new game:', error);
-      message.error('Failed to create new game');
-    }
-  };
-
   const handleChallenge = async (opponent) => {
     if (socket) {
       try {
-        // Create a new game for both players
+        // Create a new game with both player IDs
         const response = await API.createGame(
           'pending', 
           0, 
-          currentPlayer.player_id
+          currentPlayer.player_id,
+          opponent.id
         );
         
         // Send challenge with game ID
@@ -47,7 +36,7 @@ const GameHeader = ({
           opponentId: opponent.id,
           gameId: response.game.game_id
         });
-
+  
         message.info(`Challenge sent to ${opponent.name}`);
         setPendingChallenge(opponent);
         setIsChallengePending(true);
@@ -58,6 +47,24 @@ const GameHeader = ({
       }
     } else {
       message.error('Unable to send challenge. No connection to server.');
+    }
+  };
+  
+  // Handle single player game creation
+  const handleNewGame = async () => {
+    try {
+      // For single player, we only need player1Id
+      const response = await API.createGame(
+        'pending', 
+        0, 
+        currentPlayer.player_id
+      );
+      navigate('/singleplayer', { 
+        state: { gameId: response.game.game_id }
+      });
+    } catch (error) {
+      console.error('Error creating new game:', error);
+      message.error('Failed to create new game');
     }
   };
 
