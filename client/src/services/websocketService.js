@@ -5,70 +5,53 @@ const WS_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app';
 export const initializeWebSocket = (playerId) => {
   return new Promise((resolve, reject) => {
     try {
+      // Create socket connection with auth data
       const socket = io(WS_BASE_URL, {
         query: { playerId },
-        transports: ['websocket', 'polling'], // Match server configuration
+        transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        timeout: 60000, // Match server timeout
-        forceNew: true, // Force a new connection
-        withCredentials: true // Enable CORS credentials
       });
 
-      // Add connection status logging
+      // Handle connection success
       socket.on('connect', () => {
         console.log('WebSocket connected successfully');
+        
+        // Immediately identify the player to the server
         socket.emit('playerJoined', {
           id: playerId,
-          name: playerData?.name, // Make sure to pass player name
           timestamp: new Date().toISOString()
         });
       });
 
+      // Handle connection error
       socket.on('connect_error', (error) => {
-        console.error('Connection Error:', error);
+        console.error('WebSocket connection error:', error);
         reject(error);
       });
 
-      socket.on('error', (error) => {
-        console.error('Socket Error:', error);
-      });
-
-      // Update app.js CORS configuration
-      const corsOptions = {
-        origin: [
-          'https://yahtzee.maxstein.info',
-          'http://localhost:3000'
-        ],
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-        credentials: true,
-        maxAge: 86400,
-        exposedHeaders: ['set-cookie'] // Allow cookies if needed
-      };
-
-      // Return enhanced socket interface
+      // Return socket interface
       resolve({
+        // Basic socket methods
         emit: (event, data) => socket.emit(event, data),
         on: (event, callback) => socket.on(event, callback),
         off: (event) => socket.off(event),
         disconnect: () => socket.disconnect(),
+
+        // Helper methods
         sendMessage: (message) => {
           socket.emit('chatMessage', {
             content: message,
             timestamp: new Date().toISOString()
           });
         },
-        isConnected: () => socket.connected,
-        // Add reconnection method
-        reconnect: () => {
-          socket.connect();
-        }
+
+        // Get socket state
+        isConnected: () => socket.connected
       });
 
     } catch (error) {
-      console.error('Socket initialization error:', error);
       reject(error);
     }
   });

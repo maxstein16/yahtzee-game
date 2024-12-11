@@ -9,14 +9,9 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST'],
     credentials: true
-  },
-  allowEIO3: true, // Allow Engine.IO version 3
-  transports: ['websocket', 'polling'], // Support both WebSocket and polling
-  pingTimeout: 60000, // Increase ping timeout
-  pingInterval: 25000 // Increase ping interval
+  }
 });
 
 // Store player data with both socket ID and player ID mapping

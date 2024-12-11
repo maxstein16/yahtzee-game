@@ -1,80 +1,71 @@
 // app.js
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
 const routes = require('./routes');
 
 const app = express();
 
-// Define allowed origins
-const allowedOrigins = [
-  'https://yahtzee.maxstein.info',
-  'http://localhost:3000'
-];
-
-// Enhanced CORS configuration
+// CORS configuration
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Origin', 
-    'X-Requested-With', 
-    'Content-Type', 
-    'Accept', 
-    'Authorization'
+  origin: [
+    'https://yahtzee.maxstein.info',
+    'http://localhost:3000',
   ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  maxAge: 86400, // 24 hours
-  preflightContinue: false,
-  optionsSuccessStatus: 204
+  maxAge: 86400 // CORS preflight cache time in seconds
 };
 
-// Apply CORS configuration before any routes
+// Apply CORS configuration
 app.use(cors(corsOptions));
 
-// Remove the additional CORS middleware and handle OPTIONS requests globally
-app.options('*', cors(corsOptions));
-
-// Add security headers
+// Additional headers for CORS
 app.use((req, res, next) => {
+  // Required headers for Cloud Run
   res.header('Access-Control-Allow-Origin', req.headers.origin);
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Vary', 'Origin');
-  
-  // Only needed for preflight requests
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+  );
+  res.header(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, OPTIONS'
+  );
+
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Max-Age', '86400');
-    return res.status(204).end();
+    return res.status(200).end();
   }
   
   next();
 });
 
-// Body parser middleware - place after CORS
+// Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// API routes
-app.use('./routes', routes());
-
-// Error handling for CORS
+// Basic error handling
 app.use((err, req, res, next) => {
-  if (err.message === 'Not allowed by CORS') {
-    res.status(403).json({
-      error: 'CORS Error',
-      message: 'Origin not allowed'
-    });
-  } else {
-    next(err);
-  }
+  console.error(err.stack);
+  res.status(500).json({
+    error: 'Something broke!',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+  });
+});
+
+// Routes
+app.get('/', (req, res) => {
+  res.send('Welcome to the Game Server API');
+});
+
+app.use('/api', routes());
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not Found' });
 });
 
 module.exports = { app };
