@@ -20,6 +20,11 @@ const LobbyChat = ({ currentPlayer }) => {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
   
+        console.log('Announcing playerJoined:', {
+          id: currentPlayer.player_id,
+          name: currentPlayer.name,
+        });
+  
         // Announce player joining with complete player info
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
@@ -28,13 +33,13 @@ const LobbyChat = ({ currentPlayer }) => {
   
         // Listen for player updates
         socketConnection.on('playersUpdate', (players) => {
-          console.log('Players Update:', players);
+          console.log('Players Update:', players); // Debug log to verify received data
           const filteredPlayers = players.filter(
             (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
           );
           setOnlinePlayers(filteredPlayers);
-        });                
-  
+        });
+
         // Load chat history
         socketConnection.on('chatHistory', (history) => {
           setMessages(history);
