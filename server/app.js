@@ -1,5 +1,7 @@
+// app.js
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
 const routes = require('./routes');
 
 const app = express();
@@ -11,40 +13,29 @@ const corsOptions = {
     'http://localhost:3000',
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'Connection', 
-    'Upgrade',
-    'Sec-WebSocket-Key',
-    'Sec-WebSocket-Version'
-  ],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  maxAge: 86400
+  maxAge: 86400 // CORS preflight cache time in seconds
 };
 
 // Apply CORS configuration
 app.use(cors(corsOptions));
 
-// Additional headers for CORS and WebSocket
+// Additional headers for CORS
 app.use((req, res, next) => {
+  // Required headers for Cloud Run
   res.header('Access-Control-Allow-Origin', req.headers.origin);
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Connection, Upgrade, Sec-WebSocket-Key, Sec-WebSocket-Version'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
   );
   res.header(
     'Access-Control-Allow-Methods',
     'GET, POST, PUT, DELETE, OPTIONS'
   );
 
-  // Allow WebSocket upgrade
-  if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
-    res.header('Connection', 'Upgrade');
-    res.header('Upgrade', 'websocket');
-  }
-
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -52,9 +43,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Basic error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
@@ -63,12 +56,14 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Routes
 app.get('/', (req, res) => {
   res.send('Welcome to the Game Server API');
 });
 
 app.use('/api', routes());
 
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });

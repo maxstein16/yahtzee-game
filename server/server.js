@@ -1,37 +1,17 @@
 const http = require('http');
-const https = require('https');
 const { app } = require('./app');
 const { Server } = require('socket.io');
 const API = require('./routes/index');
 
-// Use port 443 for HTTPS/WSS in production, 8080 for development
-const port = process.env.NODE_ENV === 'production' ? 443 : 8080;
-const server = process.env.NODE_ENV === 'production' 
-  ? https.createServer(app)
-  : http.createServer(app);
+const port = process.env.PORT || 8080;
+const server = http.createServer(app);
 
 const io = new Server(server, {
-  path: '/socket.io',
-  serveClient: false,
   cors: {
     origin: ['http://localhost:3000', 'https://yahtzee.maxstein.info'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST'],
     credentials: true
-  },
-  transports: ['polling', 'websocket'],
-  pingInterval: 10000,
-  pingTimeout: 5000,
-  connectTimeout: 45000,
-  allowUpgrades: true,
-  upgradeTimeout: 10000
-});
-
-// Handle upgrade failures
-server.on('upgrade', (req, socket, head) => {
-  console.log('Upgrade request received');
-  socket.on('error', (err) => {
-    console.error('Socket upgrade error:', err);
-  });
+  }
 });
 
 // Store player data with both socket ID and player ID mapping
@@ -240,5 +220,5 @@ socket.on('disconnect', () => {
 });
 
 server.listen(port, () => {
-  console.log(`Server running on port ${port} in ${process.env.NODE_ENV} mode`);
+  console.log(`Server running on port ${port}`);
 });
