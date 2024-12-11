@@ -206,6 +206,60 @@ const MultiplayerPage = () => {
     };
   };
 
+  const handleNewGame = async () => {
+    try {
+      if (!socket || !opponent) {
+        throw new Error('Missing socket connection or opponent information');
+      }
+
+      // Reset current player's categories
+      await API.resetPlayerCategories(currentPlayer.player_id);
+
+      // Create new game
+      const response = await API.createGame('pending', 0, currentPlayer.player_id);
+      
+      if (!response?.game?.game_id) {
+        throw new Error('Failed to create new game');
+      }
+
+      // Initialize categories for current player
+      await API.initializePlayerCategories(currentPlayer.player_id);
+
+      // Send challenge to opponent for new game
+      socket.emit('gameChallenge', {
+        challenger: {
+          id: currentPlayer.player_id,
+          name: currentPlayer.name
+        },
+        opponentId: opponent.id,
+        gameId: response.game.game_id
+      });
+
+      // Update local state
+      setDiceValues([1, 1, 1, 1, 1]);
+      setOpponentDiceValues([1, 1, 1, 1, 1]);
+      setRollCount(0);
+      setSelectedDice([]);
+      setIsMyTurn(true);
+      setIsRolling(false);
+
+      // Navigate to new game
+      navigate('/multiplayer', {
+        state: {
+          gameId: response.game.game_id,
+          isChallenger: true,
+          opponent: opponent
+        },
+        replace: true
+      });
+
+      message.success('New game challenge sent to opponent!');
+    } catch (error) {
+      console.error('Error creating new game:', error);
+      message.error('Failed to create new game');
+    }
+  };
+
   return (
     <Layout className="min-h-screen">
       <GameHeader
