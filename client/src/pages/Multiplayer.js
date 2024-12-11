@@ -172,6 +172,31 @@ function MultiplayerPage() {
     }
   }, [socket, currentPlayer]);  
 
+  useEffect(() => {
+    if (socket && currentPlayer?.player_id) {
+      socket.on('categoriesUpdate', ({ categories, isMyTurn: newIsMyTurn }) => {
+        setPlayerCategories(categories);
+        setIsMyTurn(newIsMyTurn);
+      });
+  
+      socket.on('turnChange', ({ nextPlayer, diceValues: newDiceValues, rollCount: newRollCount }) => {
+        const isMyNewTurn = nextPlayer === currentPlayer.player_id;
+        if (isMyNewTurn) {
+          message.info("It's your turn!");
+          setDiceValues(newDiceValues);
+          setRollCount(newRollCount);
+          setSelectedDice([]);
+        }
+        setIsMyTurn(isMyNewTurn);
+      });
+  
+      return () => {
+        socket.off('categoriesUpdate');
+        socket.off('turnChange');
+      };
+    }
+  }, [socket, currentPlayer]);
+
   const handleDiceRoll = async () => {
     if (rollCount >= 3) {
       message.warning('Maximum rolls reached for this turn.');
@@ -268,53 +293,21 @@ function MultiplayerPage() {
       return;
     }
   
-    if (!categoryName) {
-      message.error('No category selected');
-      return;
-    }
-  
     try {
-      // Calculate scores with current dice
       const calculatedScores = calculateScores(diceValues);
-  
-      if (!calculatedScores.hasOwnProperty(categoryName)) {
-        throw new Error(`Invalid category: ${categoryName}`);
-      }
-  
       const categoryScore = calculatedScores[categoryName];
   
-      if (typeof categoryScore !== 'number') {
-        throw new Error('Invalid score calculation');
-      }
-  
-      console.log('Submitting score:', {
-        categoryName,
-        categoryScore,
-        diceValues,
-        rollCount
-      });
-  
-      // Handle Yahtzee scoring
-      if (categoryName === 'yahtzee' && categoryScore === 50) {
-        setHasYahtzee(true);
-      } else if (hasYahtzee && checkForYahtzeeBonus(diceValues)) {
-        const newBonus = yahtzeeBonus + 100;
-        setYahtzeeBonus(newBonus);
-        await API.submitYahtzeeBonus(gameId, currentPlayer.player_id, newBonus);
-        message.success('Yahtzee Bonus! +100 points');
-      }
-  
-      // Create turn record first
+      // Create turn record
       await API.createTurn(
-        gameId, 
-        currentPlayer.player_id, 
-        diceValues, 
-        rollCount, 
-        categoryScore, 
-        false
+        gameId,
+        currentPlayer.player_id,
+        diceValues,
+        rollCount,
+        categoryScore,
+        true
       );
   
-      // Submit score with verified data
+      // Submit score
       await API.submitGameScore(
         gameId,
         currentPlayer.player_id,
@@ -322,34 +315,27 @@ function MultiplayerPage() {
         categoryScore
       );
   
-      // Update categories and scores
-      const updatedCategories = await API.getPlayerCategories(currentPlayer.player_id);
-      setPlayerCategories(updatedCategories);
+      // Emit score submission and turn change via socket
+      socket.emit('scoreCategory', {
+        gameId,
+        categoryName,
+        score: categoryScore,
+        nextPlayerId: opponent.id
+      });
   
-      const scores = calculateAllScores(updatedCategories);
-      setUpperSectionTotal(scores.upperTotal);
-      setUpperSectionBonus(scores.upperBonus);
-      setPlayerTotal(scores.total + yahtzeeBonus);
-  
-      // Reset turn state
+      // Update local state
       setRollCount(0);
       setSelectedDice([]);
-  
-      // Notify opponent and end turn
-      if (socket) {
-        socket.emit('turnChange', {
-          nextPlayer: opponent.player_id,
-          gameId: gameId,
-        });
-      }
-  
+      setDiceValues([1, 1, 1, 1, 1]);
       setIsMyTurn(false);
+  
       message.success(`Scored ${categoryScore} points in ${categoryName}!`);
+  
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error(`Failed to submit score: ${error.message}`);
     }
-  };  
+  }; 
 
   const toggleDiceSelection = (index) => {
     if (isRolling) return;
