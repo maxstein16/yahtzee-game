@@ -6,10 +6,10 @@ const apiRequest = async (endpoint, method = 'GET', body = null, retries = 3) =>
     method,
     headers: { 
       'Content-Type': 'application/json',
-      // Add custom headers if needed
+      'Accept': 'application/json'
     },
     credentials: 'include',
-    mode: 'cors' // Explicitly set CORS mode
+    mode: 'cors'
   };
 
   if (body) {
@@ -21,29 +21,62 @@ const apiRequest = async (endpoint, method = 'GET', body = null, retries = 3) =>
 
   while (attempt < retries) {
     try {
+      console.log(`Attempt ${attempt + 1} for ${method} ${endpoint}`);
       const response = await fetch(url, options);
+      
+      // Log response details for debugging
+      console.log(`Response status: ${response.status}`);
+      const contentType = response.headers.get('content-type');
+      console.log(`Content-Type: ${contentType}`);
       
       // Handle different response status codes
       if (response.status === 503) {
         console.warn(`Service unavailable, attempt ${attempt + 1} of ${retries}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         attempt++;
         continue;
       }
       
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
-        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        
+        let errorMessage;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || `HTTP error! status: ${response.status}`;
+        } catch {
+          errorMessage = errorText || `HTTP error! status: ${response.status}`;
+        }
+        
+        throw new Error(errorMessage);
       }
-      
-      return await response.json();
+
+      // Handle empty responses
+      if (response.status === 204) {
+        return null;
+      }
+
+      // Check if response has content before trying to parse JSON
+      const text = await response.text();
+      if (!text) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(text);
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.error('Response text:', text);
+        throw new Error('Invalid JSON response from server');
+      }
     } catch (error) {
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         console.warn(`Network error, attempt ${attempt + 1} of ${retries}`);
         if (attempt === retries - 1) {
           throw new Error('Network error: Failed to connect to the server after multiple attempts');
         }
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         attempt++;
         continue;
       }
@@ -148,20 +181,50 @@ export const sendMessage = (gameId, playerId, message) =>
   apiRequest(`/game/${gameId}/chat`, 'POST', { player_id: playerId, message });
 
 // Turn Management
-export const rollDice = (gameId, { playerId, currentDice, keepIndices }) => {
+export const rollDice = async (gameId, { playerId, currentDice, keepIndices }) => {
   if (!gameId || !playerId) {
     throw new Error('Game ID and Player ID are required to roll dice.');
   }
 
   const payload = {
-    playerId,
+    playerId: Number(playerId),
     currentDice: Array.isArray(currentDice) ? currentDice : [1, 1, 1, 1, 1],
-    keepIndices: Array.isArray(keepIndices) ? keepIndices : [],
+    keepIndices: Array.isArray(keepIndices) ? keepIndices : []
   };
 
   console.log('Rolling dice with payload:', payload);
 
-  return apiRequest(`/game/${gameId}/roll`, 'POST', payload);
+  try {
+    const response = await apiRequest(`/game/${gameId}/roll`, 'POST', payload);
+    
+    // Handle null response
+    if (!response) {
+      return {
+        success: false,
+        message: 'No response from server',
+        dice: currentDice
+      };
+    }
+
+    // Validate response format
+    if (!response.dice || !Array.isArray(response.dice)) {
+      console.error('Invalid response format:', response);
+      return {
+        success: false,
+        message: 'Invalid response format from server',
+        dice: currentDice
+      };
+    }
+
+    return {
+      success: true,
+      dice: response.dice,
+      rollCount: response.rollCount || 1
+    };
+  } catch (error) {
+    console.error('Roll dice error:', error);
+    throw error;
+  }
 };
 
   export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {

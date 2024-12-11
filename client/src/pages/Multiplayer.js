@@ -191,12 +191,9 @@ function MultiplayerPage() {
         currentDice: diceValues,
         keepIndices: selectedDice,
       });
-    
-      console.log('API rollDice result:', result); // Debugging the API response
-    
+  
       if (result.success) {
         setDiceValues(result.dice);
-        console.log('Updated diceValues state:', result.dice); // Debugging state update
         setRollCount((prev) => prev + 1);
         if (socket) {
           socket.emit('diceRoll', { dice: result.dice, gameId });
@@ -205,7 +202,7 @@ function MultiplayerPage() {
         message.error(result.message || 'Failed to roll dice.');
       }
     } catch (error) {
-      console.error('Error rolling dice:', error);
+      console.error('Roll dice error:', error);
       message.error(error.message || 'Failed to roll dice.');
     } finally {
       setIsRolling(false);
