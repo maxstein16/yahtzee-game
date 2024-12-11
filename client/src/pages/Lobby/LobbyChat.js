@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, List, Input, Button, Avatar, Badge, Space, message } from 'antd';
+import { Card, List, Input, Button, Avatar, Badge, Space, Modal, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import { initializeWebSocket}  from '../../services/websocketService';
+import { initializeWebSocket } from '../../services/websocketService';
+import { useNavigate } from 'react-router-dom';
+import API from '../../utils/api';
 
 const { TextArea } = Input;
 
@@ -10,53 +12,63 @@ const LobbyChat = ({ currentPlayer }) => {
   const [messageInput, setMessageInput] = useState('');
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [socket, setSocket] = useState(null);
+  const [pendingChallenge, setPendingChallenge] = useState(null);
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
   const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!currentPlayer?.player_id) return;
-  
+
     const connectSocket = async () => {
       try {
         const socketConnection = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketConnection);
-  
+
         // Announce player joining
         socketConnection.emit('playerJoined', {
           id: currentPlayer.player_id,
           name: currentPlayer.name,
         });
-  
+
         // Listen for players update
         socketConnection.on('playersUpdate', (players) => {
-          console.log('Players Update:', players);
           const filteredPlayers = players.filter(
             (p) => p.id && p.name && p.id.toString() !== currentPlayer.player_id.toString()
           );
-          console.log('Filtered Players:', filteredPlayers);
           setOnlinePlayers(filteredPlayers);
         });
-  
+
         // Load chat history
         socketConnection.on('chatHistory', (history) => {
-          console.log('Chat History:', history);
           setMessages(history);
           setTimeout(scrollToBottom, 100);
         });
-  
+
         // Listen for new chat messages
         socketConnection.on('chatMessage', (message) => {
-          console.log('New Chat Message:', message);
           setMessages((prev) => [...prev, message]);
           setTimeout(scrollToBottom, 100);
+        });
+
+        // Listen for game challenges
+        socketConnection.on('gameChallenge', ({ challenger, gameId }) => {
+          setPendingChallenge({ challenger, gameId });
+        });
+
+        // Listen for game start signal
+        socketConnection.on('gameStart', ({ gameId }) => {
+          message.success('Game is starting!');
+          navigate(`/game/${gameId}`);
         });
       } catch (error) {
         console.error('Socket connection error:', error);
         message.error('Failed to connect to chat');
       }
     };
-  
+
     connectSocket();
-  
+
     return () => {
       if (socket) {
         socket.disconnect();
@@ -70,20 +82,63 @@ const LobbyChat = ({ currentPlayer }) => {
 
   const sendMessage = () => {
     if (!messageInput.trim() || !socket) return;
-  
+
     const messageToSend = {
       sender: currentPlayer.name,
       content: messageInput.trim(),
       timestamp: new Date().toISOString(),
     };
-  
+
     socket.emit('chatMessage', messageToSend);
     setMessageInput('');
-  };  
+  };
 
-  const handleRequestToPlay = (player) => {
-    console.log(`Requesting to play with ${player.name}`);
-    // Add your functionality here
+  const handleRequestToPlay = async (player) => {
+    if (!socket) return;
+
+    const gameId = `game_${Date.now()}`;
+    try {
+      await API.createGame('pending', 0, currentPlayer.player_id, player.id);
+      socket.emit('gameChallenge', {
+        challenger: { id: currentPlayer.player_id, name: currentPlayer.name },
+        opponentId: player.id,
+        gameId,
+      });
+      message.info(`Challenge sent to ${player.name}`);
+    } catch (error) {
+      console.error('Error creating game:', error);
+      message.error('Failed to send challenge');
+    }
+  };
+
+  const handleAcceptChallenge = async () => {
+    if (!pendingChallenge) return;
+
+    try {
+      const { gameId } = pendingChallenge;
+      await API.updateGame(gameId, 'in_progress', 0);
+      socket.emit('challengeAccepted', { 
+        challengerId: pendingChallenge.challenger.id, 
+        gameId 
+      });
+
+      setWaitingForOpponent(true);
+      message.info('Waiting for opponent to accept...');
+    } catch (error) {
+      console.error('Error accepting challenge:', error);
+      message.error('Failed to accept challenge');
+    }
+  };
+
+  const handleDeclineChallenge = () => {
+    if (!pendingChallenge) return;
+
+    socket.emit('challengeRejected', { 
+      challengerId: pendingChallenge.challenger.id 
+    });
+
+    message.warning('Challenge declined.');
+    setPendingChallenge(null);
   };
 
   return (
@@ -109,7 +164,7 @@ const LobbyChat = ({ currentPlayer }) => {
                     <Avatar icon={<UserOutlined />} />
                   </Badge>
                 }
-                title={player.name || `Player ${player.id}`} // Fallback if no name
+                title={player.name || `Player ${player.id}`}
               />
             </List.Item>
           )}
@@ -148,8 +203,8 @@ const LobbyChat = ({ currentPlayer }) => {
           <Space.Compact style={{ width: '100%' }}>
             <TextArea
               value={messageInput}
-              onChange={e => setMessageInput(e.target.value)}
-              onKeyPress={e => {
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyPress={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
@@ -167,6 +222,17 @@ const LobbyChat = ({ currentPlayer }) => {
           </Space.Compact>
         </div>
       </Card>
+
+      <Modal
+        title="Game Challenge"
+        visible={!!pendingChallenge}
+        onOk={handleAcceptChallenge}
+        onCancel={handleDeclineChallenge}
+        okText="Accept"
+        cancelText="Decline"
+      >
+        <p>{pendingChallenge?.challenger.name} has challenged you to a game!</p>
+      </Modal>
     </div>
   );
 };
