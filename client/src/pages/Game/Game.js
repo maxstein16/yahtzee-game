@@ -26,12 +26,12 @@ const Game = ({ gameId, currentPlayer }) => {
   useEffect(() => {
     const initializeGame = async () => {
       try {
-        const turnData = await API.getTurn(gameId, currentPlayer.player_id);
+        let turnData = await API.getTurn(gameId, currentPlayer.player_id);
         console.log('Turn data:', turnData); // Debugging log
   
         if (!turnData || !turnData.playerId) {
           console.log('No turn data found, creating a new turn...');
-          const newTurnData = await API.createTurn(
+          await API.createTurn(
             gameId,
             currentPlayer.player_id,
             [1, 1, 1, 1, 1],
@@ -39,11 +39,17 @@ const Game = ({ gameId, currentPlayer }) => {
             0,
             false
           );
-          console.log('Turn created:', newTurnData);
-          setIsMyTurn(newTurnData.playerId === currentPlayer.player_id);
-        } else {
-          console.log('Existing turn data:', turnData);
+  
+          // Fetch the newly created turn
+          turnData = await API.getTurn(gameId, currentPlayer.player_id);
+          console.log('Fetched newly created turn:', turnData);
+        }
+  
+        if (turnData) {
+          console.log('Setting turn data:', turnData);
           setIsMyTurn(turnData.playerId === currentPlayer.player_id);
+          setDiceValues(turnData.dice || [1, 1, 1, 1, 1]);
+          setRollCount(turnData.rerolls || 0);
         }
   
         if (!turnData?.playerId || turnData.playerId !== currentPlayer.player_id) {
@@ -62,7 +68,7 @@ const Game = ({ gameId, currentPlayer }) => {
         socket.disconnect();
       }
     };
-  }, [gameId, currentPlayer]);
+  }, [gameId, currentPlayer]);  
 
   const toggleDiceSelection = (index) => {
     setSelectedDice((prevSelected) =>
