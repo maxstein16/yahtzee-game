@@ -24,22 +24,31 @@ const Game = ({ gameId, currentPlayer }) => {
 
 
   useEffect(() => {
-    const fetchGameDetails = async () => {
+    const initializeGame = async () => {
       try {
+        // Fetch game details
         const gameData = await API.getGameById(gameId);
   
-        // Fetch or initialize the turn for the current game
-        const turnData = await API.createTurn(
-          gameId,
-          gameData.currentTurn || currentPlayer.player_id,
-          [1, 1, 1, 1, 1], // Default dice values
-          0, // Initial reroll count
-          0, // Initial score
-          false // Turn not yet completed
-        );
+        // Fetch the current turn
+        const turnData = await API.getGameDice(gameId); // Adjust API call to fetch turn info
+  
+        if (!turnData) {
+          // Create a new turn if none exists
+          const newTurnData = await API.createTurn(
+            gameId,
+            gameData.currentTurn || currentPlayer.player_id,
+            [1, 1, 1, 1, 1], // Default dice values
+            0, // Initial reroll count
+            0, // Initial score
+            false // Turn not yet completed
+          );
+          console.log('Turn created:', newTurnData);
+        } else {
+          console.log('Existing turn data:', turnData);
+        }
   
         // Determine if it's the player's turn
-        const isPlayerTurn = turnData.playerId === currentPlayer.player_id;
+        const isPlayerTurn = turnData?.playerId === currentPlayer.player_id;
         setIsMyTurn(isPlayerTurn);
   
         if (!isPlayerTurn) {
@@ -48,7 +57,7 @@ const Game = ({ gameId, currentPlayer }) => {
   
         // Initialize WebSocket for real-time updates
         const socketConnection = initializeWebSocket(currentPlayer.player_id, currentPlayer.name, (socket) => {
-          socket.on('turnChange', (data) => {
+          socket.on('turnChange', async (data) => {
             const isMyNewTurn = data.currentPlayer === currentPlayer.player_id;
             setIsMyTurn(isMyNewTurn);
   
@@ -57,18 +66,18 @@ const Game = ({ gameId, currentPlayer }) => {
               setRollCount(0);
               setDiceValues([1, 1, 1, 1, 1]);
   
-              // Create a new turn for the player
-              API.createTurn(
-                gameId,
-                currentPlayer.player_id,
-                [1, 1, 1, 1, 1],
-                0,
-                0,
-                false
-              ).catch((error) => {
-                console.error("Error creating turn:", error);
-                message.error("Failed to initialize turn.");
-              });
+              // Fetch or initialize turn
+              const updatedTurn = await API.getGameDice(gameId);
+              if (!updatedTurn) {
+                await API.createTurn(
+                  gameId,
+                  currentPlayer.player_id,
+                  [1, 1, 1, 1, 1],
+                  0,
+                  0,
+                  false
+                );
+              }
             } else {
               message.info("Opponent's turn");
             }
@@ -77,19 +86,19 @@ const Game = ({ gameId, currentPlayer }) => {
   
         setSocket(socketConnection);
       } catch (error) {
-        console.error('Error fetching game details or creating turn:', error);
-        message.error('Failed to initialize game or turn.');
+        console.error('Error initializing game:', error);
+        message.error('Failed to initialize game.');
       }
     };
   
-    fetchGameDetails();
+    initializeGame();
   
     return () => {
       if (socket) {
         socket.disconnect();
       }
     };
-  }, [gameId, currentPlayer]);  
+  }, [gameId, currentPlayer]);    
 
   const toggleDiceSelection = (index) => {
     setSelectedDice((prevSelected) =>
