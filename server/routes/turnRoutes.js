@@ -73,6 +73,7 @@ router.post('/game/:id/roll', async (req, res) => {
       }
   
       const turn = await getLatestTurn(gameId, playerId);
+  
       if (!turn) {
         console.error('No active turn found for game:', gameId, 'player:', playerId);
         return res.status(404).json({ error: 'No active turn found' });
@@ -81,10 +82,11 @@ router.post('/game/:id/roll', async (req, res) => {
       console.log('Returning turn:', turn);
       res.json(turn);
     } catch (error) {
-      console.error('Error fetching turn:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error('Error fetching turn:', error.message);
+      console.error('Stack trace:', error.stack); // Add stack trace for more context
+      res.status(500).json({ error: 'Internal server error', details: error.message });
     }
-  });  
+  });   
   
 router.post('/game/:id/turn', async (req, res) => {
   try {

@@ -43,25 +43,31 @@ async function createTurn(gameId, playerId, dice, rerolls = 0, turnScore = 0, tu
 
 // Get a turn by ID
 async function getLatestTurn(gameId, playerId) {
-  const query = `
-    SELECT turn_id, game_id, player_id, dice, rerolls, turn_score, turn_completed
-    FROM turn 
-    WHERE game_id = ? AND player_id = ?
-    ORDER BY turn_id DESC LIMIT 1;
-  `;
-  
-  const result = await runSQL(query, [gameId, playerId]);
-  console.log('getLatestTurn result:', result);
+  try {
+    console.log('Querying turn for gameId:', gameId, 'playerId:', playerId);
 
-  if (result.length === 0) {
-    return null;
-  }
+    const query = `
+      SELECT turn_id, game_id, player_id, dice, rerolls, turn_score, turn_completed
+      FROM turn 
+      WHERE game_id = ? AND player_id = ? AND turn_completed = FALSE
+      ORDER BY turn_id DESC LIMIT 1;
+    `;
 
-  const turn = result[0];
-  if (turn.dice) {
-    turn.dice = JSON.parse(turn.dice);
+    const result = await runSQL(query, [gameId, playerId]);
+
+    console.log('Query result:', result);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const turn = result[0];
+    turn.dice = JSON.parse(turn.dice); // Ensure `dice` is parsed correctly
+    return turn;
+  } catch (error) {
+    console.error('Error in getLatestTurn:', error.message);
+    throw error;
   }
-  return turn;
 }
 
 // Delete a turn
