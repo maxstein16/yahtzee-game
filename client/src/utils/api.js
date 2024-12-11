@@ -21,12 +21,9 @@ const apiRequest = async (endpoint, method = 'GET', body = null, retries = 3) =>
 
   while (attempt < retries) {
     try {
-      console.log(`Attempt ${attempt + 1} for ${method} ${endpoint}`);
       const response = await fetch(url, options);
 
       const contentType = response.headers.get('content-type');
-      console.log(`Response status: ${response.status}`);
-      console.log(`Content-Type: ${contentType}`);
 
       const text = await response.text();
 
