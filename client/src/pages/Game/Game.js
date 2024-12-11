@@ -26,34 +26,30 @@ const Game = ({ gameId, currentPlayer }) => {
   useEffect(() => {
     const initializeGame = async () => {
       try {
-        let turnData = await API.getTurn(gameId, currentPlayer.player_id);
-        console.log('Turn data:', turnData); // Debugging log
+        // Step 1: Attempt to create the turn first
+        console.log('Creating a turn for the current player...');
+        await API.createTurn(
+          gameId,
+          currentPlayer.player_id,
+          [1, 1, 1, 1, 1], // Default dice values
+          0, // Initial reroll count
+          0, // Initial score
+          false // Turn not completed
+        );
   
-        if (!turnData || !turnData.playerId) {
-          console.log('No turn data found, creating a new turn...');
-          await API.createTurn(
-            gameId,
-            currentPlayer.player_id,
-            [1, 1, 1, 1, 1],
-            0,
-            0,
-            false
-          );
+        // Step 2: Fetch the newly created turn
+        const turnData = await API.getTurn(gameId, currentPlayer.player_id);
+        console.log('Fetched turn data:', turnData);
   
-          // Fetch the newly created turn
-          turnData = await API.getTurn(gameId, currentPlayer.player_id);
-          console.log('Fetched newly created turn:', turnData);
-        }
-  
+        // Step 3: Update the local state with the turn details
         if (turnData) {
-          console.log('Setting turn data:', turnData);
           setIsMyTurn(turnData.playerId === currentPlayer.player_id);
           setDiceValues(turnData.dice || [1, 1, 1, 1, 1]);
           setRollCount(turnData.rerolls || 0);
-        }
   
-        if (!turnData?.playerId || turnData.playerId !== currentPlayer.player_id) {
-          message.info("Waiting for opponent's turn...");
+          if (turnData.playerId !== currentPlayer.player_id) {
+            message.info("Waiting for opponent's turn...");
+          }
         }
       } catch (error) {
         console.error('Error initializing game:', error);
@@ -68,7 +64,7 @@ const Game = ({ gameId, currentPlayer }) => {
         socket.disconnect();
       }
     };
-  }, [gameId, currentPlayer]);  
+  }, [gameId, currentPlayer]);
 
   const toggleDiceSelection = (index) => {
     setSelectedDice((prevSelected) =>
