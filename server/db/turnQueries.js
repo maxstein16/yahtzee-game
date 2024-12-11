@@ -69,6 +69,40 @@ async function getLatestTurn(gameId, playerId) {
   }
 }
 
+async function getNextPlayerTurn(gameId) {
+  const query = `
+    SELECT player_id 
+    FROM turn 
+    WHERE game_id = ? 
+    ORDER BY turn_id DESC 
+    LIMIT 1;
+  `;
+
+  const result = await runSQL(query, [gameId]);
+
+  if (result.length === 0) {
+    throw new Error('No previous turns found. Unable to determine next turn.');
+  }
+
+  const lastPlayerId = result[0].player_id;
+
+  // Fetch the next player in the game (assuming two players)
+  const nextPlayerQuery = `
+    SELECT player_id 
+    FROM player 
+    WHERE game_id = ? 
+    AND player_id != ? 
+    LIMIT 1;
+  `;
+  const nextPlayer = await runSQL(nextPlayerQuery, [gameId, lastPlayerId]);
+
+  if (nextPlayer.length === 0) {
+    throw new Error('No next player found for this game.');
+  }
+
+  return nextPlayer[0].player_id;
+}
+
 // Delete a turn
 async function deleteTurn(turnId) {
   // Fetch turn before deletion

@@ -6,59 +6,54 @@ const { createTurn, getLatestTurn, updateTurn, submitTurn} = require('../db/turn
 let rollCount = 0; 
 
 router.post('/game/:id/roll', async (req, res) => {
-    try {
-      const { keepIndices = [] } = req.body;
-      rollCount += 1;
-  
-      if (rollCount > 3) {
-        rollCount = 0; // Reset for the next turn
-        return res.status(400).json({ error: 'Maximum of 3 rolls allowed per turn' });
-      }
-  
-      const currentDice = req.body.currentDice || [];
-      const result = playTurn(rollCount, currentDice, keepIndices);
-  
-      if (rollCount === 3) rollCount = 0; // Reset after the last roll
-  
-      res.json({ dice: result.dice, rollCount });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+  try {
+    const gameId = req.params.id;
+    const { playerId, currentDice, keepIndices } = req.body;
 
-  router.put('/game/:id/turn', async (req, res) => {
-    try {
-      const gameId = req.params.id;
-      const { playerId, categoryId, score, dice, rerolls } = req.body;
-  
-      if (!gameId || !playerId || !categoryId || score === undefined) {
-        return res.status(400).json({ error: 'Missing required parameters' });
-      }
-  
-      // First update the turn with final values
-      await updateTurn(
-        gameId, 
-        playerId, 
-        Array.isArray(dice) ? dice : [1,1,1,1,1],
-        Number(rerolls) || 0,
-        Number(score),
-        true
-      );
-  
-      // Then submit the turn and update category
-      const result = await submitTurn(
-        gameId,
-        playerId,
-        categoryId,
-        Number(score)
-      );
-  
-      res.json(result);
-    } catch (error) {
-      console.error('Submit turn error:', error);
-      res.status(500).json({ error: error.message });
+    // Validate current player is allowed to roll
+    const latestTurn = await getLatestTurn(gameId, playerId);
+    if (!latestTurn || latestTurn.turn_completed) {
+      return res.status(400).json({ error: 'It is not your turn to roll.' });
     }
-  });
+
+    const result = playTurn(latestTurn.rerolls + 1, currentDice, keepIndices);
+
+    if (result.rollCount > 3) {
+      return res.status(400).json({ error: 'Maximum of 3 rolls per turn exceeded.' });
+    }
+
+    await updateTurn(gameId, playerId, result.dice, result.rollCount, latestTurn.turn_score, false);
+
+    res.json({ dice: result.dice, rollCount: result.rollCount });
+  } catch (error) {
+    console.error('Error in roll dice:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/game/:id/turn', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const { playerId, score, dice, rerolls } = req.body;
+
+    // Ensure this player is completing their active turn
+    const latestTurn = await getLatestTurn(gameId, playerId);
+    if (!latestTurn || latestTurn.turn_completed) {
+      return res.status(400).json({ error: 'It is not your turn to complete.' });
+    }
+
+    await updateTurn(gameId, playerId, dice, rerolls, score, true);
+
+    // Create the next turn for the other player
+    const nextPlayerId = await getNextPlayerTurn(gameId);
+    const nextTurn = await createTurn(gameId, nextPlayerId, [1, 1, 1, 1, 1]);
+
+    res.json({ completedTurn: latestTurn, nextTurn });
+  } catch (error) {
+    console.error('Error completing turn:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
   router.get('/game/:id/turn', async (req, res) => {
     try {

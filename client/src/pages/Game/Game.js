@@ -26,28 +26,21 @@ const Game = ({ gameId, currentPlayer }) => {
   useEffect(() => {
     const initializeGame = async () => {
       try {
-        // Fetch the existing turn for the current player
-        const turnData = await API.getTurn(gameId, currentPlayer.player_id);
-        console.log('Fetched turn data:', turnData);
-  
-        // Update local state with the turn details
-        if (turnData) {
-          setIsMyTurn(!turnData.turn_completed && turnData.playerId === currentPlayer.player_id);
-          setDiceValues(turnData.dice || [1, 1, 1, 1, 1]);
-          setRollCount(turnData.rerolls || 0);
-  
-          if (turnData.playerId !== currentPlayer.player_id || turnData.turn_completed) {
-            message.info("Waiting for opponent's turn...");
-          }
+        const turn = await API.getTurn(gameId, currentPlayer.player_id);
+    
+        if (turn && !turn.turn_completed) {
+          setDiceValues(turn.dice || [1, 1, 1, 1, 1]);
+          setRollCount(turn.rerolls || 0);
+          setIsMyTurn(turn.player_id === currentPlayer.player_id);
         } else {
-          console.log('No existing turn found.');
-          setIsMyTurn(false); // Player will create the turn upon action
+          setIsMyTurn(false);
+          message.info("Waiting for opponent's turn...");
         }
       } catch (error) {
-        console.error('Error initializing game:', error);
+        console.error('Error initializing game:', error.message);
         message.error('Failed to initialize game.');
       }
-    };
+    };    
   
     initializeGame();
   
