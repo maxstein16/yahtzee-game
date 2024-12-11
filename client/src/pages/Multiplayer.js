@@ -55,17 +55,22 @@ function MultiplayerPage() {
         });
 
         socketConnection.on('gameStart', async ({ gameId, players }) => {
-            // Initialize categories for the new game
-            await API.initializePlayerCategories(currentPlayer.player_id);
-            
-            // Update game state
-            const gameData = await API.getGameById(gameId);
-            if (gameData) {
-                setIsMyTurn(players[0] === currentPlayer.player_id);
-                const categories = await API.getPlayerCategories(currentPlayer.player_id);
-                setPlayerCategories(categories);
+            try {
+              setIsMyTurn(players[0] === currentPlayer.player_id);
+          
+              // Initialize categories for the new game
+              await API.initializePlayerCategories(currentPlayer.player_id);
+          
+              // Fetch updated categories
+              const categories = await API.getPlayerCategories(currentPlayer.player_id);
+              setPlayerCategories(categories);
+          
+              message.success('Game started!');
+            } catch (error) {
+              console.error('Error handling gameStart event:', error);
+              message.error('Failed to initialize game.');
             }
-        });
+          });          
 
         socketConnection.on('gameEnd', ({ winner }) => {
           message.success(`Game Over! ${winner.name} wins!`);
@@ -229,6 +234,10 @@ function MultiplayerPage() {
   // In MultiplayerPage.js
   const handleNewGame = async () => {
     try {
+      if (!socket) {
+        throw new Error('Socket connection is not established.');
+      }
+  
       if (currentPlayer?.player_id) {
         await API.resetPlayerCategories(currentPlayer.player_id);
       }
@@ -236,22 +245,17 @@ function MultiplayerPage() {
         await API.resetPlayerCategories(opponent.id);
       }
   
+      // Create the game
       const response = await API.createGame('pending', 0, currentPlayer?.player_id, opponent?.id);
   
       if (response?.game?.game_id) {
-        await API.initializePlayerCategories(currentPlayer.player_id);
-        await API.initializePlayerCategories(opponent.id);
+        // Emit WebSocket event to start the game
+        socket.emit('gameStart', {
+          gameId: response.game.game_id,
+          players: [currentPlayer.player_id, opponent.id],
+        });
   
-        // Start the game
-        await API.startGame(response.game.game_id);
-  
-        if (socket) {
-          socket.emit('gameStart', {
-            gameId: response.game.game_id,
-            players: [currentPlayer.player_id, opponent.id],
-          });
-        }
-  
+        // Navigate to the new game
         navigate('/multiplayer', {
           state: {
             gameId: response.game.game_id,
@@ -259,12 +263,15 @@ function MultiplayerPage() {
             opponent: opponent,
           },
         });
+      } else {
+        throw new Error('Failed to create a new game.');
       }
     } catch (error) {
       console.error('Error creating new game:', error);
       message.error('Failed to create new game');
     }
-  };  
+  };
+   
   
   return (
     <Layout className="min-h-screen">

@@ -2,6 +2,7 @@ const http = require('http');
 const { app } = require('./app');
 const { Server } = require('socket.io');
 const API = require('./routes/index');
+const { updateGame } = require('./db/gameQueries');
 
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
@@ -115,18 +116,25 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('gameStart', ({ gameId, players }) => {
-    // Broadcast to all players in the game
-    players.forEach(playerId => {
-      const player = connectedPlayers.get(playerId);
-      if (player) {
-        io.to(player.socketId).emit('gameStart', {
-          gameId,
-          players,
-          startTime: new Date().toISOString()
-        });
-      }
-    });
+  socket.on('gameStart', async ({ gameId, players }) => {
+    try {
+      // Update game status to 'in-progress' in the database
+      await updateGame(gameId, 'in-progress', 1);
+  
+      // Notify all players about the game start
+      players.forEach(playerId => {
+        const player = connectedPlayers.get(playerId);
+        if (player) {
+          io.to(player.socketId).emit('gameStart', {
+            gameId,
+            players,
+            startTime: new Date().toISOString(),
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error handling gameStart event:', error);
+    }
   });
 
   socket.on('diceRoll', ({ dice, gameId }) => {
