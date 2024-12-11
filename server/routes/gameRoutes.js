@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer } = require('../db/gameQueries');
+const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer, getLatestTurn } = require('../db/gameQueries');
 const { createTurn } = require('../db/turnQueries');
 
 // POST route for creating a new game
@@ -91,18 +91,54 @@ router.get('/game/active/:playerId', async (req, res) => {
   }
 });
 
-// Add this route to your API
+// Add this route to get current dice state
 router.get('/game/:id/dice', async (req, res) => {
   try {
     const gameId = req.params.id;
-    const game = await getGameById(gameId);
+    const playerId = req.query.playerId; // Optional, to get specific player's dice
+
+    const turn = await getLatestTurn(gameId, playerId);
+    const diceState = turn ? turn.dice : [1, 1, 1, 1, 1];
+    const lastRollTime = turn ? turn.updated_at : null;
+
     res.json({ 
-      dice: game.currentDice,
-      lastRollTime: game.lastRollTime 
+      dice: diceState,
+      lastRollTime,
+      rollCount: turn ? turn.rerolls : 0
     });
   } catch (error) {
+    console.error('Error getting dice state:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
+// Add this route to get the latest turn
+router.get('/game/:id/turn/latest', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const playerId = req.query.playerId;
+
+    if (!gameId) {
+      return res.status(400).json({ error: 'Game ID is required' });
+    }
+
+    const turn = await getLatestTurn(gameId, playerId);
+    
+    if (!turn) {
+      return res.json({
+        dice: [1, 1, 1, 1, 1],
+        rerolls: 0,
+        turnScore: 0,
+        turnCompleted: false
+      });
+    }
+
+    res.json(turn);
+  } catch (error) {
+    console.error('Error getting latest turn:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 module.exports = router;

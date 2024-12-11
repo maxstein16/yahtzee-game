@@ -79,6 +79,9 @@ const MultiplayerPage = () => {
           }
 
           await initializeSocket(playerInfo.playerData.player_id);
+
+          // Fetch initial game state
+          await updateGameState(playerInfo.playerData.player_id);
         }
       } catch (error) {
         console.error('Error initializing game:', error);
@@ -100,6 +103,27 @@ const MultiplayerPage = () => {
       }
     };
   }, [gameId, navigate, opponent?.id]);
+
+  const updateGameState = async (playerId) => {
+    try {
+      const [gameState, turnState, diceState] = await Promise.all([
+        API.getGameById(gameId),
+        API.getLatestTurn(gameId, playerId),
+        API.getGameDice(gameId, playerId)
+      ]);
+
+      setDiceValues(diceState.dice);
+      setRollCount(diceState.rollCount);
+      setIsMyTurn(turnState.playerId === playerId);
+      setPlayerTotal(await API.getPlayerTotalScore(playerId));
+
+      if (opponent?.id) {
+        setOpponentTotal(await API.getPlayerTotalScore(opponent.id));
+      }
+    } catch (error) {
+      console.error('Error updating game state:', error);
+    }
+  };
 
   // Handle dice rolling
   const handleDiceRoll = async () => {

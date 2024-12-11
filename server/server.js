@@ -1,7 +1,7 @@
+// server.js
 const http = require('http');
 const { app } = require('./app');
 const { Server } = require('socket.io');
-const API = require('./routes/index');
 
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
@@ -14,46 +14,16 @@ const io = new Server(server, {
   }
 });
 
-// Store player data with both socket ID and player ID mapping
+// Simple player tracking
 const connectedPlayers = new Map();
-const socketToPlayer = new Map();
 
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
-
-  // Player joined event
-  socket.on('playerJoined', (playerData) => {
-    if (!playerData.id || !playerData.name) {
-      console.log('Invalid player data:', playerData);
-      return;
-    }
-
-    // Store player data
-    const playerInfo = {
-      id: playerData.id,
-      name: playerData.name,
-      socketId: socket.id
-    };
-
-    connectedPlayers.set(playerData.id, playerInfo);
-    socketToPlayer.set(socket.id, playerData.id);
-
-    // Send current players list
-    const players = Array.from(connectedPlayers.values())
-      .filter(p => p.id && p.name);
-    
-    io.emit('playersUpdate', players);
-  });
-
-  // Chat message event
+  
+  // Handle chat messages only
   socket.on('chatMessage', (messageData) => {
-    const playerId = socketToPlayer.get(socket.id);
-    const player = connectedPlayers.get(playerId);
-    
-    if (!player) {
-      console.log('Player not found for message:', socket.id);
-      return;
-    }
+    const player = connectedPlayers.get(socket.id);
+    if (!player) return;
 
     const messageToSend = {
       content: messageData.content,
@@ -65,135 +35,18 @@ io.on('connection', (socket) => {
     io.emit('chatMessage', messageToSend);
   });
 
-  // Game challenge event
-  socket.on('gameChallenge', ({ challenger, opponentId, gameId }) => {
-    const opponent = connectedPlayers.get(opponentId);
-
-    if (!opponent) {
-      console.log('Opponent not found or offline:', opponentId);
-      socket.emit('challengeFailed', { message: 'Opponent is unavailable.' });
-      return;
-    }
-
-    // Send challenge request to opponent with game ID
-    io.to(opponent.socketId).emit('challengeRequest', { 
-      challenger,
-      gameId
-    });
-  });
-
-  socket.on('challengeAccepted', async ({ challengerId, gameId }) => {
-    const challenger = connectedPlayers.get(challengerId);
-    const acceptingPlayer = connectedPlayers.get(socketToPlayer.get(socket.id));
-  
-    if (!challenger) {
-      console.log('Challenger not found:', challengerId);
-      return;
-    }
-  
-    // Notify the challenger with the game ID and opponent info
-    io.to(challenger.socketId).emit('challengeAccepted', { 
-      gameId,
-      opponent: {
-        id: acceptingPlayer.id,
-        name: acceptingPlayer.name
-      }
-    });
-  });
-
-  // Challenge rejected event
-  socket.on('challengeRejected', ({ challengerId }) => {
-    const challenger = connectedPlayers.get(challengerId);
-
-    if (!challenger) {
-      console.log('Challenger not found:', challengerId);
-      return;
-    }
-
-    io.to(challenger.socketId).emit('challengeRejected', { 
-      message: 'Your challenge was declined.' 
-    });
-  });
-
-  socket.on('gameStart', async ({ gameId, players }) => {
-    try {
-      // Update the game status using the API startGame route
-      const startResponse = await API.startGame(gameId);
-      if (!startResponse.success) {
-        console.error('Failed to start the game:', startResponse.message);
-        return;
-      }
-  
-      console.log(`Game ${gameId} started successfully`);
-  
-      // Notify all players about the game start
-      players.forEach((playerId) => {
-        const player = connectedPlayers.get(playerId);
-        if (player) {
-          io.to(player.socketId).emit('gameStart', {
-            gameId,
-            players,
-            startTime: new Date().toISOString(),
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Error handling gameStart event:', error);
-    }
-  });  
-  
-  // Add a turn end event
-  socket.on('turnEnd', ({ gameId, nextPlayer }) => {
-    const nextPlayerSocket = connectedPlayers.get(nextPlayer)?.socketId;
-    if (nextPlayerSocket) {
-      io.to(nextPlayerSocket).emit('turnChange', { nextPlayer });
+  // Basic player tracking
+  socket.on('playerJoined', (playerData) => {
+    if (playerData.id && playerData.name) {
+      connectedPlayers.set(socket.id, playerData);
     }
   });
 
-  // Score submission event
-  socket.on('scoreCategory', ({ gameId, categoryName, score, nextPlayerId }) => {
-    const currentPlayerId = socketToPlayer.get(socket.id);
-  
-    // Notify current player their turn is over
-    io.to(socket.id).emit('turnChange', {
-      nextPlayer: nextPlayerId,
-      isMyTurn: false,
-      message: "Opponent's turn"
-    });
-  
-    // Notify next player it's their turn
-    const nextPlayerSocket = connectedPlayers.get(nextPlayerId)?.socketId;
-    if (nextPlayerSocket) {
-      io.to(nextPlayerSocket).emit('turnChange', {
-        nextPlayer: nextPlayerId,
-        isMyTurn: true,
-        message: "Your turn!"
-      });
-    }
-  
-    // Broadcast category updates
-    socket.emit('categoriesUpdate', { playerId: currentPlayerId });
-    if (nextPlayerSocket) {
-      io.to(nextPlayerSocket).emit('categoriesUpdate', { playerId: nextPlayerId });
-    }
-  });
-
-  // Disconnect event
   socket.on('disconnect', () => {
-    const playerId = socketToPlayer.get(socket.id);
-    if (playerId) {
-      connectedPlayers.delete(playerId);
-      socketToPlayer.delete(socket.id);
+    connectedPlayers.delete(socket.id);
+  });
+});
 
-      // Update player list
-      const players = Array.from(connectedPlayers.values())
-        .filter(p => p.id && p.name);
-      
-      io.emit('playersUpdate', players);
-    }
-  });
-  });
-
-  server.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-  });
+server.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
