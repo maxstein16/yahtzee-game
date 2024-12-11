@@ -10,14 +10,12 @@ import API from '../../utils/api';
 
 function Lobby() {
   const navigate = useNavigate();
-
-  // Basic state
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Socket state
   const [socket, setSocket] = useState(null);
   const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [wasConnected, setWasConnected] = useState(false);
+  const [isDisconnected, setIsDisconnected] = useState(false);
 
   // Initialize player
   useEffect(() => {
@@ -41,26 +39,11 @@ function Lobby() {
   // Handle new game creation
   const handleNewGame = async () => {
     try {
-      // Reset current player's categories
       await API.resetPlayerCategories(currentPlayer.player_id);
-      
-      // Create a new game
-      const response = await API.createGame(
-        'pending', 
-        0, 
-        currentPlayer.player_id
-      );
-      
-      // Initialize categories
+      const response = await API.createGame('pending', 0, currentPlayer.player_id);
       await API.initializePlayerCategories(currentPlayer.player_id);
-      
-      // Start the game
       await API.startGame(response.game.game_id);
-      
-      // Navigate to singleplayer with the game ID
-      navigate('/singleplayer', { 
-        state: { gameId: response.game.game_id }
-      });
+      navigate('/singleplayer', { state: { gameId: response.game.game_id }});
     } catch (error) {
       console.error('Error creating new game:', error);
       message.error('Failed to create new game');
@@ -70,57 +53,62 @@ function Lobby() {
   // WebSocket setup
   useEffect(() => {
     let socketInstance = null;
-  
+
     const setupSocket = async () => {
       if (!currentPlayer?.player_id) return;
-  
+
       try {
         socketInstance = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketInstance);
-  
+
         // Set up event listeners
-        socketInstance.on('playersUpdate', (players) => {
-          setAvailablePlayers(players.filter(p => p.id !== currentPlayer.player_id));
-        });
-  
-        // Handle disconnection
-        socketInstance.on('disconnect', () => {
-          message.warning('Lost connection to game server. Attempting to reconnect...');
-        });
-  
-        // Handle reconnection
-        socketInstance.on('reconnect', () => {
-          message.success('Reconnected to game server');
+        socketInstance.on('connect', () => {
+          console.log('Connected to game server');
+          setWasConnected(true);
           
-          // Re-emit player joined after reconnection
+          if (isDisconnected) {
+            message.success('Reconnected to game server');
+            setIsDisconnected(false);
+          }
+
           socketInstance.emit('playerJoined', {
             id: currentPlayer.player_id,
             name: currentPlayer.name
-          }).catch(error => {
-            console.error('Error rejoining after reconnection:', error);
           });
         });
-  
-        // Handle connection state changes
+
+        socketInstance.on('disconnect', () => {
+          if (!isDisconnected) {
+            message.warning('Lost connection to game server');
+            setIsDisconnected(true);
+          }
+        });
+
+        socketInstance.on('playersUpdate', (players) => {
+          setAvailablePlayers(players.filter(p => p.id !== currentPlayer.player_id));
+        });
+
+        // Connection check interval
         const checkConnection = setInterval(() => {
           const state = socketInstance.getState();
           if (!state.connected && !state.connecting) {
             socketInstance.reconnect();
           }
-        }, 30000); // Check every 30 seconds
-  
+        }, 30000);
+
         return () => {
           clearInterval(checkConnection);
         };
       } catch (error) {
         console.error('WebSocket setup error:', error);
-        message.error('Failed to connect to game server');
+        if (!wasConnected) {
+          message.error('Failed to connect to game server');
+        }
       }
     };
-  
+
     setupSocket();
-  
-    // Cleanup function
+
     return () => {
       if (socketInstance) {
         socketInstance.disconnect();
