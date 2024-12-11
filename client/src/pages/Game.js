@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Typography, Input, Button, List, Avatar, message, Space } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import GameBoard from './GameBoard';
-import Scoreboard from './Scoreboard';
+import GameBoard from '../components/GameBoard/GameBoard';
+import Scoreboard from '../components/ScoreBoard/ScoreBoard';
 import API from '../utils/api';
-import { initializeWebSocket } from '../../services/websocketService';
+import { initializeWebSocket } from '../services/websocketService';
 
 const { Title } = Typography;
 const { TextArea } = Input;
