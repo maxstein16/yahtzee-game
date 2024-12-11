@@ -196,6 +196,7 @@ function MultiplayerPage() {
     
       if (result.success) {
         setDiceValues(result.dice);
+        console.log('Updated diceValues state:', result.dice); // Debugging state update
         setRollCount((prev) => prev + 1);
         if (socket) {
           socket.emit('diceRoll', { dice: result.dice, gameId });
