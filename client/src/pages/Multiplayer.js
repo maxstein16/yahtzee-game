@@ -27,63 +27,106 @@ const MultiplayerPage = () => {
   const [playerTotal, setPlayerTotal] = useState(0);
   const [opponentTotal, setOpponentTotal] = useState(0);
 
+  const initializeSocket = async (playerId) => {
+    try {
+      const socketConnection = await initializeWebSocket(playerId);
+      
+      socketConnection.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        message.error('Connection lost. Retrying...');
+        setTimeout(() => initializeSocket(playerId), 5000);
+      });
+
+      socketConnection.on('connect', () => {
+        console.log('Socket connected');
+        message.success('Connected to game server');
+      });
+
+      setSocket(socketConnection);
+      return socketConnection;
+    } catch (error) {
+      console.error('Socket initialization error:', error);
+      message.error('Failed to connect to game server. Retrying...');
+      setTimeout(() => initializeSocket(playerId), 5000);
+    }
+  };
+
   // Initialize player and game
   useEffect(() => {
+    let mounted = true;
+    
     const initializeGame = async () => {
       try {
         const playerInfo = await fetchCurrentPlayer(navigate);
+        if (!mounted) return;
+        
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
           
-          // Initialize categories for both players
+          // Initialize categories
           await API.initializePlayerCategories(playerInfo.playerData.player_id);
           const categories = await API.getPlayerCategories(playerInfo.playerData.player_id);
+          if (!mounted) return;
           setPlayerCategories(categories);
           
           if (opponent?.id) {
             const opponentCats = await API.getPlayerCategories(opponent.id);
+            if (!mounted) return;
             setOpponentCategories(opponentCats);
           }
+
+          // Initialize socket with retry mechanism
+          const socketConnection = await initializeSocket(playerInfo.playerData.player_id);
+          if (!mounted) return;
+
+          // Socket event handlers
+          socketConnection.on('opponentRoll', ({ dice }) => {
+            if (!mounted) return;
+            setOpponentDiceValues(dice);
+            message.info("Opponent rolled the dice!");
+          });
+
+          socketConnection.on('turnChange', ({ nextPlayer, diceValues: newDice }) => {
+            if (!mounted) return;
+            const isMyNewTurn = nextPlayer === playerInfo.playerData.player_id;
+            setIsMyTurn(isMyNewTurn);
+            
+            if (isMyNewTurn) {
+              setDiceValues([1, 1, 1, 1, 1]);
+              setRollCount(0);
+              setSelectedDice([]);
+              message.success("It's your turn!");
+            } else {
+              message.info("Opponent's turn");
+            }
+          });
+
+          socketConnection.on('categoriesUpdate', async ({ categories, playerId }) => {
+            if (!mounted) return;
+            
+            try {
+              if (playerId === playerInfo.playerData.player_id) {
+                const updatedCategories = await API.getPlayerCategories(playerId);
+                setPlayerCategories(updatedCategories);
+                const total = await API.getPlayerTotalScore(playerId);
+                setPlayerTotal(total.totalScore);
+              } else {
+                const updatedCategories = await API.getPlayerCategories(playerId);
+                setOpponentCategories(updatedCategories);
+                const total = await API.getPlayerTotalScore(playerId);
+                setOpponentTotal(total.totalScore);
+              }
+            } catch (error) {
+              console.error('Error updating categories:', error);
+            }
+          });
         }
-
-        const socketConnection = await initializeWebSocket(playerInfo.playerData.player_id);
-        setSocket(socketConnection);
-
-        // Set up socket event listeners
-        socketConnection.on('opponentRoll', ({ dice }) => {
-          setOpponentDiceValues(dice);
-          message.info("Opponent rolled the dice!");
-        });
-
-        socketConnection.on('turnChange', ({ nextPlayer, diceValues: newDice }) => {
-          const isMyNewTurn = nextPlayer === playerInfo.playerData.player_id;
-          setIsMyTurn(isMyNewTurn);
-          
-          if (isMyNewTurn) {
-            setDiceValues([1, 1, 1, 1, 1]);
-            setRollCount(0);
-            setSelectedDice([]);
-            message.success("It's your turn!");
-          } else {
-            setOpponentDiceValues([1, 1, 1, 1, 1]);
-            message.info("Opponent's turn");
-          }
-        });
-
-        socketConnection.on('categoriesUpdate', ({ categories, playerId }) => {
-          if (playerId === playerInfo.playerData.player_id) {
-            setPlayerCategories(categories);
-            calculateTotalScore(categories).then(setPlayerTotal);
-          } else {
-            setOpponentCategories(categories);
-            calculateTotalScore(categories).then(setOpponentTotal);
-          }
-        });
-
       } catch (error) {
         console.error('Error initializing game:', error);
-        message.error('Failed to initialize game');
-        navigate('/lobby');
+        if (mounted) {
+          message.error('Failed to initialize game');
+          navigate('/lobby');
+        }
       }
     };
 
@@ -92,6 +135,7 @@ const MultiplayerPage = () => {
     }
 
     return () => {
+      mounted = false;
       if (socket) {
         socket.disconnect();
       }
@@ -146,14 +190,25 @@ const MultiplayerPage = () => {
       return;
     }
 
+    if (!gameId || !currentPlayer?.player_id) {
+      message.error('Game or player information missing');
+      return;
+    }
+
     try {
       const calculatedScores = calculateScores(diceValues);
       const score = calculatedScores[categoryName];
 
-      // Submit score
-      await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
+      // Get category ID
+      const category = playerCategories.find(cat => cat.name === categoryName);
+      if (!category) {
+        throw new Error('Category not found');
+      }
 
-      // Notify opponent through socket
+      // Submit turn and score
+      await API.submitTurn(gameId, currentPlayer.player_id, category.category_id, score, diceValues, rollCount);
+
+      // Emit socket event for opponent
       socket?.emit('scoreCategory', {
         gameId,
         categoryName,
@@ -168,7 +223,6 @@ const MultiplayerPage = () => {
       setDiceValues([1, 1, 1, 1, 1]);
 
       message.success(`Scored ${score} points in ${categoryName}!`);
-
     } catch (error) {
       console.error('Error submitting score:', error);
       message.error('Failed to submit score');
