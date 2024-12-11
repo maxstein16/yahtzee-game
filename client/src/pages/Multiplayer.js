@@ -315,7 +315,7 @@ function MultiplayerPage() {
             rollCount={rollCount}
             isMyTurn={isMyTurn}
             toggleDiceSelection={toggleDiceSelection}
-            handleRollDice={handleDiceRoll}
+            handleDiceRoll={handleDiceRoll}
           />
 
           <div className="flex gap-4">
