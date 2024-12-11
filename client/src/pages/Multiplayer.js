@@ -47,7 +47,7 @@ function MultiplayerPage() {
           setDiceValues(dice);
         });
 
-        socket.on('turnChange', ({ nextPlayer }) => {
+        socketConnection.on('turnChange', ({ nextPlayer }) => {
             setIsMyTurn(nextPlayer === currentPlayer.player_id);
             setRollCount(0);
             setSelectedDice([]);
