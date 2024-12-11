@@ -318,6 +318,7 @@ const API = {
   getChatMessages,
   sendMessage,
   rollDice,
+  getGameDice,
   submitTurn,
   createTurn,
   getAvailablePlayers,

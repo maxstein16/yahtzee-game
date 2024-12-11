@@ -28,35 +28,46 @@ const Game = ({ gameId, currentPlayer }) => {
       try {
         const game = await API.getGameById(gameId);
         const players = await API.getPlayersInGame(gameId);
-
+  
         // Set opponent details
         const opponentPlayer = players.find(p => p.player_id !== currentPlayer.player_id);
         setOpponent(opponentPlayer);
-
+  
         // Initialize player categories
         await API.initializePlayerCategories(currentPlayer.player_id);
         const categories = await API.getPlayerCategories(currentPlayer.player_id);
         setPlayerCategories(categories);
-
-        // Check active turn and dice state
-        const gameDice = await API.getGameDice(gameId);
-        setDiceValues(gameDice.dice || [1, 1, 1, 1, 1]);
+  
+        // Set default dice values first
+        setDiceValues([1, 1, 1, 1, 1]);
+  
+        try {
+          // Try to get current dice state
+          const gameDice = await API.getGameDice(gameId);
+          if (gameDice && Array.isArray(gameDice.dice)) {
+            setDiceValues(gameDice.dice);
+          }
+        } catch (diceError) {
+          console.warn('Could not fetch dice state:', diceError);
+          // Keep default dice values
+        }
+  
         setIsMyTurn(game.currentTurnPlayer === currentPlayer.player_id);
       } catch (error) {
         console.error('Error fetching game details:', error);
         message.error('Failed to load game details.');
       }
     };
-
+  
     fetchGameDetails();
-
+  
     // Initialize WebSocket
     const socket = initializeWebSocket(currentPlayer.player_id);
     socket.on('chatMessage', (message) => {
       setChatMessages((prevMessages) => [...prevMessages, message]);
       scrollToBottom();
     });
-
+  
     return () => socket.disconnect();
   }, [gameId, currentPlayer]);
 
