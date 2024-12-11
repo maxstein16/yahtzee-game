@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer } = require('../db/gameQueries');
+const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer, getPlayersInGame } = require('../db/gameQueries');
 const { createTurn } = require('../db/turnQueries');
 
 // POST route for creating a new game
@@ -31,6 +31,17 @@ router.post('/game', async (req, res) => {
   }
 });
 
+router.get('/game/:id/players', async (req, res) => {
+  const gameId = req.params.id;
+
+  try {
+    const players = await getPlayersInGame(gameId);
+    res.status(200).json(players);
+  } catch (err) {
+    console.error(`Error fetching players for game ${gameId}:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET route for retrieving a game by ID
 router.get('/game/:id', async (req, res) => {

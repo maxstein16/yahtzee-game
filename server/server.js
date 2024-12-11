@@ -20,22 +20,24 @@ const socketToPlayer = new Map();
 
 io.on('connection', (socket) => {
   socket.on('playerJoined', (player) => {
-    connectedPlayers.set(player.id, socket.id);
-  });
+    connectedPlayers.set(player.id, { id: player.id, name: player.name, socketId: socket.id });
 
-  socket.on('chatMessage', (message) => {
-    io.emit('chatMessage', message);
+    // Emit updated list of players to all connected clients
+    io.emit('playersUpdate', Array.from(connectedPlayers.values()));
   });
 
   socket.on('disconnect', () => {
-    for (const [id, sid] of connectedPlayers.entries()) {
-      if (sid === socket.id) {
+    for (const [id, data] of connectedPlayers.entries()) {
+      if (data.socketId === socket.id) {
         connectedPlayers.delete(id);
+        break;
       }
     }
+
+    // Emit updated list of players to all connected clients
+    io.emit('playersUpdate', Array.from(connectedPlayers.values()));
   });
 });
-
 server.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });

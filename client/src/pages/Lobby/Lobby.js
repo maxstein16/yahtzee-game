@@ -5,12 +5,11 @@ import { fetchCurrentPlayer } from '../../services/authService';
 import { initializeWebSocket, disconnectWebSocket } from '../../services/websocketService';
 import LobbyChat from './LobbyChat';
 import GameHeader from '../../components/GameHeader/GameHeader';
-import API from '../../utils/api';
 
 function Lobby() {
   const navigate = useNavigate();
   const [currentPlayer, setCurrentPlayer] = useState(null);
-  const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [onlinePlayers, setOnlinePlayers] = useState([]);
 
   useEffect(() => {
     const initializePlayer = async () => {
@@ -18,15 +17,17 @@ function Lobby() {
         const playerInfo = await fetchCurrentPlayer(navigate);
         if (playerInfo) {
           setCurrentPlayer(playerInfo.playerData);
-          initializeWebSocket(playerInfo.playerData.player_id);
 
-          // Poll server every 30 seconds for updates
-          const interval = setInterval(async () => {
-            const players = await API.getAvailablePlayers();
-            setAvailablePlayers(players);
-          }, 30000);
+          const socket = initializeWebSocket(playerInfo.playerData.player_id);
 
-          return () => clearInterval(interval);
+          // Listen for updates from WebSocket
+          socket.on('playersUpdate', (players) => {
+            setOnlinePlayers(players);
+          });
+
+          return () => {
+            socket.disconnect();
+          };
         }
       } catch (error) {
         console.error('Error initializing player:', error);
@@ -43,7 +44,7 @@ function Lobby() {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <GameHeader currentPlayer={currentPlayer} availablePlayers={availablePlayers} />
+      <GameHeader currentPlayer={currentPlayer} availablePlayers={onlinePlayers} />
       <Layout.Content className="p-6">
         <LobbyChat currentPlayer={currentPlayer} />
       </Layout.Content>

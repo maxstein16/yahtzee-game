@@ -31,10 +31,18 @@ const MultiplayerPage = () => {
         setGameState(state);
 
         // Poll for updates every 30 seconds
-        const interval = setInterval(async () => {
-          const updatedState = await API.getGameState(gameId);
-          setGameState(updatedState);
-        }, 30000);
+        const fetchGameState = async () => {
+          try {
+            const updatedState = await API.getGameState(gameId);
+            setGameState(updatedState);
+          } catch (error) {
+            console.error('Error fetching game state:', error);
+            message.error('Failed to update game state.');
+          }
+        };
+
+        fetchGameState(); // Initial fetch
+        const interval = setInterval(fetchGameState, 30000);
 
         return () => clearInterval(interval);
       } catch (error) {
