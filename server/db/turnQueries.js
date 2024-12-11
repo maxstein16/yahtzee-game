@@ -62,7 +62,6 @@ async function getLatestTurn(gameId, playerId) {
     }
 
     const turn = result[0];
-    turn.dice = JSON.parse(turn.dice); // Ensure `dice` is parsed correctly
     return turn;
   } catch (error) {
     console.error('Error in getLatestTurn:', error.message);
