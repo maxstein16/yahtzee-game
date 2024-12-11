@@ -1,9 +1,10 @@
 // src/pages/Lobby/Lobby.js
 import React, { useState, useEffect } from 'react';
-import { message, Layout } from 'antd';
+import { message, Layout, Modal, Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import initializeWebSocket from '../../services/websocketService';
+import { getAvailablePlayers, createGame } from '../../utils/api';
 import LobbyChat from './LobbyChat';
 import GameHeader from '../../components/GameHeader/GameHeader';
 
@@ -17,6 +18,7 @@ function Lobby() {
   // Socket state
   const [socket, setSocket] = useState(null);
   const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [isMultiplayerModalVisible, setIsMultiplayerModalVisible] = useState(false);
 
   // Initialize player
   useEffect(() => {
@@ -69,6 +71,27 @@ function Lobby() {
     };
   }, [currentPlayer?.player_id]);
 
+  const handleNewGame = async (gameType) => {
+    if (gameType === 'multiplayer') {
+      setIsMultiplayerModalVisible(true);
+    } else {
+      // Handle singleplayer game creation
+      console.log('New singleplayer game');
+    }
+  };
+
+  const handleMultiplayerGameCreation = async (opponentId) => {
+    try {
+      const game = await createGame(currentPlayer.player_id, opponentId);
+      setIsMultiplayerModalVisible(false);
+      // Proceed to the game page with the created game information
+      console.log('Multiplayer game created:', game);
+    } catch (error) {
+      console.error('Error creating multiplayer game:', error);
+      message.error('Failed to create multiplayer game');
+    }
+  };
+
   if (isLoading) {
     return (
       <Layout style={{ height: '100vh' }}>
@@ -81,17 +104,34 @@ function Lobby() {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <GameHeader
+      <GameHeader 
         currentPlayer={currentPlayer}
         handleNewGame={handleNewGame}
         handleLogout={() => handleLogout(navigate)}
-        socket={socket}
-        availablePlayers={availablePlayers}
       />
       
       <Layout.Content className="p-6">
         <LobbyChat currentPlayer={currentPlayer} />
       </Layout.Content>
+
+      <Modal
+        title="Multiplayer Game"
+        visible={isMultiplayerModalVisible}
+        onCancel={() => setIsMultiplayerModalVisible(false)}
+        footer={null}
+      >
+        <h2>Challenge a Player</h2>
+        <ul>
+          {availablePlayers.map((player) => (
+            <li key={player.player_id}>
+              {player.name}
+              <Button onClick={() => handleMultiplayerGameCreation(player.player_id)}>
+                Challenge
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </Layout>
   );
 }
