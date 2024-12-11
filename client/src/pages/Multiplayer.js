@@ -228,9 +228,10 @@ function MultiplayerPage() {
       await API.submitGameScore(gameId, currentPlayer.player_id, categoryName, score);
   
       if (socket) {
-        socket.emit('turnEnd', {
+        socket.emit('scoreCategory', {
           gameId: gameId,
-          nextPlayer: opponent.id,
+          categoryName: categoryName,
+          score: score,
         });
       }
   
