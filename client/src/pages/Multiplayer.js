@@ -136,6 +136,32 @@ function MultiplayerPage() {
     }
   }, [location.state, navigate]);
 
+  useEffect(() => {
+    if (socket) {
+      socket.on('gameStart', async ({ gameId, players }) => {
+        try {
+          setIsMyTurn(players[0] === currentPlayer.player_id);
+  
+          // Initialize player categories
+          await API.initializePlayerCategories(currentPlayer.player_id);
+  
+          // Fetch updated categories
+          const categories = await API.getPlayerCategories(currentPlayer.player_id);
+          setPlayerCategories(categories);
+  
+          message.success('Game started!');
+        } catch (error) {
+          console.error('Error handling gameStart event:', error);
+          message.error('Failed to initialize game.');
+        }
+      });
+  
+      return () => {
+        socket.off('gameStart');
+      };
+    }
+  }, [socket, currentPlayer]);  
+
   const handleDiceRoll = async () => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");
@@ -238,15 +264,11 @@ function MultiplayerPage() {
         throw new Error('Socket connection is not established.');
       }
   
-      if (currentPlayer?.player_id) {
-        await API.resetPlayerCategories(currentPlayer.player_id);
-      }
-      if (opponent?.id) {
-        await API.resetPlayerCategories(opponent.id);
-      }
+      // Reset current player's categories
+      await API.resetPlayerCategories(currentPlayer.player_id);
   
       // Create the game
-      const response = await API.createGame('pending', 0, currentPlayer?.player_id, opponent?.id);
+      const response = await API.createGame('pending', 0, currentPlayer.player_id, opponent?.id);
   
       if (response?.game?.game_id) {
         // Emit WebSocket event to start the game
@@ -270,7 +292,7 @@ function MultiplayerPage() {
       console.error('Error creating new game:', error);
       message.error('Failed to create new game');
     }
-  };
+  };  
    
   
   return (
