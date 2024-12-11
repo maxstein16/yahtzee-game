@@ -1,140 +1,146 @@
 import io from 'socket.io-client';
 
 const WS_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app';
-const CONNECTION_TIMEOUT = 10000; // 10 seconds
-
-// Track global connection state
-let isFirstConnection = true;
-let hasLoggedError = false;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
 
 export const initializeWebSocket = (playerId) => {
   return new Promise((resolve, reject) => {
     try {
-      // Reset connection tracking on new initialization
-      hasLoggedError = false;
-      reconnectAttempts = 0;
-
+      // Enhanced socket configuration
       const socket = io(WS_BASE_URL, {
         query: { playerId },
-        transports: ['websocket', 'polling'],
+        transports: ['websocket', 'polling'], // Fall back to polling if WebSocket fails
         reconnection: true,
-        reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: CONNECTION_TIMEOUT,
-        autoConnect: true
+        timeout: 20000,
+        autoConnect: true,
+        withCredentials: true,
+        extraHeaders: {
+          'Access-Control-Allow-Credentials': 'true'
+        }
       });
 
-      let hasConnected = false;
-
-      socket.on('connect', () => {
-        hasConnected = true;
-        hasLoggedError = false;
-        reconnectAttempts = 0;
-
-        if (isFirstConnection) {
-          console.log('WebSocket connected successfully');
-          isFirstConnection = false;
+      // Track connection state
+      let isConnecting = true;
+      const connectionTimeout = setTimeout(() => {
+        if (isConnecting) {
+          socket.disconnect();
+          reject(new Error('Connection timeout'));
         }
+      }, 20000);
 
+      // Handle successful connection
+      socket.on('connect', () => {
+        console.log('WebSocket connected successfully');
+        isConnecting = false;
+        clearTimeout(connectionTimeout);
+
+        // Identify player to server with retry logic
+        const identifyPlayer = () => {
+          socket.emit('playerJoined', {
+            id: playerId,
+            timestamp: new Date().toISOString()
+          }, (acknowledgement) => {
+            if (!acknowledgement) {
+              setTimeout(identifyPlayer, 1000); // Retry if no acknowledgement
+            }
+          });
+        };
+        identifyPlayer();
+      });
+
+      // Enhanced error handling
+      socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        if (error.message.includes('CORS')) {
+          reject(new Error('CORS error - Please check server configuration'));
+        } else if (error.message.includes('timeout')) {
+          reject(new Error('Connection timed out - Please check your internet connection'));
+        } else {
+          reject(new Error(`Connection failed: ${error.message}`));
+        }
+      });
+
+      // Handle disconnection
+      socket.on('disconnect', (reason) => {
+        console.log('WebSocket disconnected:', reason);
+        if (reason === 'io server disconnect') {
+          // Reconnect if server initiated disconnect
+          socket.connect();
+        }
+      });
+
+      // Handle reconnection attempts
+      socket.on('reconnecting', (attemptNumber) => {
+        console.log(`Attempting to reconnect... (${attemptNumber})`);
+      });
+
+      // Handle successful reconnection
+      socket.on('reconnect', (attemptNumber) => {
+        console.log(`Successfully reconnected after ${attemptNumber} attempts`);
+        // Re-identify player after reconnection
         socket.emit('playerJoined', {
           id: playerId,
           timestamp: new Date().toISOString()
         });
       });
 
-      socket.on('connect_error', (error) => {
-        reconnectAttempts++;
-        
-        if (!hasLoggedError) {
-          console.error('WebSocket connection error:', error);
-          hasLoggedError = true;
-        }
-
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-          socket.disconnect();
-          reject(new Error('Maximum reconnection attempts reached'));
-        }
-      });
-
-      // Enhanced socket interface with both Promise and regular emit support
-      const enhancedSocket = {
-        emit: (event, data, callback) => {
-          if (callback) {
-            // Regular emit with callback
-            if (!socket.connected) {
-              callback({ error: 'Socket is not connected' });
-              return;
-            }
-            socket.emit(event, data, callback);
-          } else {
-            // Promise-based emit
-            return new Promise((resolveEmit, rejectEmit) => {
-              if (!socket.connected) {
-                rejectEmit(new Error('Socket is not connected'));
-                return;
+      // Return enhanced socket interface
+      resolve({
+        // Basic socket methods
+        emit: (event, data) => {
+          return new Promise((resolveEmit, rejectEmit) => {
+            socket.emit(event, data, (acknowledgement) => {
+              if (acknowledgement?.error) {
+                rejectEmit(new Error(acknowledgement.error));
+              } else {
+                resolveEmit(acknowledgement);
               }
+            });
+          });
+        },
+        on: (event, callback) => socket.on(event, callback),
+        off: (event) => socket.off(event),
+        disconnect: () => {
+          clearTimeout(connectionTimeout);
+          socket.disconnect();
+        },
 
-              socket.emit(event, data, (acknowledgement) => {
+        // Enhanced helper methods
+        sendMessage: async (message) => {
+          try {
+            await new Promise((resolveMessage, rejectMessage) => {
+              socket.emit('chatMessage', {
+                content: message,
+                timestamp: new Date().toISOString()
+              }, (acknowledgement) => {
                 if (acknowledgement?.error) {
-                  rejectEmit(new Error(acknowledgement.error));
+                  rejectMessage(new Error(acknowledgement.error));
                 } else {
-                  resolveEmit(acknowledgement);
+                  resolveMessage(acknowledgement);
                 }
               });
             });
+          } catch (error) {
+            console.error('Error sending message:', error);
+            throw error;
           }
         },
 
-        // Direct access to underlying socket's emit
-        rawEmit: (...args) => socket.emit(...args),
-
-        on: (event, callback) => {
-          if (event === 'connect') {
-            socket.on(event, () => {
-              if (!hasConnected) {
-                callback();
-                hasConnected = true;
-              }
-            });
-          } else {
-            socket.on(event, callback);
-          }
-        },
-
-        off: (event) => socket.off(event),
-
-        disconnect: () => {
-          isFirstConnection = true;
-          socket.disconnect();
-        },
-
-        reconnect: () => {
-          if (!socket.connected && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            socket.connect();
-          }
-        },
-
+        // Enhanced connection state
         getState: () => ({
           connected: socket.connected,
           connecting: socket.connecting,
           disconnected: socket.disconnected,
-          reconnectAttempts
-        })
-      };
+          reconnecting: socket.reconnecting
+        }),
 
-      const connectionTimeout = setTimeout(() => {
-        if (!hasConnected) {
+        // Force reconnection
+        reconnect: () => {
           socket.disconnect();
-          reject(new Error('Connection timeout'));
+          socket.connect();
         }
-      }, CONNECTION_TIMEOUT);
-
-      socket.on('connect', () => {
-        clearTimeout(connectionTimeout);
-        resolve(enhancedSocket);
       });
 
     } catch (error) {
