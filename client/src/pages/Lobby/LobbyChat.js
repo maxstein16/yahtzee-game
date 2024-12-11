@@ -135,8 +135,8 @@ const LobbyChat = ({ currentPlayer }) => {
       // Start the game
       await API.startGame(gameId);
   
-      // Create the turn for the current player
-      const newTurn = await API.createTurn(
+      // Create a turn for the current player
+      const currentPlayerTurn = await API.createTurn(
         gameId,
         currentPlayer.player_id,
         [1, 1, 1, 1, 1], // Default dice values
@@ -145,15 +145,29 @@ const LobbyChat = ({ currentPlayer }) => {
         false // Turn not completed
       );
   
-      console.log('Turn created successfully:', newTurn);
+      console.log('Turn created for current player:', currentPlayerTurn);
   
+      // Create a turn for the opponent
+      const opponentTurn = await API.createTurn(
+        gameId,
+        pendingChallenge.challenger.id,
+        [1, 1, 1, 1, 1], // Default dice values
+        0, // Initial reroll count
+        0, // Initial score
+        false // Turn not completed
+      );
+  
+      console.log('Turn created for opponent:', opponentTurn);
+  
+      // Notify the opponent that the challenge was accepted
       socket.emit('challengeAccepted', {
         challengerId: pendingChallenge.challenger.id,
         gameId: gameId,
       });
   
-      setDiceValues(newTurn.dice || [1, 1, 1, 1, 1]);
-      setRollCount(newTurn.rerolls || 0);
+      // Update local state for the current player
+      setDiceValues(currentPlayerTurn.dice || [1, 1, 1, 1, 1]);
+      setRollCount(currentPlayerTurn.rerolls || 0);
       setIsMyTurn(true);
   
       setPendingChallenge(null);
