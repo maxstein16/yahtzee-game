@@ -99,6 +99,7 @@ const LobbyChat = ({ currentPlayer }) => {
     try {
       // Create the game in the database and fetch the generated gameId
       const gameId = await API.createGame('pending', 0, currentPlayer.player_id, player.id);
+      console.log('Game created:', gameId);
   
       // Emit the challenge with the fetched gameId
       socket.emit('gameChallenge', {
