@@ -106,7 +106,7 @@ const LobbyChat = ({ currentPlayer }) => {
                     <Avatar icon={<UserOutlined />} />
                   </Badge>
                 }
-                title={player.name || `${player.id}`} 
+                title={player.name} 
               />
             </List.Item>
           )}
