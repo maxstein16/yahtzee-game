@@ -1,126 +1,66 @@
 import io from 'socket.io-client';
 
 const WS_BASE_URL = 'https://yahtzee-backend-621359075899.us-east1.run.app';
-const HEARTBEAT_INTERVAL = 25000; // 25 seconds
-const HEARTBEAT_TIMEOUT = 5000; // 5 seconds timeout for heartbeat response
+const CONNECTION_TIMEOUT = 10000; // 10 seconds
+
+// Track global connection state
+let isFirstConnection = true;
+let hasLoggedError = false;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 export const initializeWebSocket = (playerId) => {
   return new Promise((resolve, reject) => {
     try {
-      let heartbeatInterval = null;
-      let heartbeatTimeout = null;
-      let missedHeartbeats = 0;
-      const MAX_MISSED_HEARTBEATS = 2;
+      // Reset connection tracking on new initialization
+      hasLoggedError = false;
+      reconnectAttempts = 0;
 
       const socket = io(WS_BASE_URL, {
         query: { playerId },
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: Infinity,
+        reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 20000,
-        withCredentials: true,
-        extraHeaders: {
-          'Access-Control-Allow-Credentials': 'true'
-        }
+        timeout: CONNECTION_TIMEOUT,
+        autoConnect: true
       });
 
-      const startHeartbeat = () => {
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-        }
+      // Track if we've successfully connected
+      let hasConnected = false;
 
-        heartbeatInterval = setInterval(() => {
-          if (!socket.connected) return;
-
-          // Clear any existing timeout
-          if (heartbeatTimeout) {
-            clearTimeout(heartbeatTimeout);
-          }
-
-          // Set timeout for heartbeat response
-          heartbeatTimeout = setTimeout(() => {
-            missedHeartbeats++;
-            console.log(`Missed heartbeat (${missedHeartbeats}/${MAX_MISSED_HEARTBEATS})`);
-
-            if (missedHeartbeats >= MAX_MISSED_HEARTBEATS) {
-              console.log('Missed too many heartbeats, reconnecting...');
-              socket.disconnect();
-              socket.connect();
-            }
-          }, HEARTBEAT_TIMEOUT);
-
-          // Send heartbeat
-          socket.emit('ping', null, () => {
-            if (heartbeatTimeout) {
-              clearTimeout(heartbeatTimeout);
-              heartbeatTimeout = null;
-            }
-            missedHeartbeats = 0;
-          });
-        }, HEARTBEAT_INTERVAL);
-      };
-
-      const stopHeartbeat = () => {
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
-        }
-        if (heartbeatTimeout) {
-          clearTimeout(heartbeatTimeout);
-          heartbeatTimeout = null;
-        }
-      };
-
-      // Connection event handlers
       socket.on('connect', () => {
-        console.log('WebSocket connected successfully');
-        missedHeartbeats = 0;
-        startHeartbeat();
+        hasConnected = true;
+        hasLoggedError = false;
+        reconnectAttempts = 0;
+
+        if (isFirstConnection) {
+          console.log('WebSocket connected successfully');
+          isFirstConnection = false;
+        }
 
         socket.emit('playerJoined', {
           id: playerId,
-          name: localStorage.getItem('playerName') || 'Player',
           timestamp: new Date().toISOString()
         });
       });
 
-      socket.on('disconnect', (reason) => {
-        console.log('WebSocket disconnected:', reason);
-        stopHeartbeat();
+      socket.on('connect_error', (error) => {
+        reconnectAttempts++;
         
-        if (reason === 'io server disconnect') {
-          setTimeout(() => {
-            socket.connect();
-          }, 1000);
+        if (!hasLoggedError) {
+          console.error('WebSocket connection error:', error);
+          hasLoggedError = true;
+        }
+
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          socket.disconnect();
+          reject(new Error('Maximum reconnection attempts reached'));
         }
       });
 
-      socket.on('reconnecting', (attemptNumber) => {
-        console.log(`Attempting to reconnect (${attemptNumber})...`);
-      });
-
-      socket.on('reconnect', () => {
-        console.log('Successfully reconnected');
-        missedHeartbeats = 0;
-        startHeartbeat();
-      });
-
-      socket.on('error', (error) => {
-        console.error('Socket error:', error);
-      });
-
-      // Server heartbeat response
-      socket.on('pong', () => {
-        if (heartbeatTimeout) {
-          clearTimeout(heartbeatTimeout);
-          heartbeatTimeout = null;
-        }
-        missedHeartbeats = 0;
-      });
-
-      // Enhanced socket interface
+      // Enhanced socket interface with logging control
       const enhancedSocket = {
         emit: (event, data) => {
           return new Promise((resolveEmit, rejectEmit) => {
@@ -139,30 +79,52 @@ export const initializeWebSocket = (playerId) => {
           });
         },
 
-        on: (event, callback) => socket.on(event, callback),
+        on: (event, callback) => {
+          if (event === 'connect') {
+            socket.on(event, () => {
+              if (!hasConnected) {
+                callback();
+                hasConnected = true;
+              }
+            });
+          } else {
+            socket.on(event, callback);
+          }
+        },
+
         off: (event) => socket.off(event),
 
         disconnect: () => {
-          stopHeartbeat();
+          isFirstConnection = true; // Reset for next connection
           socket.disconnect();
         },
 
         reconnect: () => {
-          stopHeartbeat();
-          socket.disconnect();
-          socket.connect();
+          if (!socket.connected && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            socket.connect();
+          }
         },
 
         getState: () => ({
           connected: socket.connected,
           connecting: socket.connecting,
-          disconnected: socket.disconnected
-        }),
-
-        isConnected: () => socket.connected
+          disconnected: socket.disconnected,
+          reconnectAttempts
+        })
       };
 
-      resolve(enhancedSocket);
+      // Set connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (!hasConnected) {
+          socket.disconnect();
+          reject(new Error('Connection timeout'));
+        }
+      }, CONNECTION_TIMEOUT);
+
+      socket.on('connect', () => {
+        clearTimeout(connectionTimeout);
+        resolve(enhancedSocket);
+      });
 
     } catch (error) {
       console.error('Error initializing WebSocket:', error);
