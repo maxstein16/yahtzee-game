@@ -227,44 +227,8 @@ export const rollDice = async (gameId, { playerId, currentDice, keepIndices }) =
   }
 };
 
-export const getGameDice = async (gameId, playerId = null) => {
-  try {
-    let url = `${gameId}/dice`;
-    if (playerId) {
-      url += `?playerId=${playerId}`;
-    }
-    const response = await apiRequest(url, 'GET');
-
-    return {
-      dice: response.dice,
-      lastRollTime: response.lastRollTime,
-      rollCount: response.rollCount
-    };
-  } catch (error) {
-    console.error('Error getting game dice:', error);
-    throw error;
-  }
-};
-
-export const getLatestTurn = async (gameId, playerId = null) => {
-  try {
-    let url = `/game/${gameId}/turn/latest`;
-    if (playerId) {
-      url += `?playerId=${playerId}`;
-    }
-    const response = await apiRequest(url, 'GET');
-
-    return {
-      ...response,
-      dice: Array.isArray(response.dice) ? response.dice : [1, 1, 1, 1, 1],
-      rerolls: Number(response.rerolls) || 0,
-      turnScore: Number(response.turnScore) || 0,
-      turnCompleted: Boolean(response.turnCompleted)
-    };
-  } catch (error) {
-    console.error('Error getting latest turn:', error);
-    throw error;
-  }
+export const getGameDice = async (gameId) => {
+  return await apiRequest(`/game/${gameId}/dice`, 'GET');
 };
 
 export const submitTurn = (gameId, playerId, categoryId, score, dice, rerolls) => {

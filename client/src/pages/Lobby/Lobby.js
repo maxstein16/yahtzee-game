@@ -1,5 +1,6 @@
+// src/pages/Lobby/Lobby.js
 import React, { useState, useEffect } from 'react';
-import { message, Layout, Modal } from 'antd';
+import { message, Layout } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import initializeWebSocket from '../../services/websocketService';
@@ -55,34 +56,38 @@ function Lobby() {
 
     const setupSocket = async () => {
       if (!currentPlayer?.player_id) return;
-    
+
       try {
         socketInstance = await initializeWebSocket(currentPlayer.player_id);
         setSocket(socketInstance);
-    
+
         // Set up event listeners
-        socketInstance.onPlayerJoined((playerData) => {
+        socketInstance.on('connect', () => {
+          console.log('Connected to game server');
+          setWasConnected(true);
+          
+          if (isDisconnected) {
+            message.success('Reconnected to game server');
+            setIsDisconnected(false);
+          }
+
           socketInstance.emit('playerJoined', {
             id: currentPlayer.player_id,
-            name: currentPlayer.name,
+            name: currentPlayer.name
           });
-          setAvailablePlayers((prev) =>
-            prev.filter((p) => p.id.toString() !== currentPlayer.player_id.toString())
-          );
         });
-    
-        socketInstance.onGameChallenge((data) => {
-          handleChallengeRequest(data);
+
+        socketInstance.on('disconnect', () => {
+          if (!isDisconnected) {
+            message.warning('Lost connection to game server');
+            setIsDisconnected(true);
+          }
         });
-    
-        socketInstance.onChallengeAccepted((data) => {
-          handleChallengeAccepted(data);
+
+        socketInstance.on('playersUpdate', (players) => {
+          setAvailablePlayers(players.filter(p => p.id !== currentPlayer.player_id));
         });
-    
-        socketInstance.onChallengeRejected((data) => {
-          handleChallengeRejected(data);
-        });
-    
+
         // Connection check interval
         const checkConnection = setInterval(() => {
           const state = socketInstance.getState();
@@ -90,7 +95,7 @@ function Lobby() {
             socketInstance.reconnect();
           }
         }, 30000);
-    
+
         return () => {
           clearInterval(checkConnection);
         };
@@ -110,50 +115,6 @@ function Lobby() {
       }
     };
   }, [currentPlayer?.player_id]);
-
-  const handleChallengeRequest = ({ challenger, gameId }) => {
-    Modal.confirm({
-      title: `${challenger.name} has challenged you to a game!`,
-      onOk: () => {
-        socket.emit('challengeAccepted', {
-          challengerId: challenger.id,
-          gameId: gameId
-        });
-        
-        message.success('Challenge accepted! Starting game...');
-        
-        navigate('/multiplayer', {
-          state: {
-            gameId: gameId,
-            isChallenger: false,
-            opponent: challenger
-          }
-        });
-      },
-      onCancel: () => {
-        socket.emit('challengeRejected', { challengerId: challenger.id });
-        message.warning('Challenge declined.');
-      },
-      okText: 'Accept',
-      cancelText: 'Decline'
-    });
-  };
-
-  const handleChallengeAccepted = ({ gameId, opponent }) => {
-    message.success('Challenge accepted! Starting game...');
-    API.startGame(gameId);
-    navigate('/multiplayer', {
-      state: {
-        gameId: gameId,
-        isChallenger: true,
-        opponent: opponent
-      }
-    });
-  };
-
-  const handleChallengeRejected = ({ message: rejectMessage }) => {
-    message.warning(rejectMessage || 'Challenge declined.');
-  };
 
   if (isLoading) {
     return (

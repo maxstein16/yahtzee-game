@@ -230,68 +230,6 @@ async function getActiveGameForPlayer(playerId) {
   }
 }
 
-async function getLatestTurn(gameId, playerId = null) {
-  try {
-    const clientOpts = await connector.getOptions({
-      instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME,
-      ipType: 'PUBLIC',
-    });
-
-    const pool = await mysql.createPool({
-      ...clientOpts,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    });
-
-    let query = `
-      SELECT 
-        turn_id,
-        game_id,
-        player_id,
-        dice,
-        rerolls,
-        turn_score,
-        turn_completed,
-        created_at,
-        updated_at
-      FROM turn 
-      WHERE game_id = ?
-    `;
-    const queryParams = [gameId];
-
-    if (playerId) {
-      query += ' AND player_id = ?';
-      queryParams.push(playerId);
-    }
-
-    query += ' ORDER BY turn_id DESC LIMIT 1';
-
-    const [results] = await pool.execute(query, queryParams);
-
-    if (results.length === 0) {
-      return null;
-    }
-
-    const turn = results[0];
-    
-    // Parse the dice JSON if it exists
-    if (turn.dice) {
-      try {
-        turn.dice = JSON.parse(turn.dice);
-      } catch (e) {
-        console.error('Error parsing dice JSON:', e);
-        turn.dice = [1, 1, 1, 1, 1];
-      }
-    }
-
-    return turn;
-  } catch (error) {
-    console.error('Database error in getLatestTurn:', error);
-    throw error;
-  }
-}
-
 module.exports = {
   createGame,
   getGameById,
@@ -300,6 +238,5 @@ module.exports = {
   addPlayerToGame,
   getPlayersInGame,
   removePlayerFromGame,
-  getActiveGameForPlayer,
-  getLatestTurn
+  getActiveGameForPlayer
 };
