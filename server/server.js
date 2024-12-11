@@ -20,7 +20,7 @@ io.on('connection', (socket) => {
   socket.on('playerJoined', (player) => {
     connectedPlayers.set(player.id, {
       id: player.id,
-      name: player.name || `Player ${player.id}`,
+      name: player.name,
       socketId: socket.id,
     });
 
