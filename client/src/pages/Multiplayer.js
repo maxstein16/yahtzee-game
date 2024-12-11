@@ -56,6 +56,8 @@ function MultiplayerPage() {
 
         socketConnection.on('gameStart', async ({ gameId, players }) => {
             try {
+                await API.startGame(gameId);
+                
               setIsMyTurn(players[0] === currentPlayer.player_id);
           
               // Initialize categories for the new game
