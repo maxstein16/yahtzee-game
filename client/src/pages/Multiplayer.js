@@ -174,48 +174,41 @@ function MultiplayerPage() {
 
   useEffect(() => {
     if (socket && currentPlayer?.player_id) {
-      // Listen for turn changes
-      socket.on('turnChange', ({ nextPlayer, message, diceValues: newDiceValues, rollCount: newRollCount }) => {
-        // Check if it's our turn based on nextPlayer value
+      socket.on('turnChange', ({ nextPlayer, message, diceValues: newDiceValues, rollCount: newRollCount, canRoll }) => {
         const isMyNewTurn = nextPlayer === currentPlayer.player_id;
-        setIsMyTurn(isMyNewTurn);
         
-        if (isMyNewTurn) {
-          // Reset game state for new turn
-          setDiceValues(newDiceValues || [1, 1, 1, 1, 1]);
-          setRollCount(newRollCount || 0);
-          setSelectedDice([]);
-          message.info(message || "It's your turn!");
-        } else {
-          message.info(message || "Opponent's turn");
-        }
-      });
+        setIsMyTurn(isMyNewTurn);
+        setDiceValues(newDiceValues || [1, 1, 1, 1, 1]);
+        setRollCount(newRollCount || 0);
+        setSelectedDice([]);
   
-      // Listen for category updates
-      socket.on('categoriesUpdate', ({ categories }) => {
-        setPlayerCategories(categories);
+        if (!isMyNewTurn) {
+          // If it's not my turn, make sure I can't roll
+          setIsMyTurn(false);
+          message.info("Opponent's turn");
+        } else {
+          message.info("Your turn!");
+        }
       });
   
       return () => {
         socket.off('turnChange');
-        socket.off('categoriesUpdate');
       };
     }
   }, [socket, currentPlayer]);
 
   const handleDiceRoll = async () => {
-    if (rollCount >= 3) {
-      message.warning('Maximum rolls reached for this turn.');
-      return;
-    }
-  
     if (!isMyTurn) {
       message.warning("It's not your turn!");
       return;
     }
   
-    setIsRolling(true);
+    if (rollCount >= 3) {
+      message.warning('Maximum rolls reached for this turn.');
+      return;
+    }
   
+    setIsRolling(true);
     try {
       const result = await API.rollDice(gameId, {
         playerId: currentPlayer?.player_id,
@@ -238,7 +231,7 @@ function MultiplayerPage() {
     } finally {
       setIsRolling(false);
     }
-  };  
+  };
 
   const checkForYahtzeeBonus = (dice) => {
     if (!hasYahtzee) return false;

@@ -169,26 +169,23 @@ io.on('connection', (socket) => {
     const currentPlayerId = socketToPlayer.get(socket.id);
     
     try {
-      // Submit the score to the server
       await API.submitGameScore(gameId, currentPlayerId, categoryName, score);
-
-      // Get both players' updated categories
-      const currentPlayerCategories = await API.getPlayerCategories(currentPlayerId);
-      const opponentCategories = await API.getPlayerCategories(nextPlayerId);
-
-      // Get both sockets
+  
       const currentPlayerSocket = connectedPlayers.get(currentPlayerId)?.socketId;
       const nextPlayerSocket = connectedPlayers.get(nextPlayerId)?.socketId;
-
+  
       // Notify current player their turn is over
       if (currentPlayerSocket) {
         io.to(currentPlayerSocket).emit('turnChange', {
           nextPlayer: nextPlayerId,
           isMyTurn: false,
-          message: "Opponent's turn"
+          message: "Opponent's turn",
+          diceValues: [1, 1, 1, 1, 1],
+          rollCount: 0,
+          canRoll: false  // Explicitly prevent rolling
         });
       }
-
+  
       // Notify next player it's their turn
       if (nextPlayerSocket) {
         io.to(nextPlayerSocket).emit('turnChange', {
@@ -196,18 +193,10 @@ io.on('connection', (socket) => {
           isMyTurn: true,
           message: "Your turn!",
           diceValues: [1, 1, 1, 1, 1],
-          rollCount: 0
+          rollCount: 0,
+          canRoll: true   // Explicitly allow rolling
         });
       }
-
-      // Broadcast category updates to both players
-      io.to(currentPlayerSocket).emit('categoriesUpdate', {
-        categories: currentPlayerCategories
-      });
-      io.to(nextPlayerSocket).emit('categoriesUpdate', {
-        categories: opponentCategories
-      });
-
     } catch (error) {
       console.error('Error in score submission:', error);
       socket.emit('scoreError', { error: error.message });
