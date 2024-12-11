@@ -73,19 +73,19 @@ router.post('/game/:id/roll', async (req, res) => {
       console.log('Fetching turn for gameId:', gameId, 'playerId:', playerId);
   
       const turn = await getLatestTurn(gameId, playerId);
-      console.log('Turn fetched:', turn);
+      console.log('Turn fetched from database:', turn);
   
       if (!turn) {
         console.warn('No active turn found for gameId:', gameId, 'playerId:', playerId);
         return res.status(404).json({ error: 'No active turn found' });
       }
   
-      return res.json(turn);
+      res.json(turn);
     } catch (error) {
       console.error('Error in GET /game/:id/turn:', error);
       res.status(500).json({ error: 'Failed to fetch turn', details: error.message });
     }
-  });
+  });  
   
 router.post('/game/:id/turn', async (req, res) => {
   try {
