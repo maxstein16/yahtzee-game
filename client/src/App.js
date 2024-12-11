@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Lobby from './pages/Lobby/Lobby';
-import Game from './pages/Game/Game';
+import GameWrapper from './pages/GameWrapper';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -35,7 +35,7 @@ function App() {
           path="/game/:gameId"
           element={
             <ProtectedRoute>
-              <Game />
+              <GameWrapper />
             </ProtectedRoute>
           }
         />

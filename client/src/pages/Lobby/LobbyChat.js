@@ -118,38 +118,40 @@ const LobbyChat = ({ currentPlayer }) => {
   };    
 
   const handleAcceptChallenge = async () => {
-    if (!pendingChallenge) return;
+    if (!pendingChallenge || !pendingChallenge.gameId) {
+      message.error('Invalid game challenge');
+      return;
+    }
   
     try {
       const { gameId } = pendingChallenge;
-  
-      // Fetch the game details to verify the ID
+      
+      // Verify the game exists
       const game = await API.getGameById(gameId);
-      if (!game || !game.game_id) {
-        throw new Error('Invalid or missing game ID from the database');
+      if (!game) {
+        throw new Error('Game not found');
       }
   
-      console.log('Fetched game details:', game);
-  
       // Start the game
-      await API.startGame(game.game_id);
+      await API.startGame(gameId);
   
-      // Notify both players to join the game
+      // Notify the challenger
       socket.emit('challengeAccepted', {
         challengerId: pendingChallenge.challenger.id,
-        gameId: game.game_id,
+        gameId: gameId
       });
   
-      message.success('Game started! Redirecting...');
+      message.success('Challenge accepted! Starting game...');
       setPendingChallenge(null);
   
-      // Redirect both players to the game page
-      navigate(`/game/${game.game_id}`);
+      // Navigate to the game
+      navigate(`/game/${gameId}`);
     } catch (error) {
       console.error('Error accepting challenge:', error);
-      message.error('Failed to accept challenge');
+      message.error('Failed to start game');
+      setPendingChallenge(null);
     }
-  };  
+  };
 
   const handleDeclineChallenge = () => {
     if (!pendingChallenge) return;
