@@ -6,6 +6,7 @@ import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
 import initializeWebSocket from '../../services/websocketService';
 import LobbyChat from './LobbyChat';
 import GameHeader from '../../components/GameHeader/GameHeader';
+import API from '../../utils/api';
 
 function Lobby() {
   const navigate = useNavigate();
@@ -37,10 +38,39 @@ function Lobby() {
     initializePlayer();
   }, [navigate]);
 
+  // Handle new game creation
+  const handleNewGame = async () => {
+    try {
+      // Reset current player's categories
+      await API.resetPlayerCategories(currentPlayer.player_id);
+      
+      // Create a new game
+      const response = await API.createGame(
+        'pending', 
+        0, 
+        currentPlayer.player_id
+      );
+      
+      // Initialize categories
+      await API.initializePlayerCategories(currentPlayer.player_id);
+      
+      // Start the game
+      await API.startGame(response.game.game_id);
+      
+      // Navigate to singleplayer with the game ID
+      navigate('/singleplayer', { 
+        state: { gameId: response.game.game_id }
+      });
+    } catch (error) {
+      console.error('Error creating new game:', error);
+      message.error('Failed to create new game');
+    }
+  };
+
   // WebSocket setup
   useEffect(() => {
     if (currentPlayer?.player_id) {
-      initializeWebSocket(null, currentPlayer.player_id)
+      initializeWebSocket(currentPlayer.player_id)
         .then(socketConnection => {
           setSocket(socketConnection);
           
@@ -54,6 +84,17 @@ function Lobby() {
 
           socketConnection.on('playersUpdate', (players) => {
             setAvailablePlayers(players);
+          });
+
+          // Add error handling for socket connection
+          socketConnection.on('connect_error', (error) => {
+            console.error('Socket connection error:', error);
+            message.error('Lost connection to game server');
+          });
+
+          socketConnection.on('error', (error) => {
+            console.error('Socket error:', error);
+            message.error('Game server error occurred');
           });
         })
         .catch(error => {
@@ -83,6 +124,7 @@ function Lobby() {
     <Layout style={{ height: '100vh' }}>
       <GameHeader
         currentPlayer={currentPlayer}
+        handleNewGame={handleNewGame}
         handleLogout={() => handleLogout(navigate)}
         socket={socket}
         availablePlayers={availablePlayers}
