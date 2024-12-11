@@ -246,6 +246,27 @@ const MultiplayerPage = () => {
     }
   };
 
+  // Add this before the return statement, alongside other functions like handleDiceRoll
+const handleTurnComplete = (categoryName) => {
+  // Reset dice and roll state
+  setDiceValues([1, 1, 1, 1, 1]);
+  setRollCount(0);
+  setSelectedDice([]);
+
+  // Update turn state
+  setIsMyTurn(false);
+
+  // Notify opponent through socket
+  socket?.emit('turnComplete', {
+    gameId,
+    categoryName,
+    nextPlayerId: opponent.id
+  });
+
+  // Show turn completion message
+  message.info("Turn complete - waiting for opponent");
+};
+
   // Handle dice selection
   const toggleDiceSelection = (index) => {
     if (!isMyTurn || isRolling) return;
@@ -290,7 +311,7 @@ const MultiplayerPage = () => {
               diceValues={diceValues}
               rollCount={rollCount}
               handleScoreCategoryClick={handleScoreCategoryClick}
-              onTurnComplete={() => {}}
+              onTurnComplete={handleTurnComplete}
               gameId={gameId}
             />
             <Scoreboard
@@ -300,7 +321,7 @@ const MultiplayerPage = () => {
               diceValues={opponentDiceValues}
               rollCount={0}
               handleScoreCategoryClick={() => {}}
-              onTurnComplete={() => {}}
+              onTurnComplete={() => {}} 
               gameId={gameId}
               isOpponent={true}
             />
