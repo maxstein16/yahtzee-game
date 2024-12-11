@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
-import GameBoard from '../../components/GameBoard/GameBoard';
-import GameHeader from '../../components/GameHeader/GameHeader';
-import GameChat from '../../components/GameChat/GameChat';
-import Scoreboard from '../../components/ScoreBoard/ScoreBoard';
-import { handleLogout, fetchCurrentPlayer } from '../../services/authService';
-import API from '../../utils/api';
-import initializeWebSocket from '../../services/websocketService';
+import GameBoard from '../components/GameBoard/GameBoard';
+import GameHeader from '../components/GameHeader/GameHeader';
+import GameChat from '../components/GameChat/GameChat';
+import Scoreboard from '../components/ScoreBoard/ScoreBoard';
+import { handleLogout, fetchCurrentPlayer } from '../services/authService';
+import API from '../utils/api';
+import initializeWebSocket from '../services/websocketService';
 
 function MultiplayerPage() {
   const navigate = useNavigate();
