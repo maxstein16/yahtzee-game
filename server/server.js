@@ -100,6 +100,11 @@ io.on('connection', (socket) => {
     }
   });
 
+  socketConnection.on('gameStart', ({ gameId }) => {
+    message.success('Game is starting!');
+    navigate(`/game/${gameId}`);
+  });  
+
   socket.on('disconnect', () => {
     for (const [id, data] of connectedPlayers.entries()) {
       if (data.socketId === socket.id) {

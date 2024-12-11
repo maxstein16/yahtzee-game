@@ -1,10 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login'
+import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Lobby from './pages/Lobby/Lobby';
-import MultiplayerPage from './pages/Multiplayer';
-import SingleplayerPage from './pages/Singleplayer';
+import Game from './pages/Game'; // Adjust the path as needed
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -33,18 +32,10 @@ function App() {
           }
         />
         <Route
-          path="/multiplayer"
+          path="/game/:gameId"
           element={
             <ProtectedRoute>
-              <MultiplayerPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/singleplayer"
-          element={
-            <ProtectedRoute>
-              <SingleplayerPage />
+              <Game />
             </ProtectedRoute>
           }
         />

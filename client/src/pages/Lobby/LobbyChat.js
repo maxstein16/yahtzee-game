@@ -134,7 +134,7 @@ const LobbyChat = ({ currentPlayer }) => {
       // Start the game
       await API.startGame(game.game_id);
   
-      // Notify the challenger that the challenge is accepted
+      // Notify both players to join the game
       socket.emit('challengeAccepted', {
         challengerId: pendingChallenge.challenger.id,
         gameId: game.game_id,
@@ -143,7 +143,7 @@ const LobbyChat = ({ currentPlayer }) => {
       message.success('Game started! Redirecting...');
       setPendingChallenge(null);
   
-      // Navigate to the game page
+      // Redirect both players to the game page
       navigate(`/game/${game.game_id}`);
     } catch (error) {
       console.error('Error accepting challenge:', error);
