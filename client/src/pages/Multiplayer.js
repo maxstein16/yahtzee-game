@@ -54,6 +54,19 @@ function MultiplayerPage() {
           setDiceValues([1, 1, 1, 1, 1]);
         });
 
+        socketConnection.on('gameStart', async ({ gameId, players }) => {
+            // Initialize categories for the new game
+            await API.initializePlayerCategories(currentPlayer.player_id);
+            
+            // Update game state
+            const gameData = await API.getGameById(gameId);
+            if (gameData) {
+                setIsMyTurn(players[0] === currentPlayer.player_id);
+                const categories = await API.getPlayerCategories(currentPlayer.player_id);
+                setPlayerCategories(categories);
+            }
+        });
+
         socketConnection.on('gameEnd', ({ winner }) => {
           message.success(`Game Over! ${winner.name} wins!`);
           navigate('/lobby');
@@ -78,6 +91,14 @@ function MultiplayerPage() {
       }
     };
   }, [gameId, navigate]);
+
+  useEffect(() => {
+    if (!location.state || !location.state.gameId || !location.state.opponent) {
+      message.error('Invalid game parameters');
+      navigate('/lobby');
+      return;
+    }
+  }, [location.state, navigate]);
 
   const handleDiceRoll = async () => {
     if (!isMyTurn) {
@@ -116,7 +137,7 @@ function MultiplayerPage() {
     // This should return an object with category names as keys and possible scores as values
     return {};
   };
-  
+
   const handleScoreCategoryClick = async (categoryName) => {
     if (!isMyTurn) {
       message.warning("It's not your turn!");
@@ -160,6 +181,56 @@ function MultiplayerPage() {
         return [...prev, index];
       }
     });
+  };
+
+  // In MultiplayerPage.js
+const handleNewGame = async () => {
+    try {
+      // First, reset categories for both players
+      if (currentPlayer?.player_id) {
+        await API.resetPlayerCategories(currentPlayer.player_id);
+      }
+      if (opponent?.id) {
+        await API.resetPlayerCategories(opponent.id);
+      }
+  
+      // Create a new game with both players
+      const response = await API.createGame(
+        'pending', 
+        0, 
+        currentPlayer?.player_id,
+        opponent?.id
+      );
+  
+      if (response?.game?.game_id) {
+        // Initialize categories for both players
+        await API.initializePlayerCategories(currentPlayer.player_id);
+        await API.initializePlayerCategories(opponent.id);
+  
+        // Start the game
+        await API.startGame(response.game.game_id);
+  
+        // Notify opponent through socket
+        if (socket) {
+          socket.emit('gameStart', {
+            gameId: response.game.game_id,
+            players: [currentPlayer.player_id, opponent.id]
+          });
+        }
+  
+        // Navigate to multiplayer with the game ID
+        navigate('/multiplayer', { 
+          state: { 
+            gameId: response.game.game_id,
+            isChallenger: true,
+            opponent: opponent
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error creating new game:', error);
+      message.error('Failed to create new game');
+    }
   };
 
   return (

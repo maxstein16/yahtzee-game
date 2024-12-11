@@ -1,23 +1,29 @@
 const express = require('express');
 const router = express.Router();
 const { createGame, getGameById, updateGame, deleteGame, getActiveGameForPlayer } = require('../db/gameQueries');
+const { createTurn } = require('../db/turnQueries');
 
 // POST route for creating a new game
 router.post('/game', async (req, res) => {
   console.log('Game creation request received:', req.body);
 
   const { status, round, player1Id, player2Id } = req.body;
-  if (!player1Id) {
-    return res.status(400).json({ error: 'Player ID is required' });
+  if (!player1Id || !player2Id) {
+    return res.status(400).json({ error: 'Both player IDs are required' });
   }
 
   try {
+    // Create new game with both players
     const newGame = await createGame(
-      status, 
-      round, 
+      status || 'pending', 
+      round || 0, 
       player1Id,
-      player2Id || player1Id
+      player2Id
     );
+
+    // Also initialize the game state
+    await createTurn(newGame.game.game_id, player1Id, [1,1,1,1,1], 0, 0, false);
+
     res.status(201).json(newGame);
   } catch (error) {
     console.error('Error creating game:', error);
