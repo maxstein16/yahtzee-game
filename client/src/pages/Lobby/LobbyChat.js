@@ -97,11 +97,13 @@ const LobbyChat = ({ currentPlayer }) => {
     if (!socket) return;
   
     try {
-      // Create the game in the database and fetch the generated gameId
-      const gameId = await API.createGame('pending', 0, currentPlayer.player_id, player.id);
-      console.log('Game created:', gameId);
+      // Create the game on the server
+      const { game } = await API.createGame('pending', 0, currentPlayer.player_id, player.id);
+      const gameId = game.game_id; // Ensure the correct gameId from the DB is used
   
-      // Emit the challenge with the fetched gameId
+      console.log('Game created with ID:', gameId);
+  
+      // Emit the challenge with the correct gameId
       socket.emit('gameChallenge', {
         challenger: { id: currentPlayer.player_id, name: currentPlayer.name },
         opponentId: player.id,
@@ -113,28 +115,36 @@ const LobbyChat = ({ currentPlayer }) => {
       console.error('Error creating game:', error);
       message.error('Failed to send challenge');
     }
-  };  
+  };    
 
   const handleAcceptChallenge = async () => {
     if (!pendingChallenge) return;
   
     try {
       const { gameId } = pendingChallenge;
-      if (typeof gameId !== 'string' && typeof gameId !== 'number') {
-        throw new Error('Invalid gameId format');
+  
+      // Fetch the game details to verify the ID
+      const game = await API.getGameById(gameId);
+      if (!game || !game.game_id) {
+        throw new Error('Invalid or missing game ID from the database');
       }
   
-      await API.startGame(gameId);
+      console.log('Fetched game details:', game);
   
-      socket.emit('challengeAccepted', { 
-        challengerId: pendingChallenge.challenger.id, 
-        gameId 
+      // Start the game
+      await API.startGame(game.game_id);
+  
+      // Notify the challenger that the challenge is accepted
+      socket.emit('challengeAccepted', {
+        challengerId: pendingChallenge.challenger.id,
+        gameId: game.game_id,
       });
   
-      message.success('Game started! Redirecting to the game...');
+      message.success('Game started! Redirecting...');
       setPendingChallenge(null);
   
-      navigate(`/game/${gameId}`);
+      // Navigate to the game page
+      navigate(`/game/${game.game_id}`);
     } catch (error) {
       console.error('Error accepting challenge:', error);
       message.error('Failed to accept challenge');
