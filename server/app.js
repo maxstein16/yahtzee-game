@@ -62,7 +62,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // API routes
-app.use('/api', routes());
+app.use('./routes', routes());
 
 // Error handling for CORS
 app.use((err, req, res, next) => {
