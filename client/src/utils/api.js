@@ -149,7 +149,7 @@ export const sendMessage = (gameId, playerId, message) =>
 
 // Turn Management
 async function rollDice(gameId, player, diceValues, selectedDice) {
-  return fetch(`/api/games/${gameId}/roll`, {
+  return fetch(`/game/${gameId}/roll`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ player, diceValues, selectedDice }),
