@@ -8,8 +8,6 @@ import { handleLogout, fetchCurrentPlayer } from '../services/authService';
 import API from '../utils/api';
 import initializeWebSocket from '../services/websocketService';
 
-const INITIAL_DICE_VALUES = [1, 1, 1, 1, 1];
-
 function MultiplayerPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -336,7 +334,6 @@ function MultiplayerPage() {
       setPlayerTotal(scores.total + yahtzeeBonus);
   
       // Reset turn state
-      setDiceValues(INITIAL_DICE_VALUES);
       setRollCount(0);
       setSelectedDice([]);
   
