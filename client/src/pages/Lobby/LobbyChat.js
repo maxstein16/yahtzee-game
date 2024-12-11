@@ -117,22 +117,29 @@ const LobbyChat = ({ currentPlayer }) => {
 
   const handleAcceptChallenge = async () => {
     if (!pendingChallenge) return;
-
+  
     try {
       const { gameId } = pendingChallenge;
+      if (typeof gameId !== 'string' && typeof gameId !== 'number') {
+        throw new Error('Invalid gameId format');
+      }
+  
       await API.startGame(gameId);
+  
       socket.emit('challengeAccepted', { 
         challengerId: pendingChallenge.challenger.id, 
         gameId 
       });
-
-      setWaitingForOpponent(true);
-      message.info('Waiting for opponent to accept...');
+  
+      message.success('Game started! Redirecting to the game...');
+      setPendingChallenge(null);
+  
+      navigate(`/game/${gameId}`);
     } catch (error) {
       console.error('Error accepting challenge:', error);
       message.error('Failed to accept challenge');
     }
-  };
+  };  
 
   const handleDeclineChallenge = () => {
     if (!pendingChallenge) return;
