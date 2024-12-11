@@ -27,7 +27,6 @@ export const initializeWebSocket = (playerId) => {
         autoConnect: true
       });
 
-      // Track if we've successfully connected
       let hasConnected = false;
 
       socket.on('connect', () => {
@@ -60,24 +59,37 @@ export const initializeWebSocket = (playerId) => {
         }
       });
 
-      // Enhanced socket interface with logging control
+      // Enhanced socket interface with both Promise and regular emit support
       const enhancedSocket = {
-        emit: (event, data) => {
-          return new Promise((resolveEmit, rejectEmit) => {
+        emit: (event, data, callback) => {
+          if (callback) {
+            // Regular emit with callback
             if (!socket.connected) {
-              rejectEmit(new Error('Socket is not connected'));
+              callback({ error: 'Socket is not connected' });
               return;
             }
-
-            socket.emit(event, data, (acknowledgement) => {
-              if (acknowledgement?.error) {
-                rejectEmit(new Error(acknowledgement.error));
-              } else {
-                resolveEmit(acknowledgement);
+            socket.emit(event, data, callback);
+          } else {
+            // Promise-based emit
+            return new Promise((resolveEmit, rejectEmit) => {
+              if (!socket.connected) {
+                rejectEmit(new Error('Socket is not connected'));
+                return;
               }
+
+              socket.emit(event, data, (acknowledgement) => {
+                if (acknowledgement?.error) {
+                  rejectEmit(new Error(acknowledgement.error));
+                } else {
+                  resolveEmit(acknowledgement);
+                }
+              });
             });
-          });
+          }
         },
+
+        // Direct access to underlying socket's emit
+        rawEmit: (...args) => socket.emit(...args),
 
         on: (event, callback) => {
           if (event === 'connect') {
@@ -95,7 +107,7 @@ export const initializeWebSocket = (playerId) => {
         off: (event) => socket.off(event),
 
         disconnect: () => {
-          isFirstConnection = true; // Reset for next connection
+          isFirstConnection = true;
           socket.disconnect();
         },
 
@@ -113,7 +125,6 @@ export const initializeWebSocket = (playerId) => {
         })
       };
 
-      // Set connection timeout
       const connectionTimeout = setTimeout(() => {
         if (!hasConnected) {
           socket.disconnect();

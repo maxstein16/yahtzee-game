@@ -18,37 +18,38 @@ const GameHeader = ({
   const [isChallengePending, setIsChallengePending] = useState(false);
 
   const handleChallenge = async (opponent) => {
-    if (!socket) {
-      message.error('Unable to send challenge. No connection to server.');
-      return;
-    }
+  if (!socket) {
+    message.error('Unable to send challenge. No connection to server.');
+    return;
+  }
 
-    try {
-      const response = await API.createGame(
-        'pending', 
-        0, 
-        currentPlayer?.player_id,
-        opponent.id
-      );
-      
-      socket.emit('gameChallenge', {
-        challenger: { 
-          id: currentPlayer?.player_id, 
-          name: currentPlayer?.name 
-        },
-        opponentId: opponent.id,
-        gameId: response.game.game_id
-      });
+  try {
+    const response = await API.createGame(
+      'pending', 
+      0, 
+      currentPlayer?.player_id,
+      opponent.id
+    );
+    
+    // Use rawEmit for events that don't need Promise-based handling
+    socket.rawEmit('gameChallenge', {
+      challenger: { 
+        id: currentPlayer?.player_id, 
+        name: currentPlayer?.name 
+      },
+      opponentId: opponent.id,
+      gameId: response.game.game_id
+    });
 
-      message.info(`Challenge sent to ${opponent.name}`);
-      setPendingChallenge(opponent);
-      setIsChallengePending(true);
-      setIsModalVisible(false);
-    } catch (error) {
-      console.error('Error creating game:', error);
-      message.error('Failed to create game');
-    }
-  };
+    message.info(`Challenge sent to ${opponent.name}`);
+    setPendingChallenge(opponent);
+    setIsChallengePending(true);
+    setIsModalVisible(false);
+  } catch (error) {
+    console.error('Error creating game:', error);
+    message.error('Failed to create game');
+  }
+};
 
   useEffect(() => {
     if (!socket) return;
@@ -57,7 +58,7 @@ const GameHeader = ({
       Modal.confirm({
         title: `${challenger.name} has challenged you to a game!`,
         onOk: () => {
-          socket.emit('challengeAccepted', { 
+          socket.rawEmit('challengeAccepted', { 
             challengerId: challenger.id,
             gameId: gameId 
           });
@@ -74,7 +75,7 @@ const GameHeader = ({
           });
         },
         onCancel: () => {
-          socket.emit('challengeRejected', { challengerId: challenger.id });
+          socket.rawEmit('challengeRejected', { challengerId: challenger.id });
           message.warning('Challenge declined.');
           setIsChallengePending(false);
         },
