@@ -70,29 +70,12 @@ io.on('connection', (socket) => {
 
   // Handle challenge acceptance
   socket.on('challengeAccepted', ({ challengerId, gameId }) => {
-    const challenge = activeChallenges.get(gameId);
-    if (!challenge) {
-      socket.emit('error', { message: 'Challenge not found' });
-      return;
-    }
-
-    challenge.status = 'accepted';
-
-    // Check if both players have accepted
-    if (challenge.challenger.id === challengerId) {
-      challenge.challengerAccepted = true;
-    } else if (challenge.opponent.id === challengerId) {
-      challenge.opponentAccepted = true;
-    }
-
-    if (challenge.challengerAccepted && challenge.opponentAccepted) {
-      // Notify both players to start the game
-      io.to(challenge.challenger.socketId).emit('gameStart', { gameId });
-      io.to(challenge.opponent.socketId).emit('gameStart', { gameId });
-
-      // Remove the challenge
-      activeChallenges.delete(gameId);
-    }
+    console.log(`Game accepted by player for gameId: ${gameId}`);
+    
+    // Emit gameStart to both players
+    const gameStartPayload = { gameId };
+    io.to(connectedPlayers.get(challengerId).socketId).emit('gameStart', gameStartPayload);
+    io.to(socket.id).emit('gameStart', gameStartPayload);
   });
 
   // Handle challenge rejection
