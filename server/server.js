@@ -40,7 +40,7 @@ io.on('connection', (socket) => {
 
     // Send current players list
     const players = Array.from(connectedPlayers.values())
-      .filter(p => p.id && p.name); // Filter out invalid entries
+      .filter(p => p.id && p.name);
     
     io.emit('playersUpdate', players);
   });
@@ -66,7 +66,7 @@ io.on('connection', (socket) => {
   });
 
   // Game challenge event
-  socket.on('gameChallenge', ({ challenger, opponentId }) => {
+  socket.on('gameChallenge', ({ challenger, opponentId, gameId }) => {
     const opponent = connectedPlayers.get(opponentId);
 
     if (!opponent) {
@@ -75,22 +75,29 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Send challenge request to opponent
-    io.to(opponent.socketId).emit('challengeRequest', { challenger });
+    // Send challenge request to opponent with game ID
+    io.to(opponent.socketId).emit('challengeRequest', { 
+      challenger,
+      gameId
+    });
   });
 
-  // Challenge accepted event
   socket.on('challengeAccepted', async ({ challengerId, gameId }) => {
     const challenger = connectedPlayers.get(challengerId);
+    const acceptingPlayer = connectedPlayers.get(socketToPlayer.get(socket.id));
   
     if (!challenger) {
       console.log('Challenger not found:', challengerId);
       return;
     }
   
-    // Notify the challenger with the game ID
+    // Notify the challenger with the game ID and opponent info
     io.to(challenger.socketId).emit('challengeAccepted', { 
-      gameId 
+      gameId,
+      opponent: {
+        id: acceptingPlayer.id,
+        name: acceptingPlayer.name
+      }
     });
   });
 
@@ -103,8 +110,9 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Notify challenger about rejection
-    io.to(challenger.socketId).emit('challengeRejected', { message: 'Your challenge was declined.' });
+    io.to(challenger.socketId).emit('challengeRejected', { 
+      message: 'Your challenge was declined.' 
+    });
   });
 
   // Dice roll event
