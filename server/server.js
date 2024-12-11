@@ -91,18 +91,23 @@ io.on('connection', (socket) => {
   // Handle dice rolls
   socket.on('diceRolled', ({ gameId, dice, player }) => {
     const game = activeGames.get(gameId);
-    if (game && game.currentTurn === player) {
-      // Update game state
-      game.dice = dice;
-      game.rollCount++;
-      
-      // Broadcast the dice roll to both players
-      io.emit('diceRolled', {
-        gameId,
-        dice,
-        player
-      });
+    
+    // Only allow dice rolls from the current player
+    if (!game || game.currentTurn !== player) {
+      socket.emit('error', { message: "Not your turn!" });
+      return;
     }
+  
+    // Update game state
+    game.dice = dice;
+    game.rollCount++;
+    
+    // Broadcast the dice roll to all players
+    io.emit('diceRolled', {
+      gameId,
+      dice,
+      player
+    });
   });
 
   // Handle turn end
@@ -113,11 +118,14 @@ io.on('connection', (socket) => {
       game.currentTurn = nextPlayer;
       game.rollCount = 0;
       game.dice = [1, 1, 1, 1, 1];
-
-      // Notify all players about the turn change
+  
+      console.log(`Turn ended in game ${gameId}. Next player: ${nextPlayer}`);
+  
+      // Broadcast turn change to ALL players
       io.emit('turnChange', {
         gameId,
-        nextPlayer
+        currentPlayer: nextPlayer,
+        previousPlayer: game.currentTurn
       });
     }
   });

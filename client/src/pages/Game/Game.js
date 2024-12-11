@@ -28,25 +28,28 @@ const Game = ({ gameId, currentPlayer }) => {
       try {
         const game = await API.getGameById(gameId);
         const players = await API.getPlayersInGame(gameId);
-
+  
         // Set opponent details
         const opponentPlayer = players.find(p => p.player_id !== currentPlayer.player_id);
         setOpponent(opponentPlayer);
-
+  
         // Initialize player categories
         await API.initializePlayerCategories(currentPlayer.player_id);
         const categories = await API.getPlayerCategories(currentPlayer.player_id);
         setPlayerCategories(categories);
-
+  
         // Set default dice values first
         setDiceValues([1, 1, 1, 1, 1]);
-
+  
         // Determine if it's the player's turn based on game state
-        const isPlayerTurn = game.currentTurnPlayer === currentPlayer.player_id || 
-                           game.status === 'pending' || 
-                           !game.currentTurnPlayer;
+        const isPlayerTurn = game.currentTurn === currentPlayer.player_id || 
+                           (game.status === 'pending' && !game.currentTurn);
         setIsMyTurn(isPlayerTurn);
-
+  
+        if (!isPlayerTurn) {
+          message.info("Waiting for opponent's turn...");
+        }
+  
         try {
           const gameDice = await API.getGameDice(gameId);
           if (gameDice && Array.isArray(gameDice.dice)) {
@@ -55,46 +58,42 @@ const Game = ({ gameId, currentPlayer }) => {
         } catch (diceError) {
           console.warn('Could not fetch dice state:', diceError);
         }
-
+  
       } catch (error) {
         console.error('Error fetching game details:', error);
         message.error('Failed to load game details.');
       }
     };
-
+  
     fetchGameDetails();
-
+  
     // Initialize WebSocket
     const socketConnection = initializeWebSocket(currentPlayer.player_id);
     setSocket(socketConnection);
-
-    socketConnection.on('chatMessage', (message) => {
-      setChatMessages((prevMessages) => [...prevMessages, message]);
-      scrollToBottom();
-    });
-
-    // Listen for turn changes
-    socketConnection.on('turnChange', ({ nextPlayer }) => {
-      setIsMyTurn(nextPlayer === currentPlayer.player_id);
-      if (nextPlayer === currentPlayer.player_id) {
-        message.info("It's your turn!");
+  
+    // Socket event handlers
+    socketConnection.on('turnChange', ({ currentPlayer: nextPlayer, previousPlayer }) => {
+      const isMyNewTurn = nextPlayer === currentPlayer.player_id;
+      setIsMyTurn(isMyNewTurn);
+      
+      if (isMyNewTurn) {
+        message.success("It's your turn!");
         setRollCount(0);
         setDiceValues([1, 1, 1, 1, 1]);
+      } else {
+        message.info("Opponent's turn");
       }
     });
-
+  
     socketConnection.on('diceRolled', ({ dice, player }) => {
+      setDiceValues(dice);
       if (player !== currentPlayer.player_id) {
-        setDiceValues(dice);
+        message.info("Opponent rolled the dice!");
       }
     });
-
+  
     return () => socketConnection.disconnect();
   }, [gameId, currentPlayer]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const toggleDiceSelection = (index) => {
     setSelectedDice((prevSelected) =>
@@ -105,8 +104,16 @@ const Game = ({ gameId, currentPlayer }) => {
   };
 
   const handleDiceRoll = async () => {
-    if (rollCount >= 3 || !isMyTurn) return;
-
+    if (!isMyTurn) {
+      message.warning("It's not your turn!");
+      return;
+    }
+  
+    if (rollCount >= 3) {
+      message.warning("You've used all your rolls! Please select a category to score.");
+      return;
+    }
+  
     try {
       setIsRolling(true);
       const result = await API.rollDice(gameId, {
@@ -114,7 +121,7 @@ const Game = ({ gameId, currentPlayer }) => {
         currentDice: diceValues,
         keepIndices: selectedDice,
       });
-
+  
       if (result.success) {
         setDiceValues(result.dice);
         setRollCount(prev => prev + 1);
@@ -136,6 +143,7 @@ const Game = ({ gameId, currentPlayer }) => {
       setIsRolling(false);
     }
   };
+  
   const handleScoreCategoryClick = async (categoryName) => {
     try {
       // Only allow scoring on your turn
